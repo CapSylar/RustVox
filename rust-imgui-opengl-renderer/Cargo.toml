@@ -1,0 +1,17 @@
+[package]
+name = "imgui-opengl-renderer"
+description = "An OpenGL renderer for imgui-rs"
+version = "0.11.1"
+authors = ["Michael Fairley <michael@michaelfairley.com>"]
+build = "build.rs"
+homepage = "https://github.com/michaelfairley/rust-imgui-opengl-renderer"
+repository = "https://github.com/michaelfairley/rust-imgui-opengl-renderer"
+readme = "README.md"
+categories = ["gui", "rendering::graphics-api"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+imgui  = { git = "https://github.com/imgui-rs/imgui-rs.git" }
+
+[build-dependencies]
+gl_generator = "0.14.0"
