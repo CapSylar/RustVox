@@ -2,5 +2,5 @@
 
 members = [
     "rust-imgui-opengl-renderer",
-    "rust-craft",
+    "rust-vox",
 ]

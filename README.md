@@ -1,4 +1,4 @@
-# RustCraft
+# RustVox
 
 just trying to get OpenGL to work right now
 

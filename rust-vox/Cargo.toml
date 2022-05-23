@@ -5,7 +5,9 @@ edition = "2021"
 
 [dependencies]
 sdl2 = "*"
+image = "0.24.2"
 gl = "0.14.0"
+glam = "0.20.5"
 imgui-opengl-renderer = { path = "../rust-imgui-opengl-renderer"}
 imgui  = { git = "https://github.com/imgui-rs/imgui-rs.git" }
 imgui_sdl2_support = { git = "https://github.com/imgui-rs/imgui-rs.git", package="imgui-sdl2-support" }
