@@ -1,15 +1,20 @@
 use std::ffi::CStr;
 
 use __core::{mem::{size_of_val, size_of}, ffi::c_void, f32::consts::PI };
-use glam::{Mat4, DMat4, Vec3};
+use glam::{Mat4, Vec3};
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     event::Event,
-    video::{GLProfile, self}
+    video::{GLProfile}
 };
-use std::time::Instant;
 
+mod ui;
+mod renderer;
+
+use renderer::camera;
+
+use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
 struct State
@@ -74,14 +79,8 @@ fn main()
     imgui.set_log_filename(None);
 
     // setup platform and renderer, and fonts to imgui
-
-    // imgui.fonts().add_font(&[imgui::FontSource::DefaultFontData { config: None }]);
-    let roboto = imgui.fonts().add_font(&[FontSource::TtfData {
-        data: include_bytes!("../resources/JetBrains.ttf"),
-        size_pixels: 17.0 ,
-        config: None,
-    }]);
-
+    let ui_renderer = ui::Ui::new(&mut imgui);
+    
     let mut platform = SdlPlatform::init(&mut imgui);
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
     let mut event_pump = sdl.event_pump().unwrap();
@@ -334,11 +333,8 @@ fn main()
 
     // camera transformations
 
-    let mut camera_pos = Vec3::new(0.0,0.0,3.0);
-    let mut camera_front = Vec3::new(0.0,0.0,-1.0);
-    let mut camera_up = Vec3::new(0.0,1.0,0.0);
-    let camera_speed : f32 =  0.1;
-
+    let mut camera = camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.05);
+    
     let start_program = Instant::now();
 
     'main: loop
@@ -364,24 +360,16 @@ fn main()
                         {
                             sdl2::keyboard::Keycode::Num1 => { sdl.mouse().set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()) }
                             sdl2::keyboard::Keycode::Escape => { break 'main; }
-                            sdl2::keyboard::Keycode::W => { camera_pos += camera_front * camera_speed;},
-                            sdl2::keyboard::Keycode::S => { camera_pos -= camera_front * camera_speed;},
-                            sdl2::keyboard::Keycode::A => { camera_pos -= Vec3::cross(camera_front, camera_up).normalize() * camera_speed  },
-                            sdl2::keyboard::Keycode::D => { camera_pos += Vec3::cross(camera_front, camera_up).normalize() * camera_speed } ,
+                            sdl2::keyboard::Keycode::W => camera.move_forward(),
+                            sdl2::keyboard::Keycode::S => camera.move_backward(),
+                            sdl2::keyboard::Keycode::A => camera.strafe_left(),
+                            sdl2::keyboard::Keycode::D => camera.strafe_right(),
                             _ => ()
                         };
                     }
                 },
-                Event::MouseMotion { xrel: x_rel , yrel: y_rel , .. } =>
-                {
-                    println!("Relative Mouse Movement: x:{} and y:{}", x_rel , y_rel);
-                    
-                    state.yaw += x_rel as f32 * MOUSE_SENSITIVITY;
-                    state.pitch += -y_rel as f32 * MOUSE_SENSITIVITY;
-
-                    // put a limit on pitch
-                    state.pitch = state.pitch.clamp(-89.9, 89.9);
-                },
+                Event::MouseMotion { xrel: x_rel , yrel: y_rel , .. } => 
+                    camera.change_front_rel(x_rel as f32 * MOUSE_SENSITIVITY, y_rel as f32 * MOUSE_SENSITIVITY),
                 _ => (),
             };
         }
@@ -411,14 +399,8 @@ fn main()
         let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, state.depth_z));
         let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 100.0);
         
-        //TODO: check these again
-        camera_front.x = f32::cos(state.yaw.to_radians()) * f32::cos(state.pitch.to_radians());
-        camera_front.y = f32::sin(state.pitch.to_radians());
-        camera_front.z = f32::sin(state.yaw.to_radians()) * f32::cos(state.pitch.to_radians());
-
         // camera matrix 
-        let view = Mat4::look_at_rh( camera_pos, camera_pos + camera_front , camera_up );
-        let trans =  projection * view * translation * rotation ;
+        let trans =  projection * camera.get_look_at() * translation * rotation ;
         gl::UniformMatrix4fv( transform_location , 1 , gl::FALSE , trans.as_ref().as_ptr().cast() );
 
         gl::BindVertexArray(vao); // bind vao 
@@ -432,33 +414,7 @@ fn main()
 
         renderer.render( &mut imgui , | ui: &mut Ui |
         {
-            let _roboto = ui.push_font(roboto);
-            ui.window("Tab")
-            .position([0.0,0.0], Condition::Always)
-            .size([400.0, 600.0], Condition::FirstUseEver)
-            .build(|| {
-            ui.text_wrapped("Colors");
-            ui.separator();
-            ui.slider("Red", 0.0, 1.0, &mut state.red);
-            ui.slider("Green", 0.0, 1.0, &mut state.green);
-            ui.slider("Blue", 0.0, 1.0, &mut state.blue);
-            ui.separator();
-            ui.text("position settings");
-            ui.separator();
-            ui.slider("rotation in x" , 0.0 , PI , &mut state.rotation_x);
-            ui.slider("rotation in z" , 0.0 , PI , &mut state.rotation_z);
-            ui.slider("depth in z", 0.0 , -50.0 ,  &mut state.depth_z);
-            ui.slider("view x" , -5.0 , 5.0 , &mut state.view_x);
-            ui.slider("view y", -5.0 , 5.0 , &mut state.view_y);
-            ui.separator();
-            ui.text_wrapped("Euler Angles");
-            ui.text(format!("Pitch: {}", state.pitch));
-            ui.text(format!("Yaw: {}", state.yaw));
-
-            ui.text(format!("frame time: {}us" , state.frame_time));
-        
-            _roboto.pop();
-        });
+            ui_renderer.build_ui(ui, &mut state );
         });
 
         let end = start.elapsed();
