@@ -55,7 +55,6 @@ fn main()
         .unwrap();
 
 
-
     // create a new opengl context and make it current
     let gl_context = window.gl_create_context().unwrap();
 
@@ -91,7 +90,7 @@ fn main()
 
     // camera transformations
 
-    let mut camera = camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.05);
+    let mut camera = camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.2);
     
     // let start_program = Instant::now();
     let world_renderer = Renderer::new(&video_subsystem);

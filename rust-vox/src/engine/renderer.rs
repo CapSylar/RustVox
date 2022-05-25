@@ -1,6 +1,8 @@
 use std::{ffi::{c_void, CStr}, mem::{size_of_val, size_of}, f32::consts::PI};
-use glam::Mat4;
+use glam::{Mat4, Vec3, Vec2};
 use sdl2::VideoSubsystem;
+
+use crate::engine::{mesh::{Mesh}, voxel::{Voxel, VoxelType}};
 
 use super::camera::Camera;
 
@@ -8,9 +10,12 @@ pub struct Renderer
 {
     program: u32,
     vao: u32,
+    ebo: u32,
 
     texture1: u32,
     texture2: u32,
+
+    mesh: Mesh,
 }
 
 impl Renderer
@@ -29,80 +34,41 @@ impl Renderer
             gl::DebugMessageCallback( Some(error_callback) , 0 as *const c_void);
         }
 
-        type Vertex = [f32;3];
-        type UV = [f32;2];
-        
-        let vertices:[f32; 180] = [ 
-            -0.5, -0.5, -0.5,  0.0, 0.0,
-             0.5, -0.5, -0.5,  1.0, 0.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-            -0.5,  0.5, -0.5,  0.0, 1.0,
-            -0.5, -0.5, -0.5,  0.0, 0.0,
-    
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-             0.5, -0.5,  0.5,  1.0, 0.0,
-             0.5,  0.5,  0.5,  1.0, 1.0,
-             0.5,  0.5,  0.5,  1.0, 1.0,
-            -0.5,  0.5,  0.5,  0.0, 1.0,
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-    
-            -0.5,  0.5,  0.5,  1.0, 0.0,
-            -0.5,  0.5, -0.5,  1.0, 1.0,
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-            -0.5,  0.5,  0.5,  1.0, 0.0,
-    
-             0.5,  0.5,  0.5,  1.0, 0.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-             0.5, -0.5, -0.5,  0.0, 1.0,
-             0.5, -0.5, -0.5,  0.0, 1.0,
-             0.5, -0.5,  0.5,  0.0, 0.0,
-             0.5,  0.5,  0.5,  1.0, 0.0,
-    
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-             0.5, -0.5, -0.5,  1.0, 1.0,
-             0.5, -0.5,  0.5,  1.0, 0.0,
-             0.5, -0.5,  0.5,  1.0, 0.0,
-            -0.5, -0.5,  0.5,  0.0, 0.0,
-            -0.5, -0.5, -0.5,  0.0, 1.0,
-    
-            -0.5,  0.5, -0.5,  0.0, 1.0,
-             0.5,  0.5, -0.5,  1.0, 1.0,
-             0.5,  0.5,  0.5,  1.0, 0.0,
-             0.5,  0.5,  0.5,  1.0, 0.0,
-            -0.5,  0.5,  0.5,  0.0, 0.0,
-            -0.5,  0.5, -0.5,  0.0, 1.0
-        ];
-
         let mut program = 0;
         let mut vao = 0;
         let mut vbo = 0;
+        let mut ebo = 0;
         let mut texture1 = 0;
         let mut texture2 = 0;
+        let mut mesh = Mesh::new();
+
         unsafe
         {
+            // testing a single voxel
+            // generating the mesh
+            let vox = Voxel::new(VoxelType::Grass,true);
+
+            vox.append_mesh(&mut mesh);
+            
             gl::GenVertexArrays(1, &mut vao);
             gl::BindVertexArray(vao);
 
             gl::GenBuffers(1, &mut vbo);
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BufferData(gl::ARRAY_BUFFER, size_of_val(&vertices) as isize , vertices.as_ptr().cast() , gl::STATIC_DRAW);
+            gl::BufferData(gl::ARRAY_BUFFER, mesh.size_bytes() as isize , mesh.vertices.as_ptr().cast() , gl::STATIC_DRAW);
             // specify the data format and buffer storage information for attribute index 0
             // this is specified for the currently bound VBO
-            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, (5 * size_of::<f32>()).try_into().unwrap()  , 0 as *const c_void );
+            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, (8 * size_of::<f32>()).try_into().unwrap()  , 0 as *const c_void );
             // vertex attributes are disabled by default 
             gl::EnableVertexAttribArray(0);
 
-            // let mut ebo = 0;
-            // gl::GenBuffers(1, &mut ebo);
-            // gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-            // gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size_of_val(&indices) as isize, indices.as_ptr().cast() , gl::STATIC_DRAW );
+            gl::GenBuffers(1, &mut ebo);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (mesh.indices.len() * 4) as isize, mesh.indices.as_ptr().cast() , gl::STATIC_DRAW );
 
             // vertex attribute for the texture at location = 1
-            gl::VertexAttribPointer(1, 2 , gl::FLOAT , gl::FALSE , (5 * size_of::<f32>()).try_into().unwrap() , (3 * size_of::<f32>()) as *const c_void  );
-            gl::EnableVertexAttribArray(1);   
+            gl::VertexAttribPointer(1, 2 , gl::FLOAT , gl::FALSE , (8 * size_of::<f32>()).try_into().unwrap() , (6 * size_of::<f32>()) as *const c_void  );
+            gl::EnableVertexAttribArray(1);
 
             // load texture
             let img = image::open("rust-vox/textures/quakeIII-arena-logo.jpeg").unwrap().flipv();
@@ -145,7 +111,6 @@ impl Renderer
 
             gl::GenerateMipmap(gl::TEXTURE_2D);
 
-            
             // ------------------------------------------ END 
 
             gl::BindVertexArray(0); // unbind VAO
@@ -262,9 +227,12 @@ impl Renderer
             }
 
             gl::Enable(gl::DEPTH_TEST);
+            gl::Enable(gl::CULL_FACE);
+            gl::FrontFace(gl::CW);
         }
 
-        Renderer { program , vao , texture1 , texture2 }
+        Renderer { program , vao , texture1 , texture2, ebo , mesh }
+
     }
 
     pub fn draw_world(&self, camera: &Camera )
@@ -275,7 +243,7 @@ impl Renderer
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             
             // set program as current 
-            gl::UseProgram(self.program);
+            gl::UseProgram(self.program); 
 
             let location = gl::GetUniformLocation( self.program , b"our_color\0".as_ptr() as _ );
             gl::Uniform4f(location, 1.0 , 1.0 , 1.0 , 1.0);
@@ -293,25 +261,18 @@ impl Renderer
 
             let transform_location = gl::GetUniformLocation( self.program , b"transform\0".as_ptr() as _ );
 
-            // let rotation = Mat4::from_rotation_y( millis/800.0 ) * Mat4::from_rotation_x( millis/600.0 );
-            // let translation = Mat4::from_translation(Vec3::new(0.0, 0.0, state.depth_z));
             let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 100.0);
-
             // camera matrix 
             let trans =  projection * camera.get_look_at();
             gl::UniformMatrix4fv( transform_location , 1 , gl::FALSE , trans.as_ref().as_ptr().cast() );
 
-            gl::BindVertexArray(self.vao); // bind vao 
-            // gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-            // actually draw something, yeahh
-            gl::DrawArrays( gl::TRIANGLES , 0 , 36 );
-            // gl::DrawArrays(gl::TRIANGLES, 0, 3);
+            gl::BindVertexArray(self.vao); // bind vao
+            gl::DrawElements(gl::TRIANGLES, 36 , gl::UNSIGNED_INT, 0 as _ );
             gl::BindVertexArray(0);
+            gl::UseProgram(0);
         }   
     }
 }
-
-
 
 
 
@@ -323,7 +284,7 @@ extern "system" fn error_callback ( source : u32 , error_type : u32 , id : u32 ,
         if error_type == gl::DEBUG_TYPE_ERROR
         {
             let x = CStr::from_ptr(message).to_string_lossy().to_string();
-            println!("error callback said: {}" , x);
+            println!("ERROR CALLBACK: {}" , x);
         }
     }
 }
