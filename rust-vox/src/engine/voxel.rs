@@ -1,0 +1,10 @@
+
+struct Voxel
+{
+
+}
+
+impl Voxel
+{
+    
+}

@@ -1,6 +1,6 @@
 # RustVox
 
-just trying to get OpenGL to work right now
+A Voxel engine written in Rust using openGL
 
 ## Running
 
