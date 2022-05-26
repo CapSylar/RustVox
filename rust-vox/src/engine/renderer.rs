@@ -2,7 +2,7 @@ use std::{ffi::{c_void, CStr}, mem::{size_of_val, size_of}, f32::consts::PI};
 use glam::{Mat4, Vec3, Vec2};
 use sdl2::VideoSubsystem;
 
-use crate::engine::{mesh::{Mesh}, voxel::{Voxel, VoxelType}};
+use crate::engine::{mesh::{Mesh}, voxel::{Voxel, VoxelType}, chunk::Chunk};
 
 use super::camera::Camera;
 
@@ -15,7 +15,8 @@ pub struct Renderer
     texture1: u32,
     texture2: u32,
 
-    mesh: Mesh,
+    chunk: Chunk,
+    // mode: u32, // filled or lines 
 }
 
 impl Renderer
@@ -40,16 +41,14 @@ impl Renderer
         let mut ebo = 0;
         let mut texture1 = 0;
         let mut texture2 = 0;
-        let mut mesh = Mesh::new();
+        let mut chunk = Chunk::new();
 
         unsafe
         {
             // testing a single voxel
             // generating the mesh
-            let vox = Voxel::new(VoxelType::Grass,true);
+            let mesh = chunk.generate_mesh();        
 
-            vox.append_mesh(&mut mesh);
-            
             gl::GenVertexArrays(1, &mut vao);
             gl::BindVertexArray(vao);
 
@@ -227,11 +226,11 @@ impl Renderer
             }
 
             gl::Enable(gl::DEPTH_TEST);
-            gl::Enable(gl::CULL_FACE);
+            // gl::Enable(gl::CULL_FACE);
             gl::FrontFace(gl::CW);
         }
 
-        Renderer { program , vao , texture1 , texture2, ebo , mesh }
+        Renderer { program , vao , texture1 , texture2, ebo , chunk }
 
     }
 
@@ -267,17 +266,28 @@ impl Renderer
             gl::UniformMatrix4fv( transform_location , 1 , gl::FALSE , trans.as_ref().as_ptr().cast() );
 
             gl::BindVertexArray(self.vao); // bind vao
-            gl::DrawElements(gl::TRIANGLES, 36 , gl::UNSIGNED_INT, 0 as _ );
+            gl::DrawElements(gl::TRIANGLES, self.chunk.mesh.num_triangles() as _  , gl::UNSIGNED_INT, 0 as _ );
             gl::BindVertexArray(0);
             gl::UseProgram(0);
         }   
     }
+
+    //FIXME: problematic interface
+    pub fn set_mode(&mut self, mode: u32)
+    {
+        unsafe
+        {
+            gl::PolygonMode(gl::FRONT_AND_BACK, mode );
+        }
+    }
+
+
 }
 
 
 
 // error callback function for opengl
-extern "system" fn error_callback ( source : u32 , error_type : u32 , id : u32 , severity : u32 , len : i32 , message: *const i8 , user_param : *mut c_void )
+extern "system" fn error_callback ( _source : u32 , error_type : u32 , _id : u32 , _severity : u32 , _len : i32 , message: *const i8 , _user_param : *mut c_void )
 {
     unsafe
     {

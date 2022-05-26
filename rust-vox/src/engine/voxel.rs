@@ -4,12 +4,13 @@ use super::mesh::{Vertex, Mesh};
 
 const VOXEL_SIZE: f32 = 1.0;
 
+#[derive(Clone, Copy)]
 pub enum VoxelType
 {
     Grass,
 }
 
-
+#[derive(Copy,Clone)]
 pub struct Voxel
 {
     voxel_type : VoxelType,
@@ -18,10 +19,14 @@ pub struct Voxel
 
 impl Voxel
 {
-
     pub fn new( voxel_type: VoxelType, is_filled: bool) -> Voxel
     {
         Voxel{voxel_type, is_filled}
+    }
+
+    pub fn new_default() -> Voxel
+    {
+        Voxel { voxel_type: VoxelType::Grass, is_filled: true }
     }
 
     pub fn set_filled(&mut self, filled: bool)
@@ -30,20 +35,20 @@ impl Voxel
     }
 
     /// Returns the Voxel's mesh for rendering
-    pub fn append_mesh(&self, mesh : &mut Mesh)
+    pub fn append_mesh( &self , pos: Vec3 , mesh: &mut Mesh)
     {
         // generate the 8 vertices to draw the voxel
         //bottom
-        let p1 = Vec3::new(0.0,0.0,0.0);
-        let p2 = Vec3::new(0.0,0.0,-VOXEL_SIZE);
-        let p3 = Vec3::new(VOXEL_SIZE,0.0,-VOXEL_SIZE);
-        let p4 = Vec3::new(VOXEL_SIZE,0.0,0.0);
+        let p1 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + 0.0);
+        let p2 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + -VOXEL_SIZE);
+        let p3 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + -VOXEL_SIZE);
+        let p4 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + 0.0);
 
         //top
-        let p5 = Vec3::new(0.0,VOXEL_SIZE,0.0);
-        let p6 = Vec3::new(0.0,VOXEL_SIZE,-VOXEL_SIZE);
-        let p7 = Vec3::new(VOXEL_SIZE,VOXEL_SIZE,-VOXEL_SIZE);
-        let p8 = Vec3::new(VOXEL_SIZE,VOXEL_SIZE,0.0);
+        let p5 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + 0.0);
+        let p6 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
+        let p7 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
+        let p8 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + 0.0);
 
         let uv = Vec2::new(0.0,0.0);
         // add the 2 top triangles
@@ -95,7 +100,6 @@ impl Voxel
         // construct the 2 triangles, note the order of the vertices in the trigs
         mesh.add_triangle(i1,i2,i3);
         mesh.add_triangle(i1, i3, i4);
-
 
         // add the 2 left triangles
         let normal = Vec3::new(-1.0,0.0,0.0);

@@ -1,4 +1,4 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI};
 use imgui::{Condition, FontSource, Context, FontId};
 use crate::State;
 
@@ -20,6 +20,7 @@ impl Ui
         Ui{ used_font }
     }
     
+    //FIXME: fix warning 
     pub fn build_ui(&self, ui: & imgui::Ui , state:&mut State)
     {
         let font = ui.push_font(self.used_font);
@@ -46,6 +47,7 @@ impl Ui
         ui.text(format!("Yaw: {}", state.yaw));
     
         ui.text(format!("frame time: {}us" , state.frame_time));
+        ui.text(format!("FPS: {}", 1.0/(state.frame_time as f32 / 1000000.0) ));
     
         font.pop();});
     }

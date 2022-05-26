@@ -60,4 +60,9 @@ impl Mesh
         self.vertices.len() * size_of::<Vertex>()
     }
 
+    pub fn num_triangles(&self) -> usize
+    {
+        self.indices.len()
+    }
+
 }

@@ -71,7 +71,12 @@ fn main()
     window.gl_make_current(&gl_context).unwrap();
 
     // enable vsync to cap framerate
-    window.subsystem().gl_set_swap_interval(1).unwrap();
+    let res = window.subsystem().gl_set_swap_interval(0);
+
+    if let Err(s) = res
+    {
+        println!("error occured:{}" , s );
+    }
 
     let mut imgui = Context::create();
     imgui.set_ini_filename(None);
@@ -93,7 +98,8 @@ fn main()
     let mut camera = camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.2);
     
     // let start_program = Instant::now();
-    let world_renderer = Renderer::new(&video_subsystem);
+    let mut world_renderer = Renderer::new(&video_subsystem);
+    let mut is_filled_mode = true ; // opengl rendering mode
 
     'main: loop
     {
@@ -115,6 +121,8 @@ fn main()
                         match s
                         {
                             sdl2::keyboard::Keycode::Num1 => { sdl.mouse().set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()) }
+                            sdl2::keyboard::Keycode::Num2 => 
+                            {world_renderer.set_mode( if is_filled_mode {gl::LINE} else {gl::FILL} ); is_filled_mode = !is_filled_mode } ,
                             sdl2::keyboard::Keycode::Escape => { break 'main; }
                             sdl2::keyboard::Keycode::W => camera.move_forward(),
                             sdl2::keyboard::Keycode::S => camera.move_backward(),
@@ -138,11 +146,10 @@ fn main()
         renderer.render( &mut imgui , | ui: &mut Ui |
         {
             ui_renderer.build_ui(ui, &mut state );
-        });
+        });        
+        window.gl_swap_window();
 
         let end = start.elapsed();
         state.frame_time = end.as_micros();
-        
-        window.gl_swap_window();
     }
 }
