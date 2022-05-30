@@ -17,19 +17,7 @@ static MOUSE_SENSITIVITY: f32 = 0.05;
 
 struct State
 {
-    red: f32,
-    green: f32,
-    blue: f32,
-    rotation_x: f32,
-    rotation_z : f32,
-    depth_z: f32,
-    view_x: f32,
-    view_y : f32,
     frame_time: u128,
-
-
-    yaw: f32,
-    pitch: f32,
 }
 
 fn main()
@@ -55,13 +43,6 @@ fn main()
 
     // create a new opengl context and make it current
     let gl_context = window.gl_create_context().unwrap();
-
-    let x = video_subsystem.gl_set_swap_interval(sdl2::video::SwapInterval::Immediate);
-
-    if let Err(message) = x
-    {
-        println!("{}" , message);
-    }
     
     // load up every opengl function, is this good ?
     gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as _);
@@ -69,7 +50,7 @@ fn main()
     window.gl_make_current(&gl_context).unwrap();
 
     // enable vsync to cap framerate
-    let res = window.subsystem().gl_set_swap_interval(0);
+    let res = window.subsystem().gl_set_swap_interval(sdl2::video::SwapInterval::VSync);
 
     if let Err(s) = res
     {
@@ -89,7 +70,7 @@ fn main()
 
     sdl.mouse().set_relative_mouse_mode(true);
     
-    let mut state = State{blue:1.0,green:1.0,red:1.0,rotation_x:0.0, rotation_z: 0.0 , depth_z:-3.0 ,frame_time:0,view_x:0.0,view_y:0.0,pitch:0.0,yaw:-89.9};
+    let mut state = State{frame_time:0};
 
     // camera transformations
 

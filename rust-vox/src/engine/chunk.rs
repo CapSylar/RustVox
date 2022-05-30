@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use super::{voxel::Voxel, mesh::{Mesh, self}};
+use super::{voxel::Voxel, mesh::{Mesh}};
 
 const CHUNK_X : usize = 20;
 const CHUNK_Z: usize = 20;
