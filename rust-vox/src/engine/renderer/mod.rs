@@ -1,9 +1,12 @@
 use std::{ffi::{c_void, CStr}, mem::{size_of_val, size_of}, f32::consts::PI, fs};
-use gl::CompileShader;
 use glam::{Mat4, Vec3, Vec2};
 use sdl2::VideoSubsystem;
 
+pub mod vertex_buffer;
+pub mod index_buffer;
+
 use crate::engine::{mesh::{Mesh}, voxel::{Voxel, VoxelType}, chunk::Chunk};
+use self::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer};
 
 use super::camera::Camera;
 
@@ -53,19 +56,21 @@ impl Renderer
             gl::GenVertexArrays(1, &mut vao);
             gl::BindVertexArray(vao);
 
-            gl::GenBuffers(1, &mut vbo);
-            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            gl::BufferData(gl::ARRAY_BUFFER, mesh.size_bytes() as isize , mesh.vertices.as_ptr().cast() , gl::STATIC_DRAW);
+            // gl::GenBuffers(1, &mut vbo);
+            // gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            // gl::BufferData(gl::ARRAY_BUFFER, mesh.size_bytes() as isize , mesh.vertices.as_ptr().cast() , gl::STATIC_DRAW);
+            let vertex_buffer = VertexBuffer::new(mesh.size_bytes(), &mesh.vertices );
             // specify the data format and buffer storage information for attribute index 0
             // this is specified for the currently bound VBO
             gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, (8 * size_of::<f32>()).try_into().unwrap()  , 0 as *const c_void );
             // vertex attributes are disabled by default 
             gl::EnableVertexAttribArray(0);
 
-            gl::GenBuffers(1, &mut ebo);
-            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (mesh.indices.len() * 4) as isize, mesh.indices.as_ptr().cast() , gl::STATIC_DRAW );
-
+            // gl::GenBuffers(1, &mut ebo);
+            // gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+            // gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (mesh.indices.len() * 4) as isize, mesh.indices.as_ptr().cast() , gl::STATIC_DRAW );
+            let index_buffer = IndexBuffer::new(&mesh.indices);
+            
             // vertex attribute for the texture at location = 1
             gl::VertexAttribPointer(1, 2 , gl::FLOAT , gl::FALSE , (8 * size_of::<f32>()).try_into().unwrap() , (6 * size_of::<f32>()) as *const c_void  );
             gl::EnableVertexAttribArray(1);
