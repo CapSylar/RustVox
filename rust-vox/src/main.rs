@@ -1,7 +1,5 @@
-use std::ffi::CStr;
 
-use __core::{mem::{size_of_val, size_of}, ffi::c_void, f32::consts::PI };
-use glam::{Mat4, Vec3};
+use glam::{Vec3};
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{

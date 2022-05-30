@@ -2,7 +2,6 @@ use std::mem::size_of;
 
 use glam::{Vec3, Vec2};
 
-
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices
 pub struct Mesh

@@ -2,9 +2,9 @@ use glam::Vec3;
 
 use super::{voxel::Voxel, mesh::{Mesh, self}};
 
-const CHUNK_X : usize = 32;
-const CHUNK_Z: usize = 32;
-const CHUNK_Y : usize = 32 ;
+const CHUNK_X : usize = 20;
+const CHUNK_Z: usize = 20;
+const CHUNK_Y : usize = 20;
 
 pub struct Chunk
 {
