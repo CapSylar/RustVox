@@ -68,7 +68,7 @@ fn main()
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
     let mut event_pump = sdl.event_pump().unwrap();
 
-    sdl.mouse().set_relative_mouse_mode(true);
+    sdl.mouse().set_relative_mouse_mode(false);
     
     let mut state = State{frame_time:0};
 

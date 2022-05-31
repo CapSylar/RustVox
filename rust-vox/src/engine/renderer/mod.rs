@@ -1,19 +1,20 @@
-use std::{ffi::{c_void, CStr}, f32::consts::PI, fs};
-use glam::{Mat4, };
-use sdl2::VideoSubsystem;
+use std::{ffi::{c_void, CStr, CString}, f32::consts::PI};
+use glam::{Mat4, Vec4, };
+use sdl2::{VideoSubsystem};
 
 pub mod vertex_buffer;
 pub mod index_buffer;
 pub mod vertex_array;
+pub mod shader;
 
 use crate::engine:: {chunk::Chunk};
-use self::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer, vertex_array::{VertexArray, VertexBufferLayout}};
+use self::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer, vertex_array::{VertexArray, VertexBufferLayout}, shader::Shader};
 
 use super::camera::Camera;
 
 pub struct Renderer
 {
-    program: u32,
+    shader : Shader ,
     vao: VertexArray,
     texture1: u32,
     chunk: Chunk,
@@ -57,7 +58,7 @@ impl Renderer
 
             vao.add_buffer(&vertex_buffer, &mut layout);
 
-            let index_buffer = IndexBuffer::new(&mesh.indices);
+            let _index_buffer = IndexBuffer::new(&mesh.indices);
         
             // load texture atlas
             let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
@@ -86,135 +87,50 @@ impl Renderer
 
             // load the program
 
-            let vertex_src = fs::read_to_string("rust-vox/shaders/default_vertex.glsl").expect("could not read file");
-            let fragment_src = fs::read_to_string("rust-vox/shaders/default_fragment.glsl").expect("could not read file");
-
-            let program = Renderer::create_program(&vertex_src, &fragment_src); // set program 
-
+            let shader = Shader::new("rust-vox/shaders/default_vertex.glsl".to_string(),
+             "rust-vox/shaders/default_fragment.glsl".to_string() ).expect("Shader Error");
+            
             gl::Enable(gl::DEPTH_TEST);
             // gl::Enable(gl::CULL_FACE);
             gl::FrontFace(gl::CW);
 
-            Renderer { program , vao , texture1 , chunk }
+            Renderer { shader , vao , texture1 , chunk }
         }
 
 
     }
 
-    pub fn draw_world(&self, camera: &Camera )
+    pub fn draw_world(&mut self, camera: &Camera )
     {
+        //TODO: remove these from here
+        let color = CString::new("our_color").unwrap();
+        let texture = CString::new("test_texture1").unwrap();
+        let transform = CString::new("transform").unwrap();
+
         unsafe
         {
             gl::ClearColor(0.2,0.2,0.2,1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             
             // set program as current 
-            gl::UseProgram(self.program); 
-
-            let location = gl::GetUniformLocation( self.program , b"our_color\0".as_ptr() as _ );
-            gl::Uniform4f(location, 1.0 , 1.0 , 1.0 , 1.0);
+            self.shader.bind();
+            self.shader.set_uniform4f( &color , Vec4::new(1.0,1.0,1.0,1.0) ).expect("error setting the color uniform");
 
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.texture1);
-            let tex_location1 = gl::GetUniformLocation(self.program, b"test_texture1\0".as_ptr() as _ );
-            gl::Uniform1i(tex_location1 , 0); // texture unit 0
 
-            let transform_location = gl::GetUniformLocation( self.program , b"transform\0".as_ptr() as _ );
+            self.shader.set_uniform1i(&texture, 0).expect("error setting the texture uniform");
 
             let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 100.0);
             // camera matrix 
             let trans =  projection * camera.get_look_at();
-            gl::UniformMatrix4fv( transform_location , 1 , gl::FALSE , trans.as_ref().as_ptr().cast() );
-
+            self.shader.set_uniform_matrix4fv(&transform, &trans).expect("error setting the transform uniform");
+        
             self.vao.bind();
             gl::DrawElements(gl::TRIANGLES, self.chunk.mesh.num_triangles() as _  , gl::UNSIGNED_INT, 0 as _ );
-            gl::BindVertexArray(0);
-            gl::UseProgram(0);
+            VertexArray::unbind();
+            Shader::unbind();
         }   
-    }
-
-
-    /// Compile + Link the vertex and fragment shaders => returns OpenGL ID
-    pub fn create_program( vertex_src: &str , fragment_src : &str) -> u32
-    {
-        //TODO: refactor error checking code
-        unsafe
-        {
-            // create program
-            // first create the vertex shader
-            let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
-
-            // copy shader source into the specified shader object
-            gl::ShaderSource(vertex_shader, 1, &(vertex_src.as_bytes().as_ptr().cast()), &(vertex_src.len().try_into().unwrap()));
-            gl::CompileShader(vertex_shader);
-
-            // get compilation status on the *hopefully* compiled vertex shader
-            let mut success = 0;
-            gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
-
-            if success == 0
-            {
-                let mut log_length = 0_i32;
-                gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_length );
-
-                let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
-                // get shader log text
-                gl::GetShaderInfoLog(vertex_shader, log_length , &mut log_length , log_text.as_mut_ptr().cast());
-
-                panic!("Vertex Shader Compile Error: {}", String::from_utf8_lossy(&log_text) );
-            }
-
-            // same for the fragment shader
-            let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-
-            // copy shader source into the specified shader object
-            gl::ShaderSource(fragment_shader, 1, &(fragment_src.as_bytes().as_ptr().cast()), &(fragment_src.len().try_into().unwrap()));
-            gl::CompileShader(fragment_shader);
-
-            //TODO: refactor duplicate code 
-            // get compilation status on the *hopefully* compiled fragment shader
-            let mut success = 0;
-            gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
-
-            //FIXME: can't get message from shader info
-            if success == 0
-            {
-                let mut log_length = 0_i32;
-                gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_length );
-
-                let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
-                // get shader log text
-                gl::GetShaderInfoLog(fragment_shader, log_length , &mut log_length , log_text.as_mut_ptr().cast());
-
-                panic!("Fragment Shader Compile Error: {}", String::from_utf8_lossy(&log_text) );
-            }
-
-            // attach shader and link program
-            let program = gl::CreateProgram();
-            gl::AttachShader(program, vertex_shader);
-            gl::AttachShader(program, fragment_shader);
-            gl::LinkProgram(program);
-
-            //TODO: refactor duplicate code
-
-            let mut success = 0;
-            gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
-
-            if success == 0
-            {
-                let mut log_length = 0_i32;
-                gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_length );
-
-                let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
-                // get shader log text
-                gl::GetProgramInfoLog(program, log_length , &mut log_length , log_text.as_mut_ptr().cast());
-
-                panic!("Program Link Error: {}", String::from_utf8_lossy(&log_text) );
-            }
-
-            program
-        }
-
     }
 
     //FIXME: problematic interface
