@@ -2,12 +2,15 @@ use std::mem::size_of;
 
 use glam::{Vec3, Vec2};
 
+use super::{renderer::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, voxel::Voxel, chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z}};
+
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices
 pub struct Mesh
 {
     pub vertices: Vec<Vertex>,
     pub indices: Vec<u32>,
+    pub vao: Option<VertexArray>,
 }
 
 /// Holds all the data which constitute a *vertex*
@@ -30,9 +33,43 @@ impl Vertex
 
 impl Mesh
 {
-    pub fn new() -> Mesh
+    pub fn new(voxels: &[[[Voxel; CHUNK_X];CHUNK_Y];CHUNK_Z] , pos: Vec3) -> Mesh
     {
-        Mesh {vertices: Vec::<Vertex>::new(), indices: Vec::<u32>::new() }
+        // Generate the mesh
+        let mut mesh = Mesh{vertices:Vec::<Vertex>::new(),indices:Vec::<u32>::new(),vao: None};
+
+        //Generate the directly in here, good enough for now
+        // for now render the mesh of all the voxels as is
+        for x in 0..CHUNK_X
+        {
+            for y in 0..CHUNK_Y
+            {
+                for z in 0..CHUNK_Z
+                {
+                    voxels[x][y][z].append_mesh(Vec3::new(x as f32 + pos.x ,y as f32 + pos.y ,z as f32 + pos.z ), &mut mesh);
+                }
+            }
+        }
+        mesh
+    }
+
+    /// `Upload Mesh to the GPU`
+    /// Creates the VAO,VBO and EBO needed render this chunk
+    pub fn upload(&mut self)
+    {
+        // create the vertex buffer
+        let vertex_buffer = VertexBuffer::new(self.size_bytes(), &self.vertices );
+         // create a vertex buffer layout
+         let mut layout = VertexBufferLayout::new();
+        
+         layout.push_f32(3); // vertex(x,y,z)
+         layout.push_f32(3); // normal(x,y,z)
+         layout.push_f32(2); // uv coordinates(u,v)
+         // create the index buffer
+         let index_buffer = IndexBuffer::new(&self.indices);
+
+         let vao = VertexArray::new(vertex_buffer,&layout, index_buffer);
+         self.vao = Some(vao);
     }
 
     pub fn add_vertex(&mut self, vertex: Vertex) -> u32
@@ -57,11 +94,6 @@ impl Mesh
     pub fn size_bytes(&self) -> usize
     {
         self.vertices.len() * size_of::<Vertex>()
-    }
-
-    pub fn num_triangles(&self) -> usize
-    {
-        self.indices.len()
     }
 
 }

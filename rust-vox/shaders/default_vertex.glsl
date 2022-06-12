@@ -5,7 +5,6 @@ layout (location = 2) in vec2 in_tex_coord;
 
 uniform mat4 transform;
 
-out vec3 color;
 out vec2 tex_coord;
 
 void main()

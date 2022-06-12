@@ -1,5 +1,5 @@
 use std::{ffi::{c_void, CStr, CString}, f32::consts::PI};
-use glam::{Mat4, Vec4, };
+use glam::{Mat4, Vec4, Vec3, };
 use sdl2::{VideoSubsystem};
 
 pub mod vertex_buffer;
@@ -8,14 +8,13 @@ pub mod vertex_array;
 pub mod shader;
 
 use crate::engine:: {chunk::Chunk};
-use self::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer, vertex_array::{VertexArray, VertexBufferLayout}, shader::Shader};
+use self::{vertex_array::{VertexArray, VertexBufferLayout}, shader::Shader};
 
-use super::camera::Camera;
+use super::{world::World, mesh::Mesh};
 
 pub struct Renderer
 {
     shader : Shader ,
-    vao: VertexArray,
     texture1: u32,
     chunk: Chunk,
     // mode: u32, // filled or lines 
@@ -26,7 +25,6 @@ impl Renderer
     pub fn new(video_subsystem: &VideoSubsystem) -> Renderer
     {
         // Setup
-
         // load up every opengl function, is this good ?
         gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as _);
 
@@ -40,25 +38,10 @@ impl Renderer
         unsafe
         {
             let mut texture1 = 0;
-            let mut chunk = Chunk::new();
+            let mut chunk = Chunk::new(Vec3::new(0.0, 0.0, 0.0));
 
             // testing a single voxel
-            // generating the mesh
-            let mesh = chunk.generate_mesh();        
-
-            let vertex_buffer = VertexBuffer::new(mesh.size_bytes(), &mesh.vertices );
-            let mut vao = VertexArray::new();
-
-            // create a vertex buffer layout
-            let mut layout = VertexBufferLayout::new();
-            //TODO: refactor, mesh should take care of this
-            layout.push_f32(3); // vertex(x,y,z)
-            layout.push_f32(3); // normal(x,y,z)
-            layout.push_f32(2); // uv coordinates(u,v)
-
-            vao.add_buffer(&vertex_buffer, &mut layout);
-
-            let _index_buffer = IndexBuffer::new(&mesh.indices);
+            chunk.mesh.upload();
         
             // load texture atlas
             let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
@@ -94,16 +77,15 @@ impl Renderer
             // gl::Enable(gl::CULL_FACE);
             gl::FrontFace(gl::CW);
 
-            Renderer { shader , vao , texture1 , chunk }
+            Renderer { shader , texture1 , chunk }
         }
 
 
     }
 
-    pub fn draw_world(&mut self, camera: &Camera )
+    pub fn draw_world(&mut self, world: &World)
     {
         //TODO: remove these from here
-        let color = CString::new("our_color").unwrap();
         let texture = CString::new("test_texture1").unwrap();
         let transform = CString::new("transform").unwrap();
 
@@ -114,8 +96,6 @@ impl Renderer
             
             // set program as current 
             self.shader.bind();
-            self.shader.set_uniform4f( &color , Vec4::new(1.0,1.0,1.0,1.0) ).expect("error setting the color uniform");
-
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.texture1);
 
@@ -123,14 +103,24 @@ impl Renderer
 
             let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 100.0);
             // camera matrix 
-            let trans =  projection * camera.get_look_at();
+            let trans =  projection * world.camera.get_look_at();
             self.shader.set_uniform_matrix4fv(&transform, &trans).expect("error setting the transform uniform");
-        
-            self.vao.bind();
-            gl::DrawElements(gl::TRIANGLES, self.chunk.mesh.num_triangles() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::unbind();
+            
+            // draw each chunk's mesh
+            Renderer::draw_mesh(&self.chunk.mesh);
+            
             Shader::unbind();
         }   
+    }
+
+    pub fn draw_mesh(mesh: &Mesh)
+    {
+        unsafe
+        {
+            mesh.vao.as_ref().unwrap().bind();
+            gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
+            VertexArray::unbind();
+        }
     }
 
     //FIXME: problematic interface

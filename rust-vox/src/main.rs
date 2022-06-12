@@ -1,7 +1,7 @@
-
 use glam::{Vec3};
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
+use input::Input;
 use sdl2::{
     event::Event,
     video::{GLProfile}
@@ -9,8 +9,9 @@ use sdl2::{
 
 mod ui;
 mod engine;
+mod input;
 
-use engine::{camera, renderer::Renderer};
+use engine::{camera, renderer::Renderer, world::World, voxel};
 
 use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
@@ -68,15 +69,13 @@ fn main()
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
     let mut event_pump = sdl.event_pump().unwrap();
 
-    sdl.mouse().set_relative_mouse_mode(false);
+    sdl.mouse().set_relative_mouse_mode(true);
     
     let mut state = State{frame_time:0};
+    let mut voxel_world = World::new(
+        camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.2)
+    );
 
-    // camera transformations
-
-    let mut camera = camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.2);
-    
-    // let start_program = Instant::now();
     let mut world_renderer = Renderer::new(&video_subsystem);
     let mut is_filled_mode = true ; // opengl rendering mode
 
@@ -103,23 +102,24 @@ fn main()
                             sdl2::keyboard::Keycode::Num2 => 
                             {world_renderer.set_mode( if is_filled_mode {gl::LINE} else {gl::FILL} ); is_filled_mode = !is_filled_mode } ,
                             sdl2::keyboard::Keycode::Escape => { break 'main; }
-                            sdl2::keyboard::Keycode::W => camera.move_forward(),
-                            sdl2::keyboard::Keycode::S => camera.move_backward(),
-                            sdl2::keyboard::Keycode::A => camera.strafe_left(),
-                            sdl2::keyboard::Keycode::D => camera.strafe_right(),
+                            sdl2::keyboard::Keycode::W => voxel_world.camera.move_forward(),
+                            sdl2::keyboard::Keycode::S => voxel_world.camera.move_backward(),
+                            sdl2::keyboard::Keycode::A => voxel_world.camera.strafe_left(),
+                            sdl2::keyboard::Keycode::D => voxel_world.camera.strafe_right(),
                             _ => ()
                         };
                     }
                 },
                 Event::MouseMotion { xrel: x_rel , yrel: y_rel , .. } => 
-                    camera.change_front_rel(x_rel as f32 * MOUSE_SENSITIVITY, y_rel as f32 * MOUSE_SENSITIVITY),
+                    voxel_world.camera.change_front_rel(x_rel as f32 * MOUSE_SENSITIVITY, y_rel as f32 * MOUSE_SENSITIVITY),
                 _ => (),
             };
         }
 
         // render the world
-        world_renderer.draw_world(&camera);
+        world_renderer.draw_world(&voxel_world);
 
+        // render the UI
         platform.prepare_frame(&mut imgui, &window, &event_pump);
 
         renderer.render( &mut imgui , | ui: &mut Ui |
