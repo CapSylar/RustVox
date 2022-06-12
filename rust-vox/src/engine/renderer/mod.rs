@@ -1,5 +1,5 @@
 use std::{ffi::{c_void, CStr, CString}, f32::consts::PI};
-use glam::{Mat4, Vec4, Vec3, };
+use glam::{Mat4};
 use sdl2::{VideoSubsystem};
 
 pub mod vertex_buffer;
@@ -7,8 +7,7 @@ pub mod index_buffer;
 pub mod vertex_array;
 pub mod shader;
 
-use crate::engine:: {chunk::Chunk};
-use self::{vertex_array::{VertexArray, VertexBufferLayout}, shader::Shader};
+use self::{vertex_array::{VertexArray}, shader::Shader};
 
 use super::{world::World, mesh::Mesh};
 
@@ -16,8 +15,6 @@ pub struct Renderer
 {
     shader : Shader ,
     texture1: u32,
-    chunk: Chunk,
-    // mode: u32, // filled or lines 
 }
 
 impl Renderer
@@ -37,12 +34,7 @@ impl Renderer
 
         unsafe
         {
-            let mut texture1 = 0;
-            let mut chunk = Chunk::new(Vec3::new(0.0, 0.0, 0.0));
-
-            // testing a single voxel
-            chunk.mesh.upload();
-        
+            let mut texture1 = 0;        
             // load texture atlas
             let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
             let width = img.width();
@@ -77,7 +69,7 @@ impl Renderer
             // gl::Enable(gl::CULL_FACE);
             gl::FrontFace(gl::CW);
 
-            Renderer { shader , texture1 , chunk }
+            Renderer { shader , texture1 }
         }
 
 
@@ -101,13 +93,16 @@ impl Renderer
 
             self.shader.set_uniform1i(&texture, 0).expect("error setting the texture uniform");
 
-            let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 100.0);
+            let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 1000.0);
             // camera matrix 
             let trans =  projection * world.camera.get_look_at();
             self.shader.set_uniform_matrix4fv(&transform, &trans).expect("error setting the transform uniform");
             
             // draw each chunk's mesh
-            Renderer::draw_mesh(&self.chunk.mesh);
+            for chunk in world.chunk_manager.get_chunks_to_render()
+            {
+                Renderer::draw_mesh(&chunk.as_ref().mesh);
+            }
             
             Shader::unbind();
         }   

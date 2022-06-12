@@ -73,7 +73,7 @@ fn main()
     
     let mut state = State{frame_time:0};
     let mut voxel_world = World::new(
-        camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 0.2)
+        camera::Camera::new(Vec3::new(0.0,0.0,3.0),Vec3::new(0.0,0.0,-1.0),Vec3::new(0.0,1.0,0.0), 1.0)
     );
 
     let mut world_renderer = Renderer::new(&video_subsystem);
