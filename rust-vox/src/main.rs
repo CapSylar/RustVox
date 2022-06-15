@@ -1,7 +1,6 @@
 use glam::{Vec3};
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
-use input::Input;
 use sdl2::{
     event::Event,
     video::{GLProfile}
@@ -11,7 +10,7 @@ mod ui;
 mod engine;
 mod input;
 
-use engine::{camera, renderer::Renderer, world::World, voxel};
+use engine::{camera, renderer::Renderer, world::World};
 
 use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;

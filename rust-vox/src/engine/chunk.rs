@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use super::{voxel::Voxel, mesh::{Mesh}};
+use super::{voxel::Voxel, mesh::{Mesh}, terrain::TerrainGenerator};
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z: usize = 20;
@@ -16,9 +16,23 @@ pub struct Chunk
 
 impl Chunk
 {
-    pub fn new(pos_x : u32 , pos_y : u32 , pos_z: u32) -> Chunk
+    pub fn new<T>(pos_x : u32 , pos_y : u32 , pos_z: u32 , generator: &T) -> Chunk
+        where T: TerrainGenerator
     {
-        let voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
+
+        let mut voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
+
+        // iterate over the voxels, requesting the type of each from the generator
+        for x in 0..CHUNK_X
+        {
+            for y in 0..CHUNK_Y
+            {
+                for z in 0..CHUNK_Z
+                {
+                    generator.generate(&mut voxels[x][y][z] , x as u32 , y as u32 ,z as u32);
+                }
+            }
+        }
 
         //FIXME: jesus christ
         let pos = Vec3::new((pos_x * CHUNK_X as u32 ) as f32 , (pos_y *CHUNK_Y as u32 ) as f32 , (pos_z * CHUNK_Z as u32 ) as f32 );

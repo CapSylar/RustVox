@@ -19,15 +19,15 @@ pub struct Mesh
 pub struct Vertex
 {
     position: Vec3, // X, Y , Z
-    normal: Vec3, // X , Y , Z 
+    // normal: Vec3, // X , Y , Z 
     tex_coord: Vec2, // U ,V
 }
 
 impl Vertex
 {
-    pub fn new( position: Vec3 , normal : Vec3 , texture_coordinate: Vec2 ) -> Vertex
+    pub fn new( position: Vec3 , _normal : Vec3 , texture_coordinate: Vec2 ) -> Vertex
     {
-        Vertex { position, normal , tex_coord: texture_coordinate }
+        Vertex { position , tex_coord: texture_coordinate }
     }
 }
 
@@ -46,7 +46,10 @@ impl Mesh
             {
                 for z in 0..CHUNK_Z
                 {
-                    voxels[x][y][z].append_mesh(Vec3::new(x as f32 + pos.x ,y as f32 + pos.y ,z as f32 + pos.z ), &mut mesh);
+                    if voxels[x][y][z].is_filled()
+                    {
+                        voxels[x][y][z].append_mesh(Vec3::new(x as f32 + pos.x ,y as f32 + pos.y ,z as f32 + pos.z ), &mut mesh);
+                    }
                 }
             }
         }
@@ -63,7 +66,7 @@ impl Mesh
          let mut layout = VertexBufferLayout::new();
         
          layout.push_f32(3); // vertex(x,y,z)
-         layout.push_f32(3); // normal(x,y,z)
+        //  layout.push_f32(3); // normal(x,y,z)
          layout.push_f32(2); // uv coordinates(u,v)
          // create the index buffer
          let index_buffer = IndexBuffer::new(&self.indices);
@@ -83,12 +86,6 @@ impl Mesh
         self.indices.push(p1);
         self.indices.push(p2);
         self.indices.push(p3);
-    }
-
-    pub fn add_trig_last_triple(&mut self)
-    {
-        // makes a triangle out of the last three added vertices
-        todo!()       
     }
 
     pub fn size_bytes(&self) -> usize

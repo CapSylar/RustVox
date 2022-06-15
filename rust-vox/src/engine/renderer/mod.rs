@@ -51,8 +51,8 @@ impl Renderer
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST_MIPMAP_NEAREST as _ );
             gl::TexParameteri( gl::TEXTURE_2D , gl::TEXTURE_MAG_FILTER , gl::NEAREST as _ );
 
-            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGB as _ , width.try_into().unwrap() , height.try_into().unwrap() ,
-                0, gl::RGB as _ , gl::UNSIGNED_BYTE , data.as_ptr().cast() );
+            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as _ , width.try_into().unwrap() , height.try_into().unwrap() ,
+                0, gl::RGBA as _ , gl::UNSIGNED_BYTE , data.as_ptr().cast() );
             gl::GenerateMipmap(gl::TEXTURE_2D);
 
             // ------------------------------------------ END 

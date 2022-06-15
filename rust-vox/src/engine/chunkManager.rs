@@ -1,4 +1,4 @@
-use super::chunk::Chunk;
+use super::{chunk::Chunk, terrain::PerlinGenerator};
 
 pub struct ChunkManager
 {
@@ -11,13 +11,17 @@ impl ChunkManager
     {
         let mut chunks = Vec::new();
 
+        // terrain generator
+        let generator = PerlinGenerator::new();
+
         // TODO: create u32 Vec3 
         // Create 400 chunks
         for x in 0..5
         {
             for z in 0..5
             {
-                let mut chunk = Chunk::new(x,0,z);
+
+                let mut chunk = Chunk::new(x,0,z, &generator);
                 chunk.mesh.upload();
                 chunks.push(Box::new(chunk));
             }
