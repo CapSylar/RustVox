@@ -1,4 +1,4 @@
-use rand::Rng;
+use noise::{Perlin, NoiseFn, Seedable};
 
 use super::voxel::Voxel;
 
@@ -11,14 +11,15 @@ pub trait TerrainGenerator
 
 pub struct PerlinGenerator
 {
-
+    perlin: Perlin,
 }
 
 impl PerlinGenerator
 {
     pub fn new() -> Self
     {
-        Self{}
+        let perlin = Perlin::new();
+        Self{perlin}
     }
 }
 
@@ -26,7 +27,18 @@ impl TerrainGenerator for PerlinGenerator
 {
     fn generate( &self, voxel: &mut Voxel,  x:u32, y:u32, z:u32)
     {
-        let mut rng = rand::thread_rng();
-        voxel.set_filled(rng.gen());
+        // println!("points we got, x:{} y:{} ", x as f64 * 10.0 , z as f64 * 10.0 );
+        let max_height = self.perlin.get([x as f64 / 10.0, z as f64 / 10.0]) * 10.0 + 10.0 ;
+        let max_height = max_height as u32;
+        // println!("max height {}" , max_height);
+
+        if y >= max_height as u32
+        {
+            voxel.set_filled(false);
+            return;
+        }
+
+        // first 20 blocks are bedrock
+        voxel.set_filled(true);
     }
 }

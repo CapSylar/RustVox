@@ -11,4 +11,4 @@ glam = "0.20.5"
 imgui-opengl-renderer = { path = "../rust-imgui-opengl-renderer"}
 imgui  = { git = "https://github.com/imgui-rs/imgui-rs.git" }
 imgui_sdl2_support = { git = "https://github.com/imgui-rs/imgui-rs.git", package="imgui-sdl2-support" }
-rand = "0.8.5"
+noise = "0.7.0"

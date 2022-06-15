@@ -19,8 +19,12 @@ impl Chunk
     pub fn new<T>(pos_x : u32 , pos_y : u32 , pos_z: u32 , generator: &T) -> Chunk
         where T: TerrainGenerator
     {
-
         let mut voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
+
+        // chunk position offset in the world
+        let x_offset = pos_x * CHUNK_X as u32 ;
+        let y_offset = pos_y * CHUNK_Y as u32 ;
+        let z_offset = pos_z * CHUNK_Z as u32 ;
 
         // iterate over the voxels, requesting the type of each from the generator
         for x in 0..CHUNK_X
@@ -29,7 +33,7 @@ impl Chunk
             {
                 for z in 0..CHUNK_Z
                 {
-                    generator.generate(&mut voxels[x][y][z] , x as u32 , y as u32 ,z as u32);
+                    generator.generate(&mut voxels[x][y][z] , x as u32 + x_offset , y as u32 + y_offset,z as u32 + z_offset);
                 }
             }
         }
