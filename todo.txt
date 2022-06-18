@@ -1,0 +1,5 @@
+- [] in-chunk face optimization - remove faces that are all unseen
+- [] chunk-loading animation
+- [] frustum culling for unseen chunks
+- [] multiple block types
+- [] chunk manager

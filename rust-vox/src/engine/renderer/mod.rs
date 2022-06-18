@@ -101,7 +101,7 @@ impl Renderer
             // draw each chunk's mesh
             for chunk in world.chunk_manager.get_chunks_to_render()
             {
-                Renderer::draw_mesh(&chunk.as_ref().mesh);
+                Renderer::draw_mesh(&chunk.borrow().mesh);
             }
             
             Shader::unbind();

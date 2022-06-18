@@ -16,4 +16,10 @@ impl World
 
         Self{camera,chunk_manager}
     }
+
+    pub fn update(&mut self)
+    {
+        // update the chunks if needed
+        self.chunk_manager.update(&self.camera);
+    }
 }
