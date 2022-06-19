@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use super::{voxel::Voxel, mesh::{Mesh}, terrain::TerrainGenerator};
+use super::{mesh::{Mesh}, terrain::TerrainGenerator, voxel::Voxel};
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z: usize = 20;
@@ -13,13 +13,14 @@ pub const CHUNK_Y : usize = 100;
 pub struct Chunk
 {
     //TODO: shouldn't this be on the heap? 
-    voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
-    pos: Vec3, // position in chunk space
-    pub mesh: Mesh,
+    pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
+    pub pos: Vec3, // position in chunk space
+    pub mesh: Option<Mesh>,
 }
 
 impl Chunk
 {
+    /// Lazily create the Chunk, no mesh is created
     pub fn new(pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator) -> Chunk
     {
         let mut voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
@@ -44,9 +45,29 @@ impl Chunk
         //FIXME: jesus christ
         let pos = Vec3::new((pos_x * CHUNK_X as i32 ) as f32 , (pos_y *CHUNK_Y as i32 ) as f32 , (pos_z * CHUNK_Z as i32 ) as f32 );
         // convert position from chunk space
-        let mesh = Mesh::new(&voxels, pos);
-
-        let chunk = Chunk{ pos , voxels , mesh};
+        let chunk = Chunk{ pos , voxels , mesh: None};
         chunk
     }
+
+    /// Generate the chunk mesh    
+    pub fn create_mesh(&mut self)
+    {
+        let mesh = Mesh::new(self);
+        // assign the created mesh
+        self.mesh = Some(mesh);
+    }
+
+    pub fn get_voxel(&self, pos_x: i32 , pos_y:i32 , pos_z:i32) -> Option<Voxel>
+    {
+        // make sure the pos is within bounds
+        if pos_x < 0 || pos_x >= CHUNK_X as i32  ||
+             pos_y < 0 || pos_y >= CHUNK_Y as i32  ||
+             pos_z < 0 || pos_z >= CHUNK_Z as i32
+        {
+            return None;
+        }
+
+        Some(self.voxels[pos_x as usize][pos_y as usize][pos_z as usize])
+    }
+
 }

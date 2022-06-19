@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use glam::{Vec3, Vec2};
 
-use super::{renderer::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, voxel::Voxel, chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z}};
+use super::{renderer::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, voxel::{Voxel, VoxelFace, VoxelFaceValues}, chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk}, types::Vec3i32};
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices
@@ -33,7 +33,7 @@ impl Vertex
 
 impl Mesh
 {
-    pub fn new(voxels: &[[[Voxel; CHUNK_X];CHUNK_Y];CHUNK_Z] , pos: Vec3) -> Mesh
+    pub fn new(chunk: &mut Chunk) -> Mesh
     {
         // Generate the mesh
         let mut mesh = Mesh{vertices:Vec::<Vertex>::new(),indices:Vec::<u32>::new(),vao: None};
@@ -46,9 +46,29 @@ impl Mesh
             {
                 for z in 0..CHUNK_Z
                 {
-                    if voxels[x][y][z].is_filled()
+                    if chunk.voxels[x][y][z].is_filled() // not an air block
                     {
-                        voxels[x][y][z].append_mesh(Vec3::new(x as f32 + pos.x ,y as f32 + pos.y ,z as f32 + pos.z ), &mut mesh);
+                        let mut faces_to_render: [bool;6] = [false;6];
+
+                        // TODO: refactor
+                        for offset in VoxelFaceValues.iter().enumerate()
+                        {
+                            // is the neighbor of the current voxel in the given direction filled ? 
+                            let pos = Vec3i32::new(x as i32,y as i32,z as i32) + *offset.1;
+                            if let Some(neighbor) = chunk.get_voxel(pos.x, pos.y, pos.z)
+                            {
+                                if !neighbor.is_filled()
+                                {
+                                    faces_to_render[offset.0] = true ;
+                                }
+                            }
+                            else
+                            {
+                                faces_to_render[offset.0] = true;    
+                            }
+                        }
+
+                        chunk.voxels[x][y][z].append_mesh_faces( &faces_to_render ,Vec3::new(x as f32 + chunk.pos.x ,y as f32 + chunk.pos.y ,z as f32 + chunk.pos.z ), &mut mesh);
                     }
                 }
             }

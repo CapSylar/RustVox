@@ -5,4 +5,5 @@ pub mod voxel;
 pub mod mesh;
 pub mod chunk;
 pub mod world;
+pub mod types;
 pub mod chunkManager;

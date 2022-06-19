@@ -33,7 +33,14 @@ impl ChunkManager
             for z in -2..3
             {
                 let mut chunk = Chunk::new(x,0,z, &generator);
-                chunk.mesh.upload();
+                chunk.create_mesh();
+
+                match chunk.mesh.as_mut()
+                {
+                    Some(mesh) => mesh.upload(),
+                    None => eprintln!("Some error occured in chunk mesh creation!"),
+                }
+
                 let c = Rc::new(RefCell::new(chunk));
                 chunks_render.push(Rc::clone(&c));
                 chunks.insert((x,z),c);
@@ -48,7 +55,7 @@ impl ChunkManager
     {
         // TODO: refactor everything 
 
-        const render_distance: i32 = 3;
+        const RENDER_DISTANCE: i32 = 3;
 
         // do we need to load more chunks?
         let pos = camera.position;
@@ -74,8 +81,8 @@ impl ChunkManager
             let x_offset = 
             match x_diff
             {
-                1 => render_distance,
-                -1 => -render_distance,
+                1 => RENDER_DISTANCE,
+                -1 => -RENDER_DISTANCE,
                 _ => 0, // no possible
             };
 
@@ -89,7 +96,8 @@ impl ChunkManager
             {
                 println!("loaded chunks x:{},z:{}", center , z);
                 let mut chunk = Chunk::new( center ,0,z, self.generator.as_ref());
-                chunk.mesh.upload();
+                chunk.create_mesh();
+                chunk.mesh.as_mut().expect("some error occured in chunk mesh creation").upload();
                 let c = Rc::new(RefCell::new(chunk));
                 // self.chunks_render.push(Rc::clone(&c));
                 self.chunks.insert((center,z),c);
@@ -103,8 +111,8 @@ impl ChunkManager
             let z_offset = 
             match z_diff
             {
-                1 => render_distance,
-                -1 => -render_distance,
+                1 => RENDER_DISTANCE,
+                -1 => -RENDER_DISTANCE,
                 _ => 0, // no possible
             };
 
@@ -117,7 +125,8 @@ impl ChunkManager
             for x in new_pos.0-2..new_pos.0+3
             {
                 let mut chunk = Chunk::new( x ,0,center, self.generator.as_ref());
-                chunk.mesh.upload();
+                chunk.create_mesh();
+                chunk.mesh.as_mut().expect("some error occured in chunk mesh creation").upload();
                 let c = Rc::new(RefCell::new(chunk));
                 // self.chunks_render.push(Rc::clone(&c));
                 self.chunks.insert((x,center),c);
