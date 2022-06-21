@@ -1,6 +1,6 @@
 use std::{fs, io::Error, ffi::{CStr, CString}, collections::HashMap};
 
-use glam::{Vec4, Mat4};
+use glam::{Vec4, Mat4, Vec3};
 
 pub struct Shader
 {
@@ -151,6 +151,24 @@ impl Shader
             unsafe
             {
                 gl::UniformMatrix4fv( location , 1 , gl::FALSE , value.as_ref().as_ptr().cast() );
+            }
+            Ok(true)
+        }
+    }
+
+    pub fn set_uniform3fv(&mut self, name: &CStr, value: &Vec3) -> Result<bool,String>
+    {
+        let location = self.get_uniform_location(name);
+
+        if location == -1
+        {
+            Err(String::from("an error occured"))
+        }
+        else
+        {
+            unsafe
+            {
+                gl::Uniform3fv( location , 1 , value.as_ref().as_ptr().cast() );
             }
             Ok(true)
         }

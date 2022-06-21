@@ -6,4 +6,5 @@ pub mod mesh;
 pub mod chunk;
 pub mod world;
 pub mod types;
+pub mod animation;
 pub mod chunkManager;

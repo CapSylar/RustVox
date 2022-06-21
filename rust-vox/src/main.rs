@@ -32,7 +32,7 @@ fn main()
 
     // create a new window
     let window = video_subsystem
-        .window("testing imGui", 1400, 900)
+        .window("RustVox prototyping", 1400, 900)
         .allow_highdpi()
         .opengl()
         .position_centered()
@@ -68,7 +68,7 @@ fn main()
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
     let mut event_pump = sdl.event_pump().unwrap();
 
-    sdl.mouse().set_relative_mouse_mode(true);
+    sdl.mouse().set_relative_mouse_mode(false);
     
     let mut state = State{frame_time:0};
     let mut voxel_world = World::new(

@@ -1,5 +1,5 @@
 use std::{ffi::{c_void, CStr, CString}, f32::consts::PI};
-use glam::{Mat4};
+use glam::{Mat4, Vec3};
 use sdl2::{VideoSubsystem};
 
 pub mod vertex_buffer;
@@ -80,7 +80,8 @@ impl Renderer
         //TODO: remove these from here
         let texture = CString::new("test_texture1").unwrap();
         let transform = CString::new("transform").unwrap();
-
+        let animation_transform = CString::new("animation_offset").unwrap();
+        
         unsafe
         {
             gl::ClearColor(0.2,0.2,0.2,1.0);
@@ -99,9 +100,19 @@ impl Renderer
             self.shader.set_uniform_matrix4fv(&transform, &trans).expect("error setting the transform uniform");
             
             // draw each chunk's mesh
-            for chunk in world.chunk_manager.get_chunks_to_render()
+            for chunk in world.chunk_manager.get_chunks_to_render().iter()
             {
-                Renderer::draw_mesh(chunk.borrow().mesh.as_ref().expect("mesh was not initialized!"));
+                let chunk = chunk.borrow_mut();
+                if let Some(offset) = chunk.animation.as_ref()
+                {
+                    self.shader.set_uniform3fv(&animation_transform, &offset.current ).expect("error setting animation offset!");
+                }
+                else
+                {
+                    self.shader.set_uniform3fv(&animation_transform, &Vec3::ZERO).expect("error setting animation offset!");
+                }
+
+                Renderer::draw_mesh(chunk.mesh.as_ref().expect("mesh was not initialized!"));
             }
             
             Shader::unbind();

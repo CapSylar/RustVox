@@ -1,6 +1,6 @@
 use glam::Vec3;
 
-use super::{mesh::{Mesh}, terrain::TerrainGenerator, voxel::Voxel};
+use super::{mesh::{Mesh}, terrain::TerrainGenerator, voxel::Voxel, animation::ChunkMeshAnimation};
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z: usize = 20;
@@ -16,6 +16,9 @@ pub struct Chunk
     pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
     pub pos: Vec3, // position in chunk space
     pub mesh: Option<Mesh>,
+
+    // animation
+    pub animation: Option<ChunkMeshAnimation>
 }
 
 impl Chunk
@@ -45,7 +48,7 @@ impl Chunk
         //FIXME: jesus christ
         let pos = Vec3::new((pos_x * CHUNK_X as i32 ) as f32 , (pos_y *CHUNK_Y as i32 ) as f32 , (pos_z * CHUNK_Z as i32 ) as f32 );
         // convert position from chunk space
-        let chunk = Chunk{ pos , voxels , mesh: None};
+        let chunk = Chunk{ pos , voxels , mesh: None , animation: None};
         chunk
     }
 
@@ -68,6 +71,29 @@ impl Chunk
         }
 
         Some(self.voxels[pos_x as usize][pos_y as usize][pos_z as usize])
+    }
+
+    pub fn add_animation(&mut self , animation: ChunkMeshAnimation)
+    {
+        //fixme: what if we already have an animation ?
+        self.animation = Some(animation);
+    }
+
+    // TODO: refactor
+    pub fn update_animation(&mut self) -> bool 
+    {
+        let mut end = false;
+        if let Some(animation) = self.animation.as_mut()
+        {
+            end = animation.update();
+        }
+
+        if end
+        {
+            self.animation = None; // remove animation
+        }
+
+        end 
     }
 
 }
