@@ -1,4 +1,4 @@
-use noise::{Perlin, NoiseFn};
+use noise::{Perlin, NoiseFn, Seedable};
 
 use super::voxel::Voxel;
 
@@ -11,15 +11,18 @@ pub trait TerrainGenerator
 
 pub struct PerlinGenerator
 {
-    perlin: Perlin,
+    layer0: Perlin,
+    layer1: Perlin,
 }
 
 impl PerlinGenerator
 {
     pub fn new() -> Self
     {
-        let perlin = Perlin::new();
-        Self{perlin}
+        let layer0 = Perlin::new();
+        let layer1 = Perlin::new();
+        layer1.set_seed(2345345);
+        Self{layer0, layer1}
     }
 }
 
@@ -27,12 +30,16 @@ impl TerrainGenerator for PerlinGenerator
 {
     fn generate( &self, voxel: &mut Voxel,  x:i32, y:i32, z:i32)
     {
-        // println!("points we got, x:{} y:{} ", x as f64 * 10.0 , z as f64 * 10.0 );
-        let max_height = self.perlin.get([x as f64 / 10.0, z as f64 / 10.0]) * 10.0 + 10.0 ;
-        let max_height = max_height as i32;
-        // println!("max height {}" , max_height);
+        const MIN_HEIGHT: u32 = 10; // 10 blocks
 
-        if y >= max_height
+        // println!("points we got, x:{} y:{} ", x as f64 * 10.0 , z as f64 * 10.0 );
+        let weigth0 = self.layer0.get([x as f64 / 30.0, z as f64 / 30.0]);
+        let weight1 = self.layer1.get([x as f64 / 10.0, z as f64 / 10.0]);
+
+        let weight = 0.7;
+        let max_height = (((weigth0 * weight + weight1 * (1.0 - weight)) + 1.0) * 15.0) as u32 + MIN_HEIGHT ;
+
+        if y as u32 >= max_height
         {
             voxel.set_filled(false);
             return;
