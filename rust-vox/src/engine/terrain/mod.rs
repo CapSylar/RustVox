@@ -1,5 +1,7 @@
 use noise::{Perlin, NoiseFn, Seedable};
 
+use crate::engine::voxel::VoxelType;
+
 use super::voxel::Voxel;
 
 pub trait TerrainGenerator
@@ -39,13 +41,24 @@ impl TerrainGenerator for PerlinGenerator
         let weight = 0.7;
         let max_height = (((weigth0 * weight + weight1 * (1.0 - weight)) + 1.0) * 15.0) as u32 + MIN_HEIGHT ;
 
-        if y as u32 >= max_height
+        let y = y as u32 ;
+
+        if y >= max_height
         {
             voxel.set_filled(false);
             return;
         }
 
-        // first 20 blocks are bedrock
         voxel.set_filled(true);
+
+        if y >= 20
+        {
+            voxel.set_type(VoxelType::Grass);
+        }
+        else  // first 20 blocks are bedrock
+        {
+            voxel.set_type(VoxelType::Sand);
+        }
+
     }
 }
