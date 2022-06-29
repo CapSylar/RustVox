@@ -92,7 +92,7 @@ impl Renderer
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D, self.texture1);
 
-            self.shader.set_uniform1i(&texture, 0).expect("error setting the texture uniform");
+            self.shader.set_uniform1i(&texture, 0); // .expect("error setting the texture uniform");
 
             let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 1000.0);
             // camera matrix 

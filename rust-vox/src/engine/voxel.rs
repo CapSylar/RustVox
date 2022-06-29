@@ -11,11 +11,8 @@ pub enum VoxelType
     Sand,
 }
 
-type UV = (f32,f32);
-
 /// Holds the texture UV information for each block type
 /// Each entry holds the lower left UV coordinates of the texture for the face
-
 #[derive(Clone, Copy)]
 struct VoxelTypeTexture
 {
