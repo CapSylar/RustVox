@@ -9,6 +9,7 @@ use sdl2::{
 mod ui;
 mod engine;
 mod input;
+mod threadpool;
 
 use engine::{camera, renderer::Renderer, world::World};
 

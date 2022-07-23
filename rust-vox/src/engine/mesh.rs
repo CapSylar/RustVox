@@ -15,7 +15,7 @@ pub struct Mesh
 
 /// Holds all the data which constitute a *vertex*
 #[repr(C,packed)]
-#[derive(Debug)]
+#[derive(Clone,Copy,Debug)]
 pub struct Vertex
 {
     position: Vec3, // X, Y , Z
