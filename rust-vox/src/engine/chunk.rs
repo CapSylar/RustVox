@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use glam::Vec3;
 
 use super::{mesh::{Mesh}, terrain::TerrainGenerator, voxel::Voxel, animation::ChunkMeshAnimation};
@@ -14,7 +16,7 @@ pub struct Chunk
 {
     //TODO: shouldn't this be on the heap? 
     pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
-    pub pos: Vec3, // position in chunk space
+    pos: Vec3, // position in chunk space
     pub mesh: Option<Mesh>,
 
     // animation
@@ -26,6 +28,7 @@ impl Chunk
     /// Lazily create the Chunk, no mesh is created
     pub fn new(pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator) -> Chunk
     {
+        let time = Instant::now();
         let mut voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
 
         // chunk position offset in the world
@@ -46,9 +49,10 @@ impl Chunk
         }
 
         //FIXME: jesus christ
-        let pos = Vec3::new((pos_x * CHUNK_X as i32 ) as f32 , (pos_y *CHUNK_Y as i32 ) as f32 , (pos_z * CHUNK_Z as i32 ) as f32 );
+        // let pos = Vec3::new((pos_x * CHUNK_X as i32 ) as f32 , (pos_y *CHUNK_Y as i32 ) as f32 , (pos_z * CHUNK_Z as i32 ) as f32 );
         // convert position from chunk space
-        let chunk = Chunk{ pos , voxels , mesh: None , animation: None};
+        let chunk = Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None , animation: None};
+        println!("Time it took to create new chunk: {}", time.elapsed().as_millis());
         chunk
     }
 
@@ -95,5 +99,11 @@ impl Chunk
 
         end 
     }
+
+    pub fn pos_chunk_space(&self) -> Vec3 { self.pos }
+
+    pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_X as i32 ) as f32 ,
+             (self.pos.y as i32 *CHUNK_Y as i32 ) as f32 ,
+                 (self.pos.z as i32 * CHUNK_Z as i32 ) as f32 ) }
 
 }

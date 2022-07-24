@@ -86,7 +86,7 @@ impl Worker
         let thread = thread::spawn( move || {
             loop
             {
-                // Note: recv() will block keeping the mutex locked, all threads will sleep until this thread received a job and releases the mutex
+                // Note: recv() will block ,keeping the mutex locked, all threads will sleep until this thread received a job and releases the mutex
                 let job = receiver.lock().unwrap().recv().unwrap();
                 
                 let job = match job

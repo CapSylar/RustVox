@@ -1,157 +1,125 @@
-use std::{cell::RefCell, rc::Rc, collections::HashMap, borrow::BorrowMut};
+use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
+
+use crate::threadpool::ThreadPool;
 
 use super::{chunk::{Chunk, CHUNK_X, CHUNK_Z}, terrain::{PerlinGenerator, TerrainGenerator}, camera::Camera, animation::ChunkMeshAnimation};
+
+// length are in chunks
+const NO_UPDATE: i32 = 5;
+const VISIBLE: i32 = 10; // engulfes NO_UPDATE_SQUARE
+// const NO_VISIBLE_STILL_LOADED: i32 = 10;
+
+const MIN_BETWEEN_LOADS: Duration = Duration::from_millis(50);
+const UPLOAD_LIMIT_FRAME: usize = 1; // maximum number of chunks that can be uploaded per frame
 
 pub struct ChunkManager
 {
     generator: Box<dyn TerrainGenerator>,
+    threadpool: ThreadPool,
+
     chunks: HashMap<(i32,i32), Rc<RefCell<Chunk>>>,
-    chunks_load: Vec<Rc<RefCell<Chunk>>>,
     chunks_render: Vec<Rc<RefCell<Chunk>>>,
     chunks_animation: Vec<Rc<RefCell<Chunk>>>,
+
+    chunks_to_load: Arc<Mutex<Vec<Chunk>>>, // chunks that exist here are not necessarily in the chunks list
+
     // to render chunk list
     // to rebuild chunk list
     // to unload chunk list
     // to load chunk list
-    last_player_pos: (i32,i32), // X , Z
+
+    // update state
+    anchor_point: (i32,i32), // anchor chunk point
+    to_upload: Vec<Chunk>,
+    last_upload: Instant,
 }
 
 impl ChunkManager
 {   
-    pub fn new() -> Self
+    pub fn new( theadcount: usize ) -> Self
     {
         // create the fields
-        let mut chunks = HashMap::new();
-        let mut chunks_load = Vec::new();
-        let mut chunks_render = Vec::new();
-        let mut chunks_animation = Vec::new();
+        let chunks = HashMap::new();
+        let chunks_load = Arc::new(Mutex::new(Vec::new()));
+        let chunks_render = Vec::new();
+        let chunks_animation = Vec::new();
 
         // terrain generator
         let generator = PerlinGenerator::new();
 
-        // assuming starting player position is 0,0,0 for now
-        for x in -5..6
-        {
-            for z in -5..6
-            {
-                let mut chunk = Chunk::new(x,0,z, &generator);
-                chunk.create_mesh();
+        // player position always starts at (0,0,0) for now
 
-                match chunk.mesh.as_mut()
-                {
-                    Some(mesh) => mesh.upload(),
-                    None => eprintln!("Some error occured in chunk mesh creation!"),
-                }
-
-                let c = Rc::new(RefCell::new(chunk));
-                chunks_render.push(Rc::clone(&c));
-                chunks.insert((x,z),c);
-            }
-        }
-
-        Self{chunks , chunks_load , chunks_render ,
-             last_player_pos:(0,0) , generator: Box::new(generator) , chunks_animation }
+        let mut ret = Self{chunks , chunks_to_load: chunks_load , chunks_render , anchor_point: (0,0),
+            generator: Box::new(generator) , chunks_animation , threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now() };
+        ret.load_visible();
+        ret
     }
 
-    /// Eveything related to updating the chunks list, loading new chunks, unloading chunks...
+    /// load visible chunks around the anchor point
+    fn load_visible(&mut self)
+    {
+        // load every chunk that falls within the NOT_VISIBLE square
+        for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
+        {
+            for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
+            {
+                // check if the chunks have already been created
+                match self.chunks.get(&(x,z))
+                {
+                    Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
+                    None => {self.create_chunk(x,0,z,self.generator.as_ref()); } // Needs to be created
+                };
+            }
+        }
+    }
+
+    /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
     pub fn update(&mut self , camera: &Camera)
     {
-        // TODO: refactor everything 
-
-        const RENDER_DISTANCE: i32 = 6;
-
-        // do we need to load more chunks?
         let pos = camera.position;
         // in which chunk are we ? 
         let chunk_x = pos.x as i32 / CHUNK_X as i32;
         let chunk_z = pos.z as i32 / CHUNK_Z as i32;
         let new_pos = (chunk_x,chunk_z);
 
-        // did we change chunks ? 
-        if self.last_player_pos != new_pos
-        {
+        // did we change chunks and are now outside the no-update zone ?
+        if (new_pos.0 - self.anchor_point.0).abs() > NO_UPDATE/2 ||  // in x
+                    (new_pos.1 - self.anchor_point.1).abs() > NO_UPDATE/2 // in z
+        { 
             println!("[DEBUG] currently in chunk x:{}, z:{}", new_pos.0, new_pos.1);
 
-            // if yes in which direction, +x , -x , +z , -z, or in several? (+x,-z),(+x,+z),...
-            let x_diff = new_pos.0 - self.last_player_pos.0;
-            let z_diff = new_pos.1 - self.last_player_pos.1;
+            // update new anchor point
+            self.anchor_point = new_pos;
 
-            if x_diff != 0
-            {
-                let x_offset = 
-                match x_diff
-                {
-                    1 => RENDER_DISTANCE,
-                    -1 => -RENDER_DISTANCE,
-                    _ => 0, // no possible
-                };
-
-                let center = x_offset + self.last_player_pos.0;
-                let reverse_center = -x_offset + new_pos.0;
-                
-                // load new chunks in whole z row
-                for z in new_pos.1-5..new_pos.1+6
-                {
-                    let mut chunk = Chunk::new( center ,0,z, self.generator.as_ref());
-                    chunk.create_mesh();
-                    chunk.add_animation(ChunkMeshAnimation::new());
-                    chunk.mesh.as_mut().unwrap().upload();
-                    let c = Rc::new(RefCell::new(chunk));
-                    // self.chunks_render.push(Rc::clone(&c));
-                    self.chunks_animation.push(Rc::clone(&c));
-                    self.chunks.insert((center,z),c);
-                    self.chunks.remove(&(reverse_center ,z));
-                }
-            }
-
-            if z_diff != 0
-            {   
-                let z_offset = 
-                match z_diff
-                {
-                    1 => RENDER_DISTANCE,
-                    -1 => -RENDER_DISTANCE,
-                    _ => 0, // no possible
-                };
-
-                let center = z_offset + self.last_player_pos.1;
-                let reverse_center = -z_offset + new_pos.1;
-
-                // load new chunks in whole z row
-                for x in new_pos.0-5..new_pos.0+6
-                {
-                    let mut chunk = Chunk::new( x ,0,center, self.generator.as_ref());
-                    chunk.create_mesh();
-                    chunk.add_animation(ChunkMeshAnimation::new());
-                    chunk.mesh.as_mut().expect("some error occured in chunk mesh creation").upload();
-                    let c = Rc::new(RefCell::new(chunk));
-                    // self.chunks_render.push(Rc::clone(&c));
-                    self.chunks_animation.push(Rc::clone(&c));
-                    self.chunks.insert((x,center),c);
-                    self.chunks.remove(&(x,reverse_center));
-                }
-            }
-
-            // determine new chunks render list
             self.chunks_render.clear();
-            
-            for x in new_pos.0-5.. new_pos.0+6
+
+            // re-populate list of chunks to be rendered
+            self.load_visible();            
+        }
+
+        // check if some chunk has finished meshing and is ready to be loaded
+        // first acquire the lock
+        if let Ok(mut vec) = self.chunks_to_load.try_lock()
+        {
+            // add the chunk to the general chunks list
+            self.to_upload.append(&mut vec.drain(..).collect());
+        }
+
+        // get x chunks from the to_load list and upload them
+        if self.last_upload.elapsed().as_millis() > MIN_BETWEEN_LOADS.as_millis()
+        {
+            self.last_upload = Instant::now(); // reset counter
+            for _ in 0..UPLOAD_LIMIT_FRAME
             {
-                for z in new_pos.1-5 .. new_pos.1+6
+                if self.to_upload.len() > 0
                 {
-                    match self.chunks.get(&(x,z))
-                    {
-                        Some(chunk) => self.chunks_render.push(Rc::clone(chunk)) ,
-                        None => {println!("Something terrible happened! Chunk x:{},z:{}!" , x , z );} 
-                    };
+                    let mut chunk = self.to_upload.remove(0);
+                    chunk.mesh.as_mut().unwrap().upload();
+                    self.register_chunk(chunk);
                 }
             }
-
-            // load appropriate new chunk
-            // update last position
-            self.last_player_pos = new_pos;
         }
-    
+
         // animation updates
         let mut i = 0;
         while i < self.chunks_animation.len()
@@ -159,7 +127,6 @@ impl ChunkManager
             if self.chunks_animation[i].as_ref().borrow_mut().update_animation()
             {
                 self.chunks_animation.remove(i);
-                // println!("[DEBUG] animation component removed");wwwwwwwwwww
             }
             else
             {
@@ -169,10 +136,48 @@ impl ChunkManager
 
     }
 
+    fn register_chunk(&mut self , mut chunk : Chunk)
+    {
+        let pos = chunk.pos_chunk_space();
+        chunk.add_animation(ChunkMeshAnimation::new());
+        let c = Rc::new(RefCell::new(chunk));
+        self.chunks_animation.push(Rc::clone(&c));
+        self.chunks_render.push(Rc::clone(&c));
+        self.chunks.insert( ( pos.x as i32 , pos.z as i32 ) , c );
+    }
+
+    // fn deregister_chunk(&mut self)
+    // {
+
+    // }
+
     /// retrieves the list of Chunks that should be rendered this frame
     pub fn get_chunks_to_render(&self) -> &Vec<Rc<RefCell<Chunk>>>
     {
         &self.chunks_render // return all for now
+    }
+
+    // pub fn load_chunks()
+    // {
+
+    // }
+
+    /// Constructs the mesh for loaded chunks, and then appends them to the general list of chunks
+    /// 
+    /// Uses a threadpool
+    /// 
+    /// ### Note: Does not Upload the mesh
+    fn create_chunk(&self , pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator)
+    {
+        let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator);
+        let vec = Arc::clone(&self.chunks_to_load);
+        
+        self.threadpool.execute( move ||
+        {
+            chunk.create_mesh();
+            // append the mesh to the list of chunks to be loaded
+            vec.lock().unwrap().push(chunk);
+        });
     }
 
 }

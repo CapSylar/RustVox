@@ -68,7 +68,10 @@ impl Mesh
                             }
                         }
 
-                        chunk.voxels[x][y][z].append_mesh_faces( &faces_to_render ,Vec3::new(x as f32 + chunk.pos.x ,y as f32 + chunk.pos.y ,z as f32 + chunk.pos.z ), &mut mesh);
+                        chunk.voxels[x][y][z].append_mesh_faces( &faces_to_render ,
+                                chunk.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
+                                // Vec3::new(x as f32 + chunk.pos.x ,y as f32 + chunk.pos.y ,z as f32 + chunk.pos.z ),
+                                &mut mesh);
                     }
                 }
             }

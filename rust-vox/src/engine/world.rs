@@ -12,7 +12,7 @@ impl World
     pub fn new(camera: Camera) -> Self
     {
         // init the chunk manager
-        let chunk_manager = ChunkManager::new();
+        let chunk_manager = ChunkManager::new(4);
 
         Self{camera,chunk_manager}
     }
