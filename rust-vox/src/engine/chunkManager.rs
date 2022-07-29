@@ -5,16 +5,22 @@ use crate::threadpool::ThreadPool;
 use super::{chunk::{Chunk, CHUNK_X, CHUNK_Z}, terrain::{PerlinGenerator, TerrainGenerator}, camera::Camera, animation::ChunkMeshAnimation};
 
 // length are in chunks
-const NO_UPDATE: i32 = 5;
-const VISIBLE: i32 = 10; // engulfes NO_UPDATE_SQUARE
+const NO_UPDATE: i32 = 4;
+const VISIBLE: i32 = 12; // engulfes NO_UPDATE_SQUARE
 // const NO_VISIBLE_STILL_LOADED: i32 = 10;
 
 const MIN_BETWEEN_LOADS: Duration = Duration::from_millis(50);
 const UPLOAD_LIMIT_FRAME: usize = 1; // maximum number of chunks that can be uploaded per frame
 
+// Needed to be able to pass the generator as a &'static to the spawned threads
+lazy_static! 
+{
+    static ref GENERATOR: Box<dyn TerrainGenerator> = Box::new(PerlinGenerator::new());
+}
+
 pub struct ChunkManager
 {
-    generator: Box<dyn TerrainGenerator>,
+    // generator: TerrainGenerator,
     threadpool: ThreadPool,
 
     chunks: HashMap<(i32,i32), Rc<RefCell<Chunk>>>,
@@ -44,13 +50,10 @@ impl ChunkManager
         let chunks_render = Vec::new();
         let chunks_animation = Vec::new();
 
-        // terrain generator
-        let generator = PerlinGenerator::new();
-
         // player position always starts at (0,0,0) for now
 
         let mut ret = Self{chunks , chunks_to_load: chunks_load , chunks_render , anchor_point: (0,0),
-            generator: Box::new(generator) , chunks_animation , threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now() };
+           chunks_animation , threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now() };
         ret.load_visible();
         ret
     }
@@ -67,7 +70,7 @@ impl ChunkManager
                 match self.chunks.get(&(x,z))
                 {
                     Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
-                    None => {self.create_chunk(x,0,z,self.generator.as_ref()); } // Needs to be created
+                    None => {self.create_chunk(x,0,z,&GENERATOR); } // Needs to be created
                 };
             }
         }
@@ -167,13 +170,13 @@ impl ChunkManager
     /// Uses a threadpool
     /// 
     /// ### Note: Does not Upload the mesh
-    fn create_chunk(&self , pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator)
+    fn create_chunk(&self , pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &'static Box<dyn TerrainGenerator>)
     {
-        let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator);
         let vec = Arc::clone(&self.chunks_to_load);
         
         self.threadpool.execute( move ||
         {
+            let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator.as_ref());
             chunk.create_mesh();
             // append the mesh to the list of chunks to be loaded
             vec.lock().unwrap().push(chunk);

@@ -52,7 +52,6 @@ impl Chunk
         // let pos = Vec3::new((pos_x * CHUNK_X as i32 ) as f32 , (pos_y *CHUNK_Y as i32 ) as f32 , (pos_z * CHUNK_Z as i32 ) as f32 );
         // convert position from chunk space
         let chunk = Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None , animation: None};
-        println!("Time it took to create new chunk: {}", time.elapsed().as_millis());
         chunk
     }
 

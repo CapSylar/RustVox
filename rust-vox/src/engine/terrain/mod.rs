@@ -4,7 +4,8 @@ use crate::engine::voxel::VoxelType;
 
 use super::voxel::Voxel;
 
-pub trait TerrainGenerator
+// unsafe impl Sync for TerrainGenerator{}
+pub trait TerrainGenerator : Sync
 {
     /// Determine the type of block that will reside at the specified x,y,z in the world \
     /// The x,y,z coordinates must be in world coordinates
