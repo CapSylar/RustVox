@@ -1,4 +1,4 @@
-use std::{fs, io::Error, ffi::{CStr, CString}, collections::HashMap};
+use std::{fs, io::Error, ffi::{CStr, CString}, collections::HashMap, ptr::null_mut};
 
 use glam::{Vec4, Mat4, Vec3};
 
@@ -8,8 +8,8 @@ pub struct Shader
     renderer_id: u32,
 
     // debugging
-    vertex_filepath : String,
-    fragment_filepath : String,
+    _vertex_filepath : String,
+    _fragment_filepath : String,
 
     // uniform locations
     locations: HashMap<CString,i32>
@@ -34,71 +34,85 @@ impl Shader
 
             // copy shader source into the specified shader object
             gl::ShaderSource(vertex_shader, 1, &(vertex_src.as_bytes().as_ptr().cast()), &(vertex_src.len().try_into().unwrap()));
-            gl::CompileShader(vertex_shader);
 
-            // get compilation status on the *hopefully* compiled vertex shader
-            let mut success = 0;
-            gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
-
-            if success == 0
-            {
-                let mut log_length = 0_i32;
-                gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_length );
-
-                let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
-                // get shader log text
-                gl::GetShaderInfoLog(vertex_shader, log_length , &mut log_length , log_text.as_mut_ptr().cast());
-
-                panic!("Vertex Shader Compile Error: {}", String::from_utf8_lossy(&log_text) );
-            }
+            Shader::compile_shader(vertex_shader).expect("Error compiling Vertex Shader: ");
 
             // same for the fragment shader
             let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
             // copy shader source into the specified shader object
             gl::ShaderSource(fragment_shader, 1, &(fragment_src.as_bytes().as_ptr().cast()), &(fragment_src.len().try_into().unwrap()));
-            gl::CompileShader(fragment_shader);
-
-            //TODO: refactor duplicate code 
-            // get compilation status on the *hopefully* compiled fragment shader
-            let mut success = 0;
-            gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
-
-            if success == 0
-            {
-                let mut log_length = 0_i32;
-                gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_length );
-
-                let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
-                // get shader log text
-                gl::GetShaderInfoLog(fragment_shader, log_length , &mut log_length , log_text.as_mut_ptr().cast());
-
-                panic!("Fragment Shader Compile Error: {}", String::from_utf8_lossy(&log_text) );
-            }
+            
+            Shader::compile_shader(fragment_shader).expect("Error compiling Fragment Shader: ");
 
             // attach shader and link program
             program = gl::CreateProgram();
             gl::AttachShader(program, vertex_shader);
             gl::AttachShader(program, fragment_shader);
-            gl::LinkProgram(program);
 
-            //TODO: refactor duplicate code
+            Shader::link_program(program).expect("Error linking Program: ");
+        }
+
+        Ok(Self{renderer_id:program , _vertex_filepath: vertex_filepath , _fragment_filepath: fragment_filepath,
+            locations:HashMap::new() })
+    }
+
+    /// Cleaner Wrapper Around OpenGL's CompileShader(gluint) function
+    pub fn compile_shader(shader_id: u32) -> Result<(),String>
+    {
+        unsafe
+        {
+            gl::CompileShader(shader_id);
+            // get compilation status
             let mut success = 0;
-            gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
+            gl::GetShaderiv(shader_id, gl::COMPILE_STATUS, &mut success);
 
             if success == 0
             {
                 let mut log_length = 0_i32;
-                gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_length );
+                gl::GetShaderiv(shader_id, gl::INFO_LOG_LENGTH, &mut log_length );
 
                 let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
-                // get shader log text
-                gl::GetProgramInfoLog(program, log_length , &mut log_length , log_text.as_mut_ptr().cast());
+                log_text.extend([b' '].iter().cycle().take(log_length as usize)); // fill Vec with log_length empty spaces
 
-                panic!("Program Link Error: {}", String::from_utf8_lossy(&log_text) );
+                // get shader log text
+                gl::GetShaderInfoLog(shader_id, log_length , std::ptr::null_mut() , log_text.as_mut_ptr().cast());
+
+                Err(String::from_utf8_lossy(&log_text).to_string())
+            }
+            else
+            {
+                Ok(())
             }
         }
+    }
 
-        Ok(Self{renderer_id:program , vertex_filepath , fragment_filepath, locations:HashMap::new() })
+    pub fn link_program (program_id: u32) -> Result<(),String>
+    {
+        unsafe
+        {
+            gl::LinkProgram(program_id);
+
+            let mut success = 0;
+            gl::GetProgramiv(program_id, gl::LINK_STATUS, &mut success);
+
+            if success == 0
+            {
+                let mut log_length = 0;
+                gl::GetProgramiv(program_id, gl::INFO_LOG_LENGTH, &mut log_length );
+
+                let mut log_text: Vec<u8> = Vec::with_capacity(log_length.try_into().unwrap());
+                log_text.extend([b' '].iter().cycle().take(log_length as usize)); // fill Vec with log_length empty spaces
+
+                // get shader log text
+                gl::GetProgramInfoLog(program_id, log_length , std::ptr::null_mut() , log_text.as_mut_ptr().cast());
+
+                Err(String::from_utf8_lossy(&log_text).to_string())
+            }
+            else
+            {
+                Ok(())
+            }
+        }
     }
 
     //TODO: API interface ambiguous
