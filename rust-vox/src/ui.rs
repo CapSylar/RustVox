@@ -32,11 +32,11 @@ impl Ui
         ui.separator();
         ui.text("Num1 to Toggle Mouse");
         ui.text("Num2 to Toggle Line Mode");
+        ui.text("NUm3 to Toggle between Vsync Off/On");
         ui.separator();
         ui.text_wrapped("Performance");
         ui.text(format!("frame time: {}us" , state.frame_time));
         ui.text(format!("FPS: {}", 1.0/(state.frame_time as f32 / 1000000.0) ));
-    
         font.pop();});
     }
 }

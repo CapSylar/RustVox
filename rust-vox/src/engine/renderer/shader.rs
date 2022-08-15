@@ -1,4 +1,4 @@
-use std::{fs, io::Error, ffi::{CStr, CString}, collections::HashMap, ptr::null_mut};
+use std::{fs, io::Error, ffi::{CStr, CString}, collections::HashMap, ptr::null_mut, hash::Hash};
 
 use glam::{Vec4, Mat4, Vec3};
 
@@ -12,7 +12,8 @@ pub struct Shader
     _fragment_filepath : String,
 
     // uniform locations
-    locations: HashMap<CString,i32>
+    locations: HashMap<String,i32>,
+    strings: HashMap<String,CString>
 }
 
 impl Shader
@@ -53,7 +54,7 @@ impl Shader
         }
 
         Ok(Self{renderer_id:program , _vertex_filepath: vertex_filepath , _fragment_filepath: fragment_filepath,
-            locations:HashMap::new() })
+            locations:HashMap::new(),strings:HashMap::new() })
     }
 
     /// Cleaner Wrapper Around OpenGL's CompileShader(gluint) function
@@ -116,7 +117,7 @@ impl Shader
     }
 
     //TODO: API interface ambiguous
-    pub fn set_uniform4f(&mut self, name: &CStr , value: Vec4 ) -> Result<bool,String>
+    pub fn set_uniform4f(&mut self, name: &str , value: Vec4 ) -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
 
@@ -134,7 +135,7 @@ impl Shader
         }
     }
 
-    pub fn set_uniform1i(&mut self , name: &CStr , value: i32) -> Result<bool,String>
+    pub fn set_uniform1i(&mut self , name: &str , value: i32) -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
 
@@ -152,7 +153,7 @@ impl Shader
         }
     }
 
-    pub fn set_uniform_matrix4fv(&mut self , name: &CStr, value : &Mat4 )  -> Result<bool,String>
+    pub fn set_uniform_matrix4fv(&mut self , name: &str, value : &Mat4 )  -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
 
@@ -170,7 +171,7 @@ impl Shader
         }
     }
 
-    pub fn set_uniform3fv(&mut self, name: &CStr, value: &Vec3) -> Result<bool,String>
+    pub fn set_uniform3fv(&mut self, name: &str, value: &Vec3) -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
 
@@ -212,19 +213,31 @@ impl Shader
         }
     }
 
-    fn get_uniform_location(&mut self , name: &CStr) -> i32
+    fn get_uniform_location(&mut self , name: &str) -> i32
     {
         // check if the location is cached
         match self.locations.get(name)
         {
             Some(&location) => location,
             None => {
+
+                // get the cstring
+                let cstring = match self.strings.get(name)
+                {
+                    Some(str) => str,
+                    None => { // convert to cstring and store
+                        let cstring = CString::new(name).unwrap();
+                        self.strings.insert(name.to_string(), cstring);
+                        self.strings.get(name).unwrap() // i hate this
+                    }
+                };
+
                 let location;
                 unsafe
                 {
-                    location = gl::GetUniformLocation(self.renderer_id , name.as_ptr().cast() )
+                    location = gl::GetUniformLocation(self.renderer_id , cstring.as_ptr().cast() )
                 }
-                self.locations.insert(CString::from(name), location);
+                self.locations.insert( name.to_string(), location);
                 location
             }
         }

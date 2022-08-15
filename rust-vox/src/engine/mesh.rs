@@ -2,7 +2,7 @@ use std::mem::size_of;
 
 use glam::{Vec3, Vec2};
 
-use super::{renderer::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, voxel::{Voxel, VoxelFace, VoxelFaceValues}, chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk}, types::Vec3i32};
+use super::{renderer::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, voxel::{Voxel, VoxelFace, VOXEL_FACE_VALUES}, chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk}, types::Vec3i32};
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices
@@ -19,21 +19,26 @@ pub struct Mesh
 pub struct Vertex
 {
     position: Vec3, // X, Y , Z
-    // normal: Vec3, // X , Y , Z 
     tex_coord: Vec2, // U ,V
+    normal_index : u8, // byte index into a normal LUT in the shader, 6 possible normal vectors
 }
 
 impl Vertex
 {
-    pub fn new( position: Vec3 , _normal : Vec3 , texture_coordinate: Vec2 ) -> Vertex
+    pub fn new( position: Vec3 , normal_index : u8 , texture_coordinate: Vec2 ) -> Vertex
     {
-        Vertex { position , tex_coord: texture_coordinate }
+        Vertex { position , tex_coord: texture_coordinate, normal_index  }
     }
 }
 
 impl Mesh
 {
-    pub fn new(chunk: &mut Chunk) -> Mesh
+    pub fn new() -> Self
+    {
+        Self {vertices:Vec::new(),indices:Vec::new(),vao:None}
+    }
+
+    pub fn from_chunk(chunk: &mut Chunk) -> Mesh
     {
         // Generate the mesh
         let mut mesh = Mesh{vertices:Vec::<Vertex>::new(),indices:Vec::<u32>::new(),vao: None};
@@ -51,7 +56,7 @@ impl Mesh
                         let mut faces_to_render: [bool;6] = [false;6];
 
                         // TODO: refactor
-                        for offset in VoxelFaceValues.iter().enumerate()
+                        for offset in VOXEL_FACE_VALUES.iter().enumerate()
                         {
                             // is the neighbor of the current voxel in the given direction filled ? 
                             let pos = Vec3i32::new(x as i32,y as i32,z as i32) + *offset.1;
@@ -70,7 +75,6 @@ impl Mesh
 
                         chunk.voxels[x][y][z].append_mesh_faces( &faces_to_render ,
                                 chunk.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
-                                // Vec3::new(x as f32 + chunk.pos.x ,y as f32 + chunk.pos.y ,z as f32 + chunk.pos.z ),
                                 &mut mesh);
                     }
                 }
@@ -89,8 +93,8 @@ impl Mesh
          let mut layout = VertexBufferLayout::new();
         
          layout.push_f32(3); // vertex(x,y,z)
-        //  layout.push_f32(3); // normal(x,y,z)
          layout.push_f32(2); // uv coordinates(u,v)
+         layout.push_u8(1); // Normal Index
          // create the index buffer
          let index_buffer = IndexBuffer::new(&self.indices);
 

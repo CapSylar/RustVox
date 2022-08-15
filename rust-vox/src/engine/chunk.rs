@@ -5,12 +5,8 @@ use glam::Vec3;
 use super::{mesh::{Mesh}, terrain::TerrainGenerator, voxel::Voxel, animation::ChunkMeshAnimation};
 
 pub const CHUNK_X : usize = 20;
-pub const CHUNK_Z: usize = 20;
+pub const CHUNK_Z : usize = 20;
 pub const CHUNK_Y : usize = 100;
-
-// pub const CHUNK_X_U32 : u32 = CHUNK_X as u32;
-// pub const CHUNK_Y_U32 : u32 = CHUNK_Y as u32;
-// pub const CHUNK_Z_U32 : u32 = CHUNK_Z as u32;
 
 pub struct Chunk
 {
@@ -28,7 +24,6 @@ impl Chunk
     /// Lazily create the Chunk, no mesh is created
     pub fn new(pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator) -> Chunk
     {
-        let time = Instant::now();
         let mut voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
 
         // chunk position offset in the world
@@ -58,7 +53,7 @@ impl Chunk
     /// Generate the chunk mesh    
     pub fn create_mesh(&mut self)
     {
-        let mesh = Mesh::new(self);
+        let mesh = Mesh::from_chunk(self);
         // assign the created mesh
         self.mesh = Some(mesh);
     }

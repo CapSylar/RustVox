@@ -46,7 +46,7 @@ pub enum VoxelFace
     WEST(Vec3i32),
 }
 
-pub const VoxelFaceValues : [Vec3i32;6] = 
+pub const VOXEL_FACE_VALUES : [Vec3i32;6] = 
 [
      Vec3i32::new(0, 1, 0),
      Vec3i32::new(0,-1,0),
@@ -55,6 +55,11 @@ pub const VoxelFaceValues : [Vec3i32;6] =
      Vec3i32::new(1,0,0),
      Vec3i32::new(-1,0,0)
 ];
+
+pub enum Normals
+{
+    POSY,NEGY,POSZ,NEGZ,POSX,NEGX
+}
 
 #[derive(Clone,Copy)]
 pub struct Voxel
@@ -105,15 +110,13 @@ impl Voxel
 
         //TODO: could refactor by defining the vertices for each face, and then iterate
 
-        if  faces[0] 
+       if faces[0] 
         {
             // add the 2 top triangles
-            let normal = Vec3::new(0.0,1.0,0.0);
-        
-            let i1 = mesh.add_vertex(Vertex::new( p5, normal, uv.top_face + uv1));
-            let i2 = mesh.add_vertex(Vertex::new( p6, normal, uv.top_face + uv2));
-            let i3 = mesh.add_vertex(Vertex::new( p7, normal, uv.top_face + uv3));
-            let i4 = mesh.add_vertex(Vertex::new( p8, normal, uv.top_face + uv4));
+            let i1 = mesh.add_vertex(Vertex::new( p5, Normals::POSY as u8, uv.top_face + uv1));
+            let i2 = mesh.add_vertex(Vertex::new( p6, Normals::POSY as u8, uv.top_face + uv2));
+            let i3 = mesh.add_vertex(Vertex::new( p7, Normals::POSY as u8, uv.top_face + uv3));
+            let i4 = mesh.add_vertex(Vertex::new( p8, Normals::POSY as u8, uv.top_face + uv4));
             // construct the 2 triangles
             mesh.add_triangle(i1,i2,i3);
             mesh.add_triangle(i1, i3, i4);
@@ -122,11 +125,10 @@ impl Voxel
         if faces[1]
         {
             // add the 2 bottom triangles
-            let normal = Vec3::new(0.0,-1.0,0.0);
-            let i1 = mesh.add_vertex(Vertex::new( p1, normal, uv.bottom_face + uv1));
-            let i2 = mesh.add_vertex(Vertex::new( p2, normal, uv.bottom_face + uv2));
-            let i3 = mesh.add_vertex(Vertex::new( p3, normal, uv.bottom_face + uv3));
-            let i4 = mesh.add_vertex(Vertex::new( p4, normal, uv.bottom_face + uv4));
+            let i1 = mesh.add_vertex(Vertex::new( p1, Normals::NEGY as u8, uv.bottom_face + uv1));
+            let i2 = mesh.add_vertex(Vertex::new( p2, Normals::NEGY as u8, uv.bottom_face + uv2));
+            let i3 = mesh.add_vertex(Vertex::new( p3, Normals::NEGY as u8, uv.bottom_face + uv3));
+            let i4 = mesh.add_vertex(Vertex::new( p4, Normals::NEGY as u8, uv.bottom_face + uv4));
             // construct the 2 triangles, note the order of the vertices in the trigs
             mesh.add_triangle(i3,i2,i1);
             mesh.add_triangle(i4, i3, i1);
@@ -135,11 +137,10 @@ impl Voxel
         if faces[2]
         {
             // add the 2 front triangles
-            let normal = Vec3::new(0.0,0.0,1.0);
-            let i1 = mesh.add_vertex(Vertex::new( p1, normal, uv.front_face + uv1));
-            let i2 = mesh.add_vertex(Vertex::new( p5, normal, uv.front_face + uv2));
-            let i3 = mesh.add_vertex(Vertex::new( p8, normal, uv.front_face + uv3));
-            let i4 = mesh.add_vertex(Vertex::new( p4, normal, uv.front_face + uv4));
+            let i1 = mesh.add_vertex(Vertex::new( p1, Normals::POSZ as u8, uv.front_face + uv1));
+            let i2 = mesh.add_vertex(Vertex::new( p5, Normals::POSZ as u8, uv.front_face + uv2));
+            let i3 = mesh.add_vertex(Vertex::new( p8, Normals::POSZ as u8, uv.front_face + uv3));
+            let i4 = mesh.add_vertex(Vertex::new( p4, Normals::POSZ as u8, uv.front_face + uv4));
             // construct the 2 triangles, note the order of the vertices in the trigs
             mesh.add_triangle(i1,i2,i3);
             mesh.add_triangle(i1, i3, i4);
@@ -148,11 +149,10 @@ impl Voxel
         if faces[3]
         {
             // add the 2 back triangles
-            let normal = Vec3::new(0.0,0.0,-1.0);
-            let i1 = mesh.add_vertex(Vertex::new( p2, normal, uv.back_face + uv1));
-            let i2 = mesh.add_vertex(Vertex::new( p6, normal, uv.back_face + uv2));
-            let i3 = mesh.add_vertex(Vertex::new( p7, normal, uv.back_face + uv3));
-            let i4 = mesh.add_vertex(Vertex::new( p3, normal, uv.back_face + uv4));
+            let i1 = mesh.add_vertex(Vertex::new( p2, Normals::NEGZ as u8, uv.back_face + uv1));
+            let i2 = mesh.add_vertex(Vertex::new( p6, Normals::NEGZ as u8, uv.back_face + uv2));
+            let i3 = mesh.add_vertex(Vertex::new( p7, Normals::NEGZ as u8, uv.back_face + uv3));
+            let i4 = mesh.add_vertex(Vertex::new( p3, Normals::NEGZ as u8, uv.back_face + uv4));
             // construct the 2 triangles, note the order of the vertices in the trigs
             mesh.add_triangle(i3,i2,i1);
             mesh.add_triangle(i4, i3, i1);
@@ -161,11 +161,10 @@ impl Voxel
         if faces[4]
         {
             // add the 2 right triangles
-            let normal = Vec3::new(1.0,0.0,0.0);
-            let i1 = mesh.add_vertex(Vertex::new( p4, normal, uv.right_face + uv1));
-            let i2 = mesh.add_vertex(Vertex::new( p8, normal, uv.right_face + uv2));
-            let i3 = mesh.add_vertex(Vertex::new( p7, normal, uv.right_face + uv3));
-            let i4 = mesh.add_vertex(Vertex::new( p3, normal, uv.right_face + uv4));
+            let i1 = mesh.add_vertex(Vertex::new( p4, Normals::POSX as u8, uv.right_face + uv1));
+            let i2 = mesh.add_vertex(Vertex::new( p8, Normals::POSX as u8, uv.right_face + uv2));
+            let i3 = mesh.add_vertex(Vertex::new( p7, Normals::POSX as u8, uv.right_face + uv3));
+            let i4 = mesh.add_vertex(Vertex::new( p3, Normals::POSX as u8, uv.right_face + uv4));
             // construct the 2 triangles, note the order of the vertices in the trigs
             mesh.add_triangle(i1,i2,i3);
             mesh.add_triangle(i1, i3, i4);
@@ -174,105 +173,14 @@ impl Voxel
         if faces[5]
         {
             // add the 2 left triangles
-            let normal = Vec3::new(-1.0,0.0,0.0);
-            let i1 = mesh.add_vertex(Vertex::new( p1, normal, uv.left_face + uv1));
-            let i2 = mesh.add_vertex(Vertex::new( p5, normal, uv.left_face + uv2));
-            let i3 = mesh.add_vertex(Vertex::new( p6, normal, uv.left_face + uv3));
-            let i4 = mesh.add_vertex(Vertex::new( p2, normal, uv.left_face + uv4));
+            let i1 = mesh.add_vertex(Vertex::new( p1, Normals::NEGX as u8, uv.left_face + uv1));
+            let i2 = mesh.add_vertex(Vertex::new( p5, Normals::NEGX as u8, uv.left_face + uv2));
+            let i3 = mesh.add_vertex(Vertex::new( p6, Normals::NEGX as u8, uv.left_face + uv3));
+            let i4 = mesh.add_vertex(Vertex::new( p2, Normals::NEGX as u8, uv.left_face + uv4));
             // construct the 2 triangles, note the order of the vertices in the trigs
             mesh.add_triangle(i3,i2,i1);
             mesh.add_triangle(i4, i3, i1);
         }
 
-    }
-
-    /// Returns the Voxel's mesh for rendering
-    pub fn append_mesh( &self ,pos: Vec3 ,mesh: &mut Mesh)
-    {
-        // generate the 8 vertices to draw the voxel
-        //bottom
-        let p1 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + 0.0);
-        let p2 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + -VOXEL_SIZE);
-        let p3 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + -VOXEL_SIZE);
-        let p4 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + 0.0);
-
-        //top
-        let p5 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + 0.0);
-        let p6 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
-        let p7 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
-        let p8 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + 0.0);
-
-        let side_uv = Vec2::new(0.0,0.9);
-        let top_uv = Vec2::new(0.1,0.9);
-        let bottom_uv = Vec2::new(0.2,0.9);
-
-        let eps: f32 = 0.001;
-
-        let uv1 = Vec2::new(0.0 ,0.0);
-        let uv2 = Vec2::new(0.0 ,0.1);
-        let uv3 = Vec2::new(0.1 ,0.1);
-        let uv4 = Vec2::new(0.1 ,0.0);
-
-        // add the 2 top triangles
-        let normal = Vec3::new(0.0,1.0,0.0);
-        
-        let i1 = mesh.add_vertex(Vertex::new( p5, normal, top_uv + uv1));
-        let i2 = mesh.add_vertex(Vertex::new( p6, normal, top_uv + uv2));
-        let i3 = mesh.add_vertex(Vertex::new( p7, normal, top_uv + uv3));
-        let i4 = mesh.add_vertex(Vertex::new( p8, normal, top_uv + uv4));
-        // construct the 2 triangles
-        mesh.add_triangle(i1,i2,i3);
-        mesh.add_triangle(i1, i3, i4);
-
-        // add the 2 bottom triangles
-        let normal = Vec3::new(0.0,-1.0,0.0);
-        let i1 = mesh.add_vertex(Vertex::new( p1, normal, bottom_uv + uv1));
-        let i2 = mesh.add_vertex(Vertex::new( p2, normal, bottom_uv + uv2));
-        let i3 = mesh.add_vertex(Vertex::new( p3, normal, bottom_uv + uv3));
-        let i4 = mesh.add_vertex(Vertex::new( p4, normal, bottom_uv + uv4));
-        // construct the 2 triangles, note the order of the vertices in the trigs
-        mesh.add_triangle(i3,i2,i1);
-        mesh.add_triangle(i4, i3, i1);
-
-        // add the 2 front triangles
-        let normal = Vec3::new(0.0,0.0,1.0);
-        let i1 = mesh.add_vertex(Vertex::new( p1, normal, side_uv + uv1));
-        let i2 = mesh.add_vertex(Vertex::new( p5, normal, side_uv + uv2));
-        let i3 = mesh.add_vertex(Vertex::new( p8, normal, side_uv + uv3));
-        let i4 = mesh.add_vertex(Vertex::new( p4, normal, side_uv + uv4));
-        // construct the 2 triangles, note the order of the vertices in the trigs
-        mesh.add_triangle(i1,i2,i3);
-        mesh.add_triangle(i1, i3, i4);
-
-        // add the 2 back triangles
-        let normal = Vec3::new(0.0,0.0,-1.0);
-        let i1 = mesh.add_vertex(Vertex::new( p2, normal, side_uv + uv1));
-        let i2 = mesh.add_vertex(Vertex::new( p6, normal, side_uv + uv2));
-        let i3 = mesh.add_vertex(Vertex::new( p7, normal, side_uv + uv3));
-        let i4 = mesh.add_vertex(Vertex::new( p3, normal, side_uv + uv4));
-        // construct the 2 triangles, note the order of the vertices in the trigs
-        mesh.add_triangle(i3,i2,i1);
-        mesh.add_triangle(i4, i3, i1);
-
-        // add the 2 right triangles
-        let normal = Vec3::new(1.0,0.0,0.0);
-        let i1 = mesh.add_vertex(Vertex::new( p4, normal, side_uv + uv1));
-        let i2 = mesh.add_vertex(Vertex::new( p8, normal, side_uv + uv2));
-        let i3 = mesh.add_vertex(Vertex::new( p7, normal, side_uv + uv3));
-        let i4 = mesh.add_vertex(Vertex::new( p3, normal, side_uv + uv4));
-        // construct the 2 triangles, note the order of the vertices in the trigs
-        mesh.add_triangle(i1,i2,i3);
-        mesh.add_triangle(i1, i3, i4);
-
-        // add the 2 left triangles
-        let normal = Vec3::new(-1.0,0.0,0.0);
-        let i1 = mesh.add_vertex(Vertex::new( p1, normal, side_uv + uv1));
-        let i2 = mesh.add_vertex(Vertex::new( p5, normal, side_uv + uv2));
-        let i3 = mesh.add_vertex(Vertex::new( p6, normal, side_uv + uv3));
-        let i4 = mesh.add_vertex(Vertex::new( p2, normal, side_uv + uv4));
-        // construct the 2 triangles, note the order of the vertices in the trigs
-        mesh.add_triangle(i3,i2,i1);
-        mesh.add_triangle(i4, i3, i1);
-          
     }
 }

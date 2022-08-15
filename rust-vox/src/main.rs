@@ -3,7 +3,7 @@ use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     event::Event,
-    video::{GLProfile}
+    video::{GLProfile, SwapInterval}
 };
 
 #[macro_use]
@@ -54,7 +54,7 @@ fn main()
     window.gl_make_current(&gl_context).unwrap();
 
     // enable vsync to cap framerate
-    let res = window.subsystem().gl_set_swap_interval(sdl2::video::SwapInterval::VSync);
+    let res = window.subsystem().gl_set_swap_interval(SwapInterval::VSync);
 
     if let Err(s) = res
     {
@@ -72,7 +72,7 @@ fn main()
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
     let mut event_pump = sdl.event_pump().unwrap();
 
-    sdl.mouse().set_relative_mouse_mode(true);
+    sdl.mouse().set_relative_mouse_mode(false);
     
     let mut state = State{frame_time:0};
     let mut voxel_world = World::new(
@@ -80,7 +80,10 @@ fn main()
     );
 
     let mut world_renderer = Renderer::new(&video_subsystem);
+
+    // FIXME: remove this
     let mut is_filled_mode = true ; // opengl rendering mode
+    let mut is_vsync_on = true;
 
     'main: loop
     {
@@ -103,7 +106,9 @@ fn main()
                         {
                             sdl2::keyboard::Keycode::Num1 => { sdl.mouse().set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()) }
                             sdl2::keyboard::Keycode::Num2 => 
-                            {world_renderer.set_mode( if is_filled_mode {gl::LINE} else {gl::FILL} ); is_filled_mode = !is_filled_mode } ,
+                            {world_renderer.set_mode( if is_filled_mode {gl::LINE} else {gl::FILL} ); is_filled_mode = !is_filled_mode },
+                            sdl2::keyboard::Keycode::Num3 => {window.subsystem().gl_set_swap_interval( if is_vsync_on {SwapInterval::VSync} else {SwapInterval::Immediate} ).expect("error setting swap interval");
+                                is_vsync_on = !is_vsync_on},
                             sdl2::keyboard::Keycode::Escape => { break 'main; }
                             sdl2::keyboard::Keycode::W => voxel_world.camera.move_forward(),
                             sdl2::keyboard::Keycode::S => voxel_world.camera.move_backward(),

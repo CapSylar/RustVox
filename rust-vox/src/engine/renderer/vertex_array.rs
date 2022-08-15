@@ -4,8 +4,8 @@ use super::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer};
 pub struct VertexArray
 {
     renderer_id : u32, // vao ID
-    vbo : VertexBuffer,
-    ebo: IndexBuffer,
+    _vbo : VertexBuffer,
+    _ebo: IndexBuffer,
 }
 
 impl VertexArray
@@ -26,7 +26,7 @@ impl VertexArray
         // unbind the vao
         unsafe { gl::BindVertexArray(0); } 
         
-        Self{renderer_id:vao, vbo:vertex_buffer, ebo:index_buffer}
+        Self{renderer_id:vao, _vbo:vertex_buffer, _ebo:index_buffer}
     }
 
     //TODO: Document
@@ -41,8 +41,17 @@ impl VertexArray
         {
             unsafe
             {
-                gl::VertexAttribPointer(attrib_index, element.count as _ , element.element_type,
-                     element.normalized, layout.stride_bytes.try_into().unwrap()  , offset as *const c_void );
+                if element.integral // if the attribute is of integral type, another API call must be used 
+                {
+                    gl::VertexAttribIPointer(attrib_index, element.count as _, element.element_type,
+                        layout.stride_bytes.try_into().unwrap(), offset as *const c_void);
+                }
+                else
+                {
+                    gl::VertexAttribPointer(attrib_index, element.count as _ , element.element_type,
+                        element.normalized, layout.stride_bytes.try_into().unwrap()  , offset as *const c_void );
+                }
+        
                 gl::EnableVertexAttribArray(attrib_index);
             }
             attrib_index += 1;
@@ -75,7 +84,8 @@ struct VertexBufferLayoutElement
     count: usize,
     normalized: u8,
     size_bytes: usize,
-}   
+    integral: bool,
+}
 
 pub struct VertexBufferLayout
 {
@@ -92,14 +102,24 @@ impl VertexBufferLayout
 
     pub fn push_f32(&mut self, count: usize)
     {
-        let element = VertexBufferLayoutElement { element_type: gl::FLOAT, count , normalized: gl::FALSE , size_bytes: size_of::<f32>() * count};
-        self.stride_bytes += element.size_bytes;
-        self.elements.push(element);
+        let element = VertexBufferLayoutElement { element_type: gl::FLOAT, count , normalized: gl::FALSE , size_bytes: size_of::<f32>() * count, integral: false};
+        self.push_element(element);
     }
 
-    pub fn push_unsigned(&mut self, count: usize)
+    pub fn push_u8(&mut self, count: usize)
     {
-        let element = VertexBufferLayoutElement { element_type: gl::UNSIGNED_INT, count , normalized: gl::FALSE , size_bytes: size_of::<u32>() * count};
+        let element = VertexBufferLayoutElement { element_type: gl::UNSIGNED_BYTE, count , normalized: gl::FALSE , size_bytes: size_of::<u8>() * count, integral: true};
+        self.push_element(element);
+    }
+
+    pub fn _push_unsigned(&mut self, count: usize)
+    {
+        let element = VertexBufferLayoutElement { element_type: gl::UNSIGNED_INT, count , normalized: gl::FALSE , size_bytes: size_of::<u32>() * count, integral: true};
+        self.push_element(element);
+    }
+
+    fn push_element(&mut self, element: VertexBufferLayoutElement)
+    {
         self.stride_bytes += element.size_bytes;
         self.elements.push(element);
     }
