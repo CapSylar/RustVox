@@ -1,15 +1,15 @@
-use std::{fs, io::Error, ffi::{CStr, CString}, collections::HashMap, ptr::null_mut, hash::Hash};
-
+use std::{fs, io::Error, ffi::{CString}, collections::HashMap};
 use glam::{Vec4, Mat4, Vec3};
 
 pub struct Shader
 {
     // state
-    renderer_id: u32,
+    pub program_id: u32,
 
     // debugging
-    _vertex_filepath : String,
-    _fragment_filepath : String,
+    pub vertex_src : String,
+    pub fragment_src : String,
+    pub geometry_src: Option<String>,
 
     // uniform locations
     locations: HashMap<String,i32>,
@@ -19,13 +19,31 @@ pub struct Shader
 impl Shader
 {
     /// Compile + Link the vertex and fragment shaders
-    pub fn new(vertex_filepath: String, fragment_filepath: String) -> Result<Self,Error>
+    pub fn new_from_vs_fs(vertex_filepath: &str, fragment_filepath: &str) -> Result<Self,Error>
     {
         // load the vertex and fragment shader source code
         let vertex_src = fs::read_to_string(&vertex_filepath)?;
         let fragment_src = fs::read_to_string(&fragment_filepath)?;
 
-        let mut program: u32 = 0;
+        Self::new(vertex_src,fragment_src,None)
+        // Ok(Self{renderer_id:program, vertex_src, fragment_src, locations:HashMap::new(),strings:HashMap::new() })
+    }
+
+    /// Compile + Link the vertex,geometry and fragment shaders
+    pub fn new_from_vs_gs_fs(vertex_filepath: &str, geometry_filepath: &str, fragment_filepath: &str) -> Result<Self,Error>
+    {
+        // load the vertex and fragment shader source code
+        let vertex_src = fs::read_to_string(&vertex_filepath)?;
+        let fragment_src = fs::read_to_string(&fragment_filepath)?;
+        let geometry_src = fs::read_to_string(&geometry_filepath)?;
+
+        Self::new(vertex_src, fragment_src, Some(geometry_src))
+    }
+
+    /// Compile + Links Program
+    fn new(vertex_src: String, fragment_src: String, geometry_src: Option<String>) -> Result<Self,Error>
+    {
+        let mut program_id: u32 = 0;
 
         unsafe
         {
@@ -46,15 +64,24 @@ impl Shader
             Shader::compile_shader(fragment_shader).expect("Error compiling Fragment Shader: ");
 
             // attach shader and link program
-            program = gl::CreateProgram();
-            gl::AttachShader(program, vertex_shader);
-            gl::AttachShader(program, fragment_shader);
+            program_id = gl::CreateProgram();
+            gl::AttachShader(program_id, vertex_shader);
+            gl::AttachShader(program_id, fragment_shader);
 
-            Shader::link_program(program).expect("Error linking Program: ");
+            // optionally compile and attach geometry shader
+            if let Some(ref source) = geometry_src
+            {
+                let geometry_shader = gl::CreateShader(gl::GEOMETRY_SHADER);
+                // copy shader source into the specified shader object
+                gl::ShaderSource(geometry_shader, 1, &(source.as_bytes().as_ptr().cast()), &(source.len().try_into().unwrap()));
+                Shader::compile_shader(geometry_shader).expect("Error compiling Geometry Shader: ");
+                gl::AttachShader(program_id, geometry_shader);
+            }
+
+            Shader::link_program(program_id).expect("Error linking Program: ");
         }
-
-        Ok(Self{renderer_id:program , _vertex_filepath: vertex_filepath , _fragment_filepath: fragment_filepath,
-            locations:HashMap::new(),strings:HashMap::new() })
+        //TODO: error propagation is not done correctly
+        Ok(Self{program_id, fragment_src, vertex_src, geometry_src, locations: HashMap::new(), strings: HashMap::new()})
     }
 
     /// Cleaner Wrapper Around OpenGL's CompileShader(gluint) function
@@ -117,6 +144,7 @@ impl Shader
     }
 
     //TODO: API interface ambiguous
+    //TODO: COPY PASTE COPY PASTE,refactor !!!!
     pub fn set_uniform4f(&mut self, name: &str , value: Vec4 ) -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
@@ -148,6 +176,60 @@ impl Shader
             unsafe
             {
                 gl::Uniform1i( location , value );
+            }
+            Ok(true)
+        }
+    }
+
+    pub fn set_uniform1iv(&mut self , name: &str , value: i32) -> Result<bool,String>
+    {
+        let location = self.get_uniform_location(name);
+
+        if location == -1
+        {
+            Err(String::from("an error occured"))
+        }
+        else
+        {
+            unsafe
+            {
+                gl::Uniform1iv( location , 1 , value as *const i32 );
+            }
+            Ok(true)
+        }
+    }
+
+    pub fn set_uniform_1f(&mut self, name: &str, value: f32) -> Result<bool,String>
+    {
+        let location = self.get_uniform_location(name);
+
+        if location == -1
+        {
+            Err(String::from("an error occured"))
+        }
+        else
+        {
+            unsafe
+            {
+                gl::Uniform1f( location , value );
+            }
+            Ok(true)
+        }
+    }
+
+    pub fn set_uniform_1fv(&mut self, name: &str, value: &[f32]) -> Result<bool,String>
+    {
+        let location = self.get_uniform_location(name);
+
+        if location == -1
+        {
+            Err(String::from("an error occured"))
+        }
+        else
+        {
+            unsafe
+            {
+                gl::Uniform1fv( location , value.len() as i32, value.as_ptr() );
             }
             Ok(true)
         }
@@ -193,7 +275,7 @@ impl Shader
     {
         unsafe
         {
-            gl::UseProgram(self.renderer_id);
+            gl::UseProgram(self.program_id);
         }
     }
 
@@ -209,7 +291,7 @@ impl Shader
     {
         unsafe
         {
-            gl::DeleteProgram(self.renderer_id);
+            gl::DeleteProgram(self.program_id);
         }
     }
 
@@ -235,7 +317,7 @@ impl Shader
                 let location;
                 unsafe
                 {
-                    location = gl::GetUniformLocation(self.renderer_id , cstring.as_ptr().cast() )
+                    location = gl::GetUniformLocation(self.program_id , cstring.as_ptr().cast() )
                 }
                 self.locations.insert( name.to_string(), location);
                 location
