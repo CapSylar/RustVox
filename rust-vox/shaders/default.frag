@@ -1,5 +1,5 @@
 #version 460 core
-            
+
 out vec4 color;
 
 in vec3 frag_pos_world;
@@ -27,6 +27,9 @@ vec2 texel_size = 1.0 / textureSize(shadow_map,0).xy; // don'get the z component
 
 //TODO: point light is hardcoded, fix this !!!
 float shadow_bias = max(0.05 * (1.0 - dot(normal, normalize(vec3(0.5,0.2,0)))), 0.005);
+
+// TESTING, TODO: DELETE WHEN DONE
+float resolution = 1.0 / 2048.0;
   
 //TODO: could be refactored
 float linearize_depth(float depth) 
@@ -58,7 +61,7 @@ float pcf( vec3 pos , int text_layer )
     return shadow / 9.0; // take the average and return
 }
 
-float is_in_shadow(vec4 point , int shadow_map_layer)
+float is_in_shadow(vec4 point, int shadow_map_layer, out bool color_x, out bool color_y)
 {
     vec3 proj = point.xyz / point.w;
     // z is between -1 and 1, we need => 0 and 1
@@ -67,12 +70,13 @@ float is_in_shadow(vec4 point , int shadow_map_layer)
     if (proj.z > 1.0) // outside the shadow maps' range, no shadow
         return 0.0;
 
+    color_x = (int (proj.x * 2048.0)) % 2 == 1;
+    color_y = (int (proj.y * 2048.0)) % 2 == 1;
+
     float depth = texture(shadow_map, vec3( ( proj.xy ) , shadow_map_layer) ).r;
     return (proj.z - shadow_bias) > depth ? 1.0 : 0.0;
     // return pcf( proj, shadow_map_layer);
 }
-
-
 
 void main()
 {
@@ -89,17 +93,17 @@ void main()
             break;
         }
     }
-    vec4 cascade_color = vec4(0.2,0.2,0.2,1.0) * (layer+1); // the closer the darker
+
+    bool color_x , color_y ;
 
     vec4 frag_light_space_pos = transforms[layer] * vec4(frag_pos_world,1.0);
-
-    float shadow = is_in_shadow(frag_light_space_pos , layer);
+    float shadow = is_in_shadow(frag_light_space_pos , layer, color_x, color_y);
     float diffuse = max(dot(normal,normalize(vec3(0.5,0.5,0.5))),0.0);
     // for now, being in shadow just means the texture's albedo colors get a bit darker
 
     float ambient = 0.5;
-    vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(texture_atlas, tex_coord);
-    // vec4 albedo = cascade_color;
+    vec4 overlay_color = (color_x != color_y) ? vec4(1.5,0.5,0.5,1.0) : vec4(0.5,0.5,1.5,1.0); // display a sort of checkered pattern, blue and red
+    vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(texture_atlas, tex_coord) ; // * overlay_color;
     float fog_intensity =  fog_intensity(linearize_depth(gl_FragCoord.z) / far);
     color = albedo; //fog_intensity * clear_color + (1-fog_intensity) * albedo;
 }

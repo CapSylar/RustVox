@@ -1,5 +1,5 @@
 use std::{ffi::{c_void, CStr}, f32::consts::PI, mem::size_of};
-use glam::{Mat4, Vec3, Vec4, Vec4Swizzles, Vec2};
+use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
 use sdl2::{VideoSubsystem};
 
 pub mod vertex_buffer;
@@ -19,6 +19,7 @@ pub struct Renderer
     texture1: u32,
     depth_texture: u32,
     cascade_levels: Vec<f32>,
+    prev_view_trans : Mat4,
 }
 
 impl Renderer
@@ -85,10 +86,10 @@ impl Renderer
             let shadow_width: i32 = 2048;
             // testing cascades
 
-            let far_plane: f32 = 500.0;
+            let far_plane: f32 = 100.0;
             let near_plane: f32 = 0.1;
             // cascades include the original near and far planes
-            // let cascades = vec![near_plane,far_plane/50.0,far_plane/20.0,far_plane/5.0,far_plane];
+            // let cascades = vec![near_plane,far_plane/50.0,far_plane/100.0,far_plane/5.0,far_plane];
             let cascades = vec![near_plane,far_plane];
 
             // Create a uniform buffer containing the light_space tranform matrices for cascaded shadow mapping
@@ -121,13 +122,13 @@ impl Renderer
             // unbind
             gl::BindFramebuffer( gl::FRAMEBUFFER, 0);
 
-            Renderer { default_shader , shadow_shader , texture1 , shadow_fb , depth_texture: depth_texture_array , cascade_levels:cascades, matrices_ubo }
+            Renderer { default_shader , shadow_shader , texture1 , shadow_fb , depth_texture: depth_texture_array , cascade_levels:cascades, matrices_ubo, prev_view_trans: Mat4::IDENTITY}
         }
     }
 
     pub fn draw_world(&mut self, world: &World)
     {   
-        let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, 0.1, 500.0);
+        let projection = Mat4::perspective_rh_gl(PI/4.0, 1920.0/1080.0, 0.1, 100.0);
         let view = world.camera.get_look_at();
 
 
@@ -191,7 +192,7 @@ impl Renderer
     fn render_shadow(&mut self, world: &World)
     {
         let mut matrices = Vec::new();
-        Self::get_cascaded_lightspace_matrices(&self.cascade_levels, world, &mut matrices);
+        self.get_cascaded_lightspace_matrices(world, &mut matrices);
     
         unsafe
         {
@@ -242,47 +243,107 @@ impl Renderer
 
     /// Get the transformation matrix that transforms the world to "light space"
     /// The directional light looks at the center of the frustum
-    fn get_lightspace_transformation(near_plane: f32, far_plane: f32, camera: &Camera) -> Mat4
+    fn get_lightspace_transformation(&mut self, n: f32, f: f32, camera: &Camera) -> Mat4
     {
-        let projection = Mat4::perspective_rh_gl(PI/4.0, 800.0/600.0, near_plane, far_plane);
-        let proj_view = projection * camera.get_look_at();
+        let projection = Mat4::perspective_rh_gl(PI/4.0, 1920.0/1080.0, n, f);
 
-        let mut corners: [Vec4;8] = [Vec4::ZERO;8];
-        Self::get_worldspace_frustum_corners(&proj_view, &mut corners);
+        // calculate a bounding sphere for the frustum
+
+        let fov_y: f32 = PI/4.0;
+        let aspect_ratio : f32 = 1920.0/1080.0; // width / height
+
+        let k = f32::sqrt(1.0 + aspect_ratio * aspect_ratio) * (fov_y/2.0).tan();
         
-        let mut center: Vec3 = Vec3::ZERO;
-        for point in corners
-        {
-            center += point.xyz();
-        }
-        // get the average
-        center /= corners.len() as f32;
+        let center: Vec3;
+        let radius: f32 ;
 
-        println!("center for near_plane: {}, far_plane: {} center : {}", near_plane , far_plane , center); 
+        if k*k >= (f-n)/(f+n) // if near plane is too close to the far plane, the center should be on the far plane
+        {
+            println!("center calculation bounded");
+            center = Vec3::new(0.0,0.0,-f);
+            radius = k*f;
+        }
+        else
+        {
+            center = Vec3::new(0.0,0.0,(-0.5)*(f+n)*(1.0+k*k));
+            radius = 0.5 * f32::sqrt((f-n)*(f-n) + 2.0*k*k*(f*f+n*n) + (f+n)*(f+n)*k*k*k*k);
+        }
+
+        // transform the center from camera's view space -> world space
+        let mut center_world = camera.get_look_at().inverse() * Vec4::new(center.x, center.y, center.z,1.0);
+        center_world /= center_world.w; // transform to cartesian coordinates
+
+        // snap the current center to texel offsets from the last center
+        // calculate the direction old -> new
+        
+        // get shadow map resolution
+        let resol : f32 = (2.0 * radius) / 2048.0;
+
+        let mut new_center_old_view = self.prev_view_trans * center_world;
+        println!("new center, old view space: {}", new_center_old_view);
+        // snap the coordinates to texel offsets
+        new_center_old_view.x = f32::floor(new_center_old_view.x / resol) * resol;
+        new_center_old_view.y = f32::floor(new_center_old_view.y / resol) * resol;
+
+        println!("new center, snapped : {}", new_center_old_view);
+        
+        // transform back to world space and get the correct world position of the new center
+        let mut corrected_center_world = self.prev_view_trans.inverse() * new_center_old_view;
+
+        // get the new look at transform
+        corrected_center_world /= corrected_center_world.w;
+
+        let center = corrected_center_world.xyz();
+        // let proj_view = projection * camera.get_look_at();
+
+        // let mut corners: [Vec4;8] = [Vec4::ZERO;8];
+        // Self::get_worldspace_frustum_corners(&proj_view, &mut corners);
+        
+        // let mut center: Vec3 = Vec3::ZERO;
+        // for point in corners
+        // {
+        //     center += point.xyz();
+        // }
+        // // get the average
+        // center /= corners.len() as f32;
+
+        println!("center for near_plane: {}, far_plane: {}, center : {}, radius: {}", n , f , center , radius);
 
         let sun_direction = Vec3::new(0.5,0.2,0.0);
         let light_look_at = Mat4::look_at_rh(center + sun_direction,center,Vec3::new(0.0,1.0,0.0));
 
-        // get the 3D AABB (Axis Aligned Bounding Box) for the view frustum
+        self.prev_view_trans = light_look_at; // set current as previous
 
-        let mut min_x = f32::MAX;
-        let mut max_x = f32::MIN;
-        let mut min_y = f32::MAX;
-        let mut max_y = f32::MIN;
-        let mut min_z = f32::MAX;
-        let mut max_z = f32::MIN;
+        // get the 3D AABB (Axis Aligned Bounding Box) for the view frustum, the bounding box should enclose the sphere
 
-        for mut point in corners
-        {
-            // first transform the points from world space to the light's view space
-            point = light_look_at * point; // the point in the light's view space
-            min_x = f32::min(min_x,point.x);
-            max_x = f32::max(max_x,point.x);
-            min_y = f32::min(min_y,point.y);
-            max_y = f32::max(max_y,point.y);
-            min_z = f32::min(min_z,point.z);
-            max_z = f32::max(max_z,point.z);
-        }
+        // let mut min_x = f32::MAX;
+        // let mut max_x = f32::MIN;
+        // let mut min_y = f32::MAX;
+        // let mut max_y = f32::MIN;
+        // let mut min_z = f32::MAX;
+        // let mut max_z = f32::MIN;
+
+        println!("before fix: {}", radius);
+        let radius: f32 = (radius / resol).floor() * resol;
+        println!("after fix: {}", radius);
+        let mut min_x = -radius;
+        let mut max_x = radius;
+        let mut min_y = -radius;
+        let mut max_y = radius;
+        let mut min_z = -radius;
+        let mut max_z = radius;
+
+        // for mut point in corners
+        // {
+        //     // first transform the points from world space to the light's view space
+        //     point = light_look_at * point; // the point in the light's view space
+        //     min_x = f32::min(min_x,point.x);
+        //     max_x = f32::max(max_x,point.x);
+        //     min_y = f32::min(min_y,point.y);
+        //     max_y = f32::max(max_y,point.y);
+        //     min_z = f32::min(min_z,point.z);
+        //     max_z = f32::max(max_z,point.z);
+        // }
 
         println!("min_x: {}, max_x: {}, size: {}", min_x , max_x, max_x-min_x);
         println!("min_y: {}, max_y: {}, size: {}", min_y , max_y, max_y-min_y);
@@ -304,15 +365,15 @@ impl Renderer
 
     /// Generated matrices go into the passed in "matrices" Vec
     /// Assumes cascades.len > 2
-    fn get_cascaded_lightspace_matrices( cascades: &Vec<f32>, world: &World, matrices: &mut Vec<Mat4> )
+    fn get_cascaded_lightspace_matrices( &mut self, world: &World, matrices: &mut Vec<Mat4> )
     {
         // first cascade starts from the near plane
         // matrices.push(Self::get_lightspace_transformation(cascades[0], cascades[1], &world.camera));
         let mut i : usize = 0; // we already added one frustum
 
-        while i < cascades.len()-1
+        while i < self.cascade_levels.len()-1
         {
-            matrices.push(Self::get_lightspace_transformation(cascades[i], cascades[i+1], &world.camera));
+            matrices.push(self.get_lightspace_transformation(self.cascade_levels[i], self.cascade_levels[i+1], &world.camera));
             i += 1;
         }
     }
