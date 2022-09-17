@@ -15,6 +15,7 @@ void main()
         vec4 pos = transforms[gl_InvocationID] * gl_in[i].gl_Position;
             
         // // pancake the geometry that is behind the near plane to z = 0
+        //TODO: document
         if ( pos.z < -pos.w ) // if the vertex is behind the near plane
             pos.z = -pos.w; // clamp it to the near plane
 

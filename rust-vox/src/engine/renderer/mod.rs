@@ -131,7 +131,6 @@ impl Renderer
         let projection = Mat4::perspective_rh_gl(PI/4.0, 1920.0/1080.0, 0.1, 100.0);
         let view = world.camera.get_look_at();
 
-
         unsafe
         {
             // PASS 1: render to the shadow map
@@ -294,68 +293,26 @@ impl Renderer
         corrected_center_world /= corrected_center_world.w;
 
         let center = corrected_center_world.xyz();
-        // let proj_view = projection * camera.get_look_at();
-
-        // let mut corners: [Vec4;8] = [Vec4::ZERO;8];
-        // Self::get_worldspace_frustum_corners(&proj_view, &mut corners);
-        
-        // let mut center: Vec3 = Vec3::ZERO;
-        // for point in corners
-        // {
-        //     center += point.xyz();
-        // }
-        // // get the average
-        // center /= corners.len() as f32;
 
         println!("center for near_plane: {}, far_plane: {}, center : {}, radius: {}", n , f , center , radius);
 
-        let sun_direction = Vec3::new(0.5,0.2,0.0);
+        let sun_direction = Vec3::new(0.5,0.2,-2.0);
         let light_look_at = Mat4::look_at_rh(center + sun_direction,center,Vec3::new(0.0,1.0,0.0));
 
         self.prev_view_trans = light_look_at; // set current as previous
 
         // get the 3D AABB (Axis Aligned Bounding Box) for the view frustum, the bounding box should enclose the sphere
 
-        // let mut min_x = f32::MAX;
-        // let mut max_x = f32::MIN;
-        // let mut min_y = f32::MAX;
-        // let mut max_y = f32::MIN;
-        // let mut min_z = f32::MAX;
-        // let mut max_z = f32::MIN;
-
-        println!("before fix: {}", radius);
         let radius: f32 = (radius / resol).floor() * resol;
-        println!("after fix: {}", radius);
-        let mut min_x = -radius;
-        let mut max_x = radius;
-        let mut min_y = -radius;
-        let mut max_y = radius;
-        let mut min_z = -radius;
-        let mut max_z = radius;
-
-        // for mut point in corners
-        // {
-        //     // first transform the points from world space to the light's view space
-        //     point = light_look_at * point; // the point in the light's view space
-        //     min_x = f32::min(min_x,point.x);
-        //     max_x = f32::max(max_x,point.x);
-        //     min_y = f32::min(min_y,point.y);
-        //     max_y = f32::max(max_y,point.y);
-        //     min_z = f32::min(min_z,point.z);
-        //     max_z = f32::max(max_z,point.z);
-        // }
+        let min_x = -radius;
+        let max_x = radius;
+        let min_y = -radius;
+        let max_y = radius;
+        let min_z = -radius*1.05; // pull it back a bit TODO: document
+        let max_z = radius;
 
         println!("min_x: {}, max_x: {}, size: {}", min_x , max_x, max_x-min_x);
         println!("min_y: {}, max_y: {}, size: {}", min_y , max_y, max_y-min_y);
-        // let units_per_texel = 2.0 * Vec2::new( max_x - min_x, max_y - min_y ) / Vec2::new( 2048.0 , 2048.0 );
-
-        // min_x = f32::floor( min_x / units_per_texel.x ) * units_per_texel.x;
-        // max_x = f32::floor( max_x / units_per_texel.x ) * units_per_texel.x;
-
-        // min_y = f32::floor( min_y / units_per_texel.y ) * units_per_texel.y;
-        // max_y = f32::floor( max_y / units_per_texel.y ) * units_per_texel.y;
-
-        // println!("units per pixel: x:{} , y:{}", units_per_texel.x, units_per_texel.y );
         
         // now we construct the light's orthographic projection matrix
         let light_ortho_proj = Mat4::orthographic_rh_gl(min_x, max_x, min_y, max_y, min_z, max_z);

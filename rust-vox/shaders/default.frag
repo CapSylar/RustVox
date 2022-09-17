@@ -26,10 +26,8 @@ const float fog_density = 7.0;
 vec2 texel_size = 1.0 / textureSize(shadow_map,0).xy; // don'get the z component
 
 //TODO: point light is hardcoded, fix this !!!
-float shadow_bias = max(0.05 * (1.0 - dot(normal, normalize(vec3(0.5,0.2,0)))), 0.005);
-
-// TESTING, TODO: DELETE WHEN DONE
-float resolution = 1.0 / 2048.0;
+float shadow_bias = max(0.05 * (1.0 - dot(normal, normalize(vec3(0.5,0.2,-2.0)))), 0.01);
+float doto = 1.0 - dot(normal , normalize(vec3(0.5,0.2,-2.0)));
   
 //TODO: could be refactored
 float linearize_depth(float depth) 
@@ -44,21 +42,50 @@ float fog_intensity(float depth)
     return clamp(res , 0.0 , 1.0 );
 }
 
-float pcf( vec3 pos , int text_layer )
+float pcf( vec3 pos , vec2 depth_deriv , int text_layer )
 {
     float shadow = 0.0;
 
     // sample 9 texel from the shadow then average to get the value
-    for ( int x = -1 ; x <= 1 ; ++x )
-        for ( int y = -1; y <= 1 ; ++y )
+    for ( int x = -3 ; x <= 3 ; ++x )
+        for ( int y = -3; y <= 3 ; ++y )
         {
-            float depth = texture(shadow_map, vec3( ( pos.xy + (x,y) * texel_size) , text_layer) ).r;
+            vec2 tex_offset = (x,y) * texel_size;
+            float shadow_map_depth = texture(shadow_map, vec3( ( pos.xy + tex_offset ) , text_layer) ).r;
             // the fragment is in shadow if the distance light - fragment > depth in the shadow buffer
             // meaning an object has occluded the fragment
-            shadow += (pos.z - shadow_bias) > depth ? 1.0 : 0.0;
+            float fragment_depth = pos.z -shadow_bias -(depth_deriv.x * tex_offset.x + depth_deriv.y * tex_offset.y); // depth - bias
+            shadow += (fragment_depth > shadow_map_depth ? 1.0 : 0.0);
         }
 
-    return shadow / 9.0; // take the average and return
+    return shadow / 49.0; // take the average and return
+}
+
+// calcualte the values required by receiver plane depth bias
+vec2 get_derivative ( vec3 proj )
+{
+    // we need del(v)/del(x), del(u)/del(x), del(depth)/del(x)
+    // same thing for y 
+    // pack v,u and depth into a vector and call ddx and ddy on it
+    
+    vec3 uvd_x = dFdx(proj);
+    vec3 uvd_y = dFdy(proj);
+
+    // now calculate del(depth)/del(u) and del(depth)/del(v) 
+    // TODO: Document calculations
+
+    // we will manually calculate the inverse of the 2x2 matrix
+    //                   1 / ( del(u)/del(x) * del(v)/del(y) - del(v)/del(x) * del(u)/del(y) )
+    float inverse_det = 1/(uvd_x.x * uvd_y.y - uvd_x.y * uvd_y.x);
+    vec2 d_uv; // result vector
+    // calculate del(d)/del(u) = del(v)/del(y) * del(d)/del(x) - del(v)/del(x) * del(d)/del(y)
+    d_uv.x = (uvd_y.y * uvd_x.z - uvd_x.y * uvd_y.z) ;
+    // calculate del(d)/del(v) = -del(u)/del(y) * del(d)/del(x) + del(u)/del(x) * del(d)/del(y)
+    d_uv.y = (-uvd_y.x * uvd_x.z + uvd_x.x * uvd_y.z) ;
+
+    d_uv *= inverse_det;
+
+    return d_uv;
 }
 
 float is_in_shadow(vec4 point, int shadow_map_layer, out bool color_x, out bool color_y)
@@ -73,10 +100,14 @@ float is_in_shadow(vec4 point, int shadow_map_layer, out bool color_x, out bool 
     color_x = (int (proj.x * 2048.0)) % 2 == 1;
     color_y = (int (proj.y * 2048.0)) % 2 == 1;
 
-    float depth = texture(shadow_map, vec3( ( proj.xy ) , shadow_map_layer) ).r;
-    return (proj.z - shadow_bias) > depth ? 1.0 : 0.0;
-    // return pcf( proj, shadow_map_layer);
+    vec2 depth_deriv = get_derivative( proj );
+
+    // float depth = texture(shadow_map, vec3( ( proj.xy ) , shadow_map_layer) ).r;
+    // return (proj.z - shadow_bias) > depth ? 1.0 : 0.0;
+    return pcf( proj, depth_deriv , shadow_map_layer);
 }
+
+
 
 void main()
 {
@@ -105,5 +136,6 @@ void main()
     vec4 overlay_color = (color_x != color_y) ? vec4(1.5,0.5,0.5,1.0) : vec4(0.5,0.5,1.5,1.0); // display a sort of checkered pattern, blue and red
     vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(texture_atlas, tex_coord) ; // * overlay_color;
     float fog_intensity =  fog_intensity(linearize_depth(gl_FragCoord.z) / far);
-    color = albedo; //fog_intensity * clear_color + (1-fog_intensity) * albedo;
+    float xxx = max (0.05 * (1.0 - dot(normal, normalize(vec3(0.5,0.2,0)))) , 0.01 );
+    color = albedo ;//* vec4(vec3(xxx*50), 1.0); //fog_intensity * clear_color + (1-fog_intensity) * albedo;
 }
