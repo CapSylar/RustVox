@@ -1,5 +1,5 @@
-use std::{ffi::{c_void, CStr}, f32::consts::PI};
-use glam::{Mat4, Vec3};
+use std::{ffi::{c_void, CStr}};
+use glam::{Vec3};
 use sdl2::{VideoSubsystem};
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
 use super::{world::{World}, mesh::Mesh};
@@ -46,8 +46,8 @@ impl Renderer
 
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST_MIPMAP_NEAREST as _ );
-            gl::TexParameteri( gl::TEXTURE_2D , gl::TEXTURE_MAG_FILTER , gl::NEAREST as _ );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _ );
+            gl::TexParameteri(gl::TEXTURE_2D ,gl::TEXTURE_MAG_FILTER, gl::NEAREST as _ );
 
             gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as _ , width.try_into().unwrap() , height.try_into().unwrap() ,
                 0, gl::RGBA as _ , gl::UNSIGNED_BYTE , data.as_ptr().cast() );
