@@ -1,37 +1,34 @@
 use glam::{Vec3, Mat4};
 
-pub struct Camera
+pub struct Eye
 {
-    pub position: Vec3,
-    pub front: Vec3,
+    // projection parameters
+    pub fov_y: f32,
+    pub aspect_ratio: f32,
+    pub near_plane: f32,
+    pub far_plane: f32,
+    // camera
+    position: Vec3,
+    front: Vec3,
     up: Vec3,
 
     speed: f32,
 
+    // Euler Angles
     yaw: f32,
     pitch: f32,
 }
 
-impl Camera
+impl Eye
 {
-    /// Get a default camera at (0,0,3) looking towards -Z
-    pub fn default() -> Camera
+    pub fn new(fov_y: f32, aspect_ratio: f32, near_plane: f32, far_plane: f32, position: Vec3 , front: Vec3 , up: Vec3 , speed: f32) -> Self
     {
-        Camera
-        {
-            front: Vec3::new(0.0,0.0,-1.0),
-            position: Vec3::new(0.0,0.0,3.0),
-            up: Vec3::new(0.0,1.0,0.0),
-            speed: 0.05,
-
-            yaw: -89.9,
-            pitch:0.0,
-        }
+        Self { fov_y, aspect_ratio, near_plane, far_plane, position, front , up, speed , pitch: 0.0, yaw: -89.9 }
     }
 
-    pub fn new(position: Vec3 , front: Vec3 , up: Vec3 , speed: f32) -> Camera
+    pub fn get_position(&self) -> Vec3
     {
-        Camera { position, front , up, speed , pitch:0.0,yaw:-89.9}
+        self.position
     }
 
     pub fn move_forward(&mut self)
@@ -66,8 +63,6 @@ impl Camera
         self.pitch = self.pitch.clamp(-89.9, 89.9);
 
         // recalculate front vector
-
-        //TODO: check these again
         self.front.x = f32::cos(self.yaw.to_radians()) * f32::cos(self.pitch.to_radians());
         self.front.y = f32::sin(self.pitch.to_radians());
         self.front.z = f32::sin(self.yaw.to_radians()) * f32::cos(self.pitch.to_radians());
@@ -76,5 +71,10 @@ impl Camera
     pub fn get_look_at(&self) -> Mat4
     {
         Mat4::look_at_rh(self.position,self.position+self.front,self.up)
+    }
+
+    pub fn get_persp_trans(&self) -> Mat4
+    {
+        Mat4::perspective_rh_gl(self.fov_y, self.aspect_ratio, self.near_plane, self.far_plane)
     }
 }

@@ -1,5 +1,5 @@
 use imgui::{Condition, FontSource, Context, FontId};
-use crate::State;
+use crate::Diagnostic;
 
 pub struct Ui
 {
@@ -19,8 +19,7 @@ impl Ui
         Ui{ used_font }
     }
     
-    //FIXME: fix warning 
-    pub fn build_ui(&self, ui: & imgui::Ui , state:&mut State)
+    pub fn build_ui(&self, ui: & imgui::Ui , state:&mut Diagnostic)
     {
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
@@ -34,6 +33,7 @@ impl Ui
         ui.text("NUm3 to Toggle between Vsync Off/On");
         ui.separator();
         ui.text_wrapped("Performance");
+        ui.text(format!("calculation time: {}ms", state.calculation_time));
         ui.text(format!("frame time: {}us" , state.frame_time));
         ui.text(format!("FPS: {}", 1.0/(state.frame_time as f32 / 1000000.0) ));
         font.pop();});

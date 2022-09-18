@@ -1,4 +1,4 @@
-pub mod camera;
+pub mod eye;
 pub mod renderer;
 pub mod terrain;
 pub mod voxel;

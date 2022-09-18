@@ -1,8 +1,10 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 
+use glam::Vec3;
+
 use crate::threadpool::ThreadPool;
 
-use super::{chunk::{Chunk, CHUNK_X, CHUNK_Z}, terrain::{PerlinGenerator, TerrainGenerator}, camera::Camera, animation::ChunkMeshAnimation};
+use super::{chunk::{Chunk, CHUNK_X, CHUNK_Z}, terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
@@ -77,12 +79,11 @@ impl ChunkManager
     }
 
     /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
-    pub fn update(&mut self , camera: &Camera)
+    pub fn update(&mut self , player_pos: Vec3)
     {
-        let pos = camera.position;
         // in which chunk are we ? 
-        let chunk_x = pos.x as i32 / CHUNK_X as i32;
-        let chunk_z = pos.z as i32 / CHUNK_Z as i32;
+        let chunk_x = player_pos.x as i32 / CHUNK_X as i32;
+        let chunk_z = player_pos.z as i32 / CHUNK_Z as i32;
         let new_pos = (chunk_x,chunk_z);
 
         // did we change chunks and are now outside the no-update zone ?

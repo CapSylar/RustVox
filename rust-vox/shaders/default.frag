@@ -107,8 +107,6 @@ float is_in_shadow(vec4 point, int shadow_map_layer, out bool color_x, out bool 
     return pcf( proj, depth_deriv , shadow_map_layer);
 }
 
-
-
 void main()
 {
     // choose the light space transform according to which cascade we are targeting
@@ -133,9 +131,8 @@ void main()
     // for now, being in shadow just means the texture's albedo colors get a bit darker
 
     float ambient = 0.5;
-    vec4 overlay_color = (color_x != color_y) ? vec4(1.5,0.5,0.5,1.0) : vec4(0.5,0.5,1.5,1.0); // display a sort of checkered pattern, blue and red
-    vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(texture_atlas, tex_coord) ; // * overlay_color;
+    // vec4 overlay_color = (color_x != color_y) ? vec4(1.5,0.5,0.5,1.0) : vec4(0.5,0.5,1.5,1.0); // display a sort of checkered pattern, blue and red
+    vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(texture_atlas, tex_coord);
     float fog_intensity =  fog_intensity(linearize_depth(gl_FragCoord.z) / far);
-    float xxx = max (0.05 * (1.0 - dot(normal, normalize(vec3(0.5,0.2,0)))) , 0.01 );
     color = albedo ;//* vec4(vec3(xxx*50), 1.0); //fog_intensity * clear_color + (1-fog_intensity) * albedo;
 }

@@ -1,25 +1,24 @@
-use crate::engine::camera::Camera;
-use super::{chunkManager::ChunkManager, chunk::Chunk};
+use super::{chunkManager::ChunkManager,eye::Eye};
 
 pub struct World
 {
-    pub camera : Camera,
+    pub eye : Eye,
     pub chunk_manager: ChunkManager,
 }
 
 impl World
 {
-    pub fn new(camera: Camera) -> Self
+    pub fn new(eye: Eye) -> Self
     {
         // init the chunk manager
         let chunk_manager = ChunkManager::new(4);
 
-        Self{camera,chunk_manager}
+        Self{eye,chunk_manager}
     }
 
     pub fn update(&mut self)
     {
         // update the chunks if needed
-        self.chunk_manager.update(&self.camera);
+        self.chunk_manager.update(self.eye.get_position());
     }
 }

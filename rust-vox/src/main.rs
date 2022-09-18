@@ -1,9 +1,10 @@
+use __core::f32::consts::PI;
 use glam::{Vec3};
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     event::Event,
-    video::{GLProfile, SwapInterval}
+    video::{GLProfile, SwapInterval}, keyboard
 };
 
 #[macro_use]
@@ -14,14 +15,15 @@ mod engine;
 mod input;
 mod threadpool;
 
-use engine::{camera, renderer::Renderer, world::World};
+use engine::{eye::{Eye}, renderer::Renderer, world::World};
 
 use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
-struct State
+pub struct Diagnostic
 {
-    frame_time: u128,
+    calculation_time: u128, // same as frame_time, but without waiting for the framebuffer swap
+    frame_time: u128, // should be 16ms on 60 Hz refresh rate
 }
 
 fn main()
@@ -74,12 +76,19 @@ fn main()
 
     sdl.mouse().set_relative_mouse_mode(false);
     
-    let mut state = State{frame_time:0};
-    let mut voxel_world = World::new(
-        camera::Camera::new(Vec3::new(0.0,30.0,0.0),Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,1.0,0.0), 1.0)
+    let mut state = Diagnostic{frame_time:0,calculation_time:0};
+    let mut voxel_world = World::new(Eye::new(
+        PI/4.0,
+        1920.0/1080.0,
+        0.1,
+        500.0,
+        Vec3::new(0.0,30.0,0.0),
+        Vec3::new(0.0,0.0,1.0),
+        Vec3::new(0.0,1.0,0.0),
+        1.0)
     );
 
-    let mut world_renderer = Renderer::new(&video_subsystem);
+    let mut world_renderer = Renderer::new(&video_subsystem, &voxel_world);
 
     // FIXME: remove this
     let mut is_filled_mode = true ; // opengl rendering mode
@@ -104,29 +113,31 @@ fn main()
                     {
                         match s
                         {
-                            sdl2::keyboard::Keycode::Num1 => { sdl.mouse().set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()) }
-                            sdl2::keyboard::Keycode::Num2 => 
+                            keyboard::Keycode::Num1 => { sdl.mouse().set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()) }
+                            keyboard::Keycode::Num2 => 
                             {world_renderer.set_mode( if is_filled_mode {gl::LINE} else {gl::FILL} ); is_filled_mode = !is_filled_mode },
-                            sdl2::keyboard::Keycode::Num3 => {window.subsystem().gl_set_swap_interval( if is_vsync_on {SwapInterval::VSync} else {SwapInterval::Immediate} ).expect("error setting swap interval");
+                            keyboard::Keycode::Num3 => {window.subsystem().gl_set_swap_interval( if is_vsync_on {SwapInterval::VSync} else {SwapInterval::Immediate} ).expect("error setting swap interval");
                                 is_vsync_on = !is_vsync_on},
-                            sdl2::keyboard::Keycode::Escape => { break 'main; }
-                            sdl2::keyboard::Keycode::W => voxel_world.camera.move_forward(),
-                            sdl2::keyboard::Keycode::S => voxel_world.camera.move_backward(),
-                            sdl2::keyboard::Keycode::A => voxel_world.camera.strafe_left(),
-                            sdl2::keyboard::Keycode::D => voxel_world.camera.strafe_right(),
+                            keyboard::Keycode::Escape => { break 'main; }
+                            keyboard::Keycode::W => voxel_world.eye.move_forward(),
+                            keyboard::Keycode::S => voxel_world.eye.move_backward(),
+                            keyboard::Keycode::A => voxel_world.eye.strafe_left(),
+                            keyboard::Keycode::D => voxel_world.eye.strafe_right(),
                             _ => ()
                         };
                     }
                 },
                 Event::MouseMotion { xrel: x_rel , yrel: y_rel , .. } => 
-                    voxel_world.camera.change_front_rel(x_rel as f32 * MOUSE_SENSITIVITY, y_rel as f32 * MOUSE_SENSITIVITY),
+                    voxel_world.eye.change_front_rel(x_rel as f32 * MOUSE_SENSITIVITY, y_rel as f32 * MOUSE_SENSITIVITY),
                 _ => (),
             };
         }
 
+        let calculation_start = Instant::now();
         voxel_world.update();
         // render the world
         world_renderer.draw_world(&voxel_world);
+        let calculation_end = calculation_start.elapsed();
 
         // render the UI
         platform.prepare_frame(&mut imgui, &window, &event_pump);
@@ -134,10 +145,11 @@ fn main()
         renderer.render( &mut imgui , | ui: &mut Ui |
         {
             ui_renderer.build_ui(ui, &mut state );
-        });        
+        });
         window.gl_swap_window();
 
         let end = start.elapsed();
         state.frame_time = end.as_micros();
+        state.calculation_time = calculation_end.as_millis();
     }
 }

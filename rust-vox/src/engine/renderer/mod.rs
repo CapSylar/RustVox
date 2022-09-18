@@ -1,30 +1,24 @@
-use std::{ffi::{c_void, CStr}, f32::consts::PI, mem::size_of};
-use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
+use std::{ffi::{c_void, CStr}, f32::consts::PI};
+use glam::{Mat4, Vec3};
 use sdl2::{VideoSubsystem};
+use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
+use super::{world::{World}, mesh::Mesh};
 
-pub mod vertex_buffer;
-pub mod index_buffer;
-pub mod vertex_array;
-pub mod shader;
-
-use self::{vertex_array::{VertexArray}, shader::Shader};
-use super::{world::{World}, mesh::Mesh, camera::{Camera}};
-
+pub mod opengl_abstractions;
+pub mod csm;
 pub struct Renderer
 {
+    csm: Csm,
     shadow_fb: u32,
-    matrices_ubo: u32,
     default_shader : Shader,
     shadow_shader : Shader,
-    texture1: u32,
-    depth_texture: u32,
-    cascade_levels: Vec<f32>,
-    prev_view_trans : Mat4,
+    atlas_texture: u32,
+    sun_direction: Vec3,
 }
 
 impl Renderer
 {
-    pub fn new(video_subsystem: &VideoSubsystem) -> Renderer
+    pub fn new(video_subsystem: &VideoSubsystem, world: &World) -> Self
     {
         // Setup
         // load up every opengl function, is this good ?
@@ -33,22 +27,22 @@ impl Renderer
         unsafe
         {
             gl::Enable(gl::DEBUG_OUTPUT);
-            gl::DebugMessageCallback( Some(error_callback) , 0 as *const c_void);
+            gl::DebugMessageCallback( Some(error_callback) , std::ptr::null::<c_void>());
         }
 
         unsafe
         {
-            let mut texture1 = 0;        
+            let mut atlas_texture = 0;        
             // load texture atlas
             let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
             let width = img.width();
             let height = img.height();
             let data = img.as_bytes();
 
-            gl::GenTextures(1, &mut texture1);
+            gl::GenTextures(1, &mut atlas_texture);
             
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, texture1);
+            gl::BindTexture(gl::TEXTURE_2D, atlas_texture);
 
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
@@ -58,8 +52,6 @@ impl Renderer
             gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as _ , width.try_into().unwrap() , height.try_into().unwrap() ,
                 0, gl::RGBA as _ , gl::UNSIGNED_BYTE , data.as_ptr().cast() );
             gl::GenerateMipmap(gl::TEXTURE_2D);
-
-            // ------------------------------------------ END 
 
             gl::BindVertexArray(0); // unbind VAO
             gl::BindBuffer(gl::ARRAY_BUFFER , 0); // unbind currently bound buffer
@@ -76,60 +68,32 @@ impl Renderer
             let shadow_shader =  Shader::new_from_vs_gs_fs("rust-vox/shaders/shadow.vert",
             "rust-vox/shaders/shadow.geom", "rust-vox/shaders/shadow.frag" ).expect("Shader Error");
 
-            // generate a framebuffer for the shadow map
+            // define a sun
+            let sun_direction = Vec3::new(0.5,0.2,-2.0);
 
+            // generate a framebuffer for the shadow map
             let mut shadow_fb = 0;
             gl::GenFramebuffers(1, &mut shadow_fb);
 
-            // TODO: remove parameters from here
-            let shadow_height: i32 = 2048;
-            let shadow_width: i32 = 2048;
-            // testing cascades
-
-            let far_plane: f32 = 100.0;
-            let near_plane: f32 = 0.1;
-            // cascades include the original near and far planes
-            // let cascades = vec![near_plane,far_plane/50.0,far_plane/100.0,far_plane/5.0,far_plane];
-            let cascades = vec![near_plane,far_plane];
-
-            // Create a uniform buffer containing the light_space tranform matrices for cascaded shadow mapping
-            let mut matrices_ubo = 0;
-            gl::GenBuffers(1, &mut matrices_ubo);
-            gl::BindBuffer(gl::UNIFORM_BUFFER, matrices_ubo);
-            gl::BufferData(gl::UNIFORM_BUFFER, (size_of::<Mat4>()*8).try_into().unwrap(), 0 as * const c_void, gl::STATIC_DRAW);
-            gl::BindBufferBase(gl::UNIFORM_BUFFER,0,matrices_ubo);
-            gl::BindBuffer(gl::UNIFORM_BUFFER, 0);
-
-            let mut depth_texture_array = 0;
-            gl::GenTextures(1, &mut depth_texture_array);
-            gl::BindTexture(gl::TEXTURE_2D_ARRAY, depth_texture_array);
-
-            gl::TexImage3D(gl::TEXTURE_2D_ARRAY, 0, gl::DEPTH_COMPONENT32F as _ , shadow_width, shadow_height,
-               (cascades.len()-1).try_into().unwrap(), 0 , gl::DEPTH_COMPONENT, gl::FLOAT , 0 as * const c_void );
-
-            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER,gl::NEAREST as _ );
-            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MAG_FILTER,gl::NEAREST as _ );
-            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_BORDER as _ );
-            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_BORDER as _ );
-            let border_color: [f32;4] = [1.0,1.0,1.0,1.0];
-            gl::TexParameterfv(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_BORDER_COLOR, border_color.as_ptr() );
+            // initialise the Shadows
+            let csm = Csm::new(2048,2048, &world.eye , sun_direction);
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, shadow_fb);
-            gl::FramebufferTexture(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, depth_texture_array, 0);
+            gl::FramebufferTexture(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, csm.get_depth_texture_id(), 0);
             // need to explicitely mention that we will render no color on this framebuffer
             gl::DrawBuffer(gl::NONE);
             gl::ReadBuffer(gl::NONE);
             // unbind
             gl::BindFramebuffer( gl::FRAMEBUFFER, 0);
 
-            Renderer { default_shader , shadow_shader , texture1 , shadow_fb , depth_texture: depth_texture_array , cascade_levels:cascades, matrices_ubo, prev_view_trans: Mat4::IDENTITY}
+            Self { default_shader , shadow_shader , atlas_texture , shadow_fb , csm, sun_direction }
         }
     }
 
     pub fn draw_world(&mut self, world: &World)
     {   
-        let projection = Mat4::perspective_rh_gl(PI/4.0, 1920.0/1080.0, 0.1, 100.0);
-        let view = world.camera.get_look_at();
+        let projection = world.eye.get_persp_trans();
+        let view = world.eye.get_look_at();
 
         unsafe
         {
@@ -147,15 +111,15 @@ impl Renderer
             gl::CullFace(gl::BACK);
             
             gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, self.texture1);
+            gl::BindTexture(gl::TEXTURE_2D, self.atlas_texture);
             gl::ActiveTexture(gl::TEXTURE1);
-            gl::BindTexture(gl::TEXTURE_2D_ARRAY, self.depth_texture);
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY, self.csm.get_depth_texture_id());
 
             // FIXME: setting the constant uniforms at every draw ?
-            // self.default_shader.set_uniform1i("texture_atlas", 0).expect("error setting the texture uniform");
+            let cascades = self.csm.get_cascade_levels();
             self.default_shader.set_uniform1i("shadow_map", 1).expect("error setting the shadow map texture uniform");
-            self.default_shader.set_uniform1i("cascade_count", self.cascade_levels.len() as i32 ).expect("error setting the cascade count");
-            self.default_shader.set_uniform_1fv("cascades", &self.cascade_levels).expect("error setting the cascades");
+            self.default_shader.set_uniform1i("cascade_count", cascades.len() as i32 ).expect("error setting the cascade count");
+            self.default_shader.set_uniform_1fv("cascades", cascades).expect("error setting the cascades");
 
             // camera matrix 
             // let trans =  projection * view;
@@ -190,22 +154,13 @@ impl Renderer
     /// Implements Cascaded Shadow Maps (CSM)
     fn render_shadow(&mut self, world: &World)
     {
-        let mut matrices = Vec::new();
-        self.get_cascaded_lightspace_matrices(world, &mut matrices);
-    
-        unsafe
-        {
-            // upload the matrices into the Uniform Buffer
-            gl::BindBuffer(gl::UNIFORM_BUFFER, self.matrices_ubo);
-            gl::BufferSubData(gl::UNIFORM_BUFFER,0,(matrices.len() * size_of::<Mat4>()).try_into().unwrap(),matrices.as_ptr() as _);
-            gl::BindBuffer(gl::UNIFORM_BUFFER,0); // unbind
-        }
+        self.csm.update(&world.eye);
 
         self.shadow_shader.bind();
 
         unsafe
         {   
-            gl::Viewport(0, 0, 2048, 2048);
+            gl::Viewport(0, 0, self.csm.get_width() , self.csm.get_height());
             gl::BindFramebuffer(gl::FRAMEBUFFER, self.shadow_fb);
             gl::Clear(gl::DEPTH_BUFFER_BIT);
             gl::Disable(gl::CULL_FACE);
@@ -216,122 +171,6 @@ impl Renderer
         unsafe
         {
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
-        }
-    }
-
-    /// Gets the world-space coordinates of the frustum
-    /// the output is filled in the passed-in corners array
-    fn get_worldspace_frustum_corners(proj_view_matrix: &Mat4, corners: &mut [Vec4;8])
-    {
-        let inverse = proj_view_matrix.inverse();
-        // transform the NDC frustum corner [-1,1] in each axis to their corresponding world space coordinates
-        let mut index = 0;
-        for x in 0..2
-        {
-            for y in 0..2
-            {
-                for z in 0..2
-                {
-                    let pt = inverse * Vec4::new((2*x-1) as f32,(2*y-1) as f32,(2*z-1) as f32,1.0);
-                    corners[index] = pt/pt.w;
-                    index += 1;
-                }
-            }
-        }
-    }
-
-    /// Get the transformation matrix that transforms the world to "light space"
-    /// The directional light looks at the center of the frustum
-    fn get_lightspace_transformation(&mut self, n: f32, f: f32, camera: &Camera) -> Mat4
-    {
-        let projection = Mat4::perspective_rh_gl(PI/4.0, 1920.0/1080.0, n, f);
-
-        // calculate a bounding sphere for the frustum
-
-        let fov_y: f32 = PI/4.0;
-        let aspect_ratio : f32 = 1920.0/1080.0; // width / height
-
-        let k = f32::sqrt(1.0 + aspect_ratio * aspect_ratio) * (fov_y/2.0).tan();
-        
-        let center: Vec3;
-        let radius: f32 ;
-
-        if k*k >= (f-n)/(f+n) // if near plane is too close to the far plane, the center should be on the far plane
-        {
-            println!("center calculation bounded");
-            center = Vec3::new(0.0,0.0,-f);
-            radius = k*f;
-        }
-        else
-        {
-            center = Vec3::new(0.0,0.0,(-0.5)*(f+n)*(1.0+k*k));
-            radius = 0.5 * f32::sqrt((f-n)*(f-n) + 2.0*k*k*(f*f+n*n) + (f+n)*(f+n)*k*k*k*k);
-        }
-
-        // transform the center from camera's view space -> world space
-        let mut center_world = camera.get_look_at().inverse() * Vec4::new(center.x, center.y, center.z,1.0);
-        center_world /= center_world.w; // transform to cartesian coordinates
-
-        // snap the current center to texel offsets from the last center
-        // calculate the direction old -> new
-        
-        // get shadow map resolution
-        let resol : f32 = (2.0 * radius) / 2048.0;
-
-        let mut new_center_old_view = self.prev_view_trans * center_world;
-        println!("new center, old view space: {}", new_center_old_view);
-        // snap the coordinates to texel offsets
-        new_center_old_view.x = f32::floor(new_center_old_view.x / resol) * resol;
-        new_center_old_view.y = f32::floor(new_center_old_view.y / resol) * resol;
-
-        println!("new center, snapped : {}", new_center_old_view);
-        
-        // transform back to world space and get the correct world position of the new center
-        let mut corrected_center_world = self.prev_view_trans.inverse() * new_center_old_view;
-
-        // get the new look at transform
-        corrected_center_world /= corrected_center_world.w;
-
-        let center = corrected_center_world.xyz();
-
-        println!("center for near_plane: {}, far_plane: {}, center : {}, radius: {}", n , f , center , radius);
-
-        let sun_direction = Vec3::new(0.5,0.2,-2.0);
-        let light_look_at = Mat4::look_at_rh(center + sun_direction,center,Vec3::new(0.0,1.0,0.0));
-
-        self.prev_view_trans = light_look_at; // set current as previous
-
-        // get the 3D AABB (Axis Aligned Bounding Box) for the view frustum, the bounding box should enclose the sphere
-
-        let radius: f32 = (radius / resol).floor() * resol;
-        let min_x = -radius;
-        let max_x = radius;
-        let min_y = -radius;
-        let max_y = radius;
-        let min_z = -radius*1.05; // pull it back a bit TODO: document
-        let max_z = radius;
-
-        println!("min_x: {}, max_x: {}, size: {}", min_x , max_x, max_x-min_x);
-        println!("min_y: {}, max_y: {}, size: {}", min_y , max_y, max_y-min_y);
-        
-        // now we construct the light's orthographic projection matrix
-        let light_ortho_proj = Mat4::orthographic_rh_gl(min_x, max_x, min_y, max_y, min_z, max_z);
-        
-        light_ortho_proj * light_look_at
-    }
-
-    /// Generated matrices go into the passed in "matrices" Vec
-    /// Assumes cascades.len > 2
-    fn get_cascaded_lightspace_matrices( &mut self, world: &World, matrices: &mut Vec<Mat4> )
-    {
-        // first cascade starts from the near plane
-        // matrices.push(Self::get_lightspace_transformation(cascades[0], cascades[1], &world.camera));
-        let mut i : usize = 0; // we already added one frustum
-
-        while i < self.cascade_levels.len()-1
-        {
-            matrices.push(self.get_lightspace_transformation(self.cascade_levels[i], self.cascade_levels[i+1], &world.camera));
-            i += 1;
         }
     }
 
@@ -353,7 +192,6 @@ impl Renderer
             gl::PolygonMode(gl::FRONT_AND_BACK, mode );
         }
     }
-
 
 }
 

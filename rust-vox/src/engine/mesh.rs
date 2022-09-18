@@ -1,8 +1,7 @@
 use std::mem::size_of;
 
 use glam::{Vec3, Vec2};
-
-use super::{renderer::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, voxel::{Voxel, VoxelFace, VOXEL_FACE_VALUES}, chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk}, types::Vec3i32};
+use super::{chunk::{Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z}, voxel::VOXEL_FACE_VALUES, types::Vec3i32, renderer::opengl_abstractions::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}};
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices

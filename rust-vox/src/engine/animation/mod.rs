@@ -1,6 +1,4 @@
-use std::{rc::Rc, cell::RefCell};
 use glam::Vec3;
-use super::chunk::Chunk;
 
 pub struct ChunkMeshAnimation
 {
