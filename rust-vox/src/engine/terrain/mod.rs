@@ -35,7 +35,6 @@ impl TerrainGenerator for PerlinGenerator
     {
         const MIN_HEIGHT: u32 = 10; // 10 blocks
 
-        // println!("points we got, x:{} y:{} ", x as f64 * 10.0 , z as f64 * 10.0 );
         let weigth0 = self.layer0.get([x as f64 / 30.0, z as f64 / 30.0]);
         let weight1 = self.layer1.get([x as f64 / 10.0, z as f64 / 10.0]);
 

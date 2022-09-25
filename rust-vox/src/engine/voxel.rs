@@ -26,13 +26,13 @@ struct VoxelTypeTexture
 
 const VoxelUVData : [VoxelTypeTexture ; 2] = [
     VoxelTypeTexture{ // Grass
-    top_face: const_vec2!([0.1,0.9]), back_face: const_vec2!([0.0,0.9]),
-    bottom_face: const_vec2!([0.2,0.9]), front_face: const_vec2!([0.0,0.9]),
-    left_face: const_vec2!([0.0,0.9]), right_face: const_vec2!([0.0,0.9])},
+    top_face: const_vec2!([0.125,0.875]), back_face: const_vec2!([0.0,0.875]),
+    bottom_face: const_vec2!([0.25,0.875]), front_face: const_vec2!([0.0,0.875]),
+    left_face: const_vec2!([0.0,0.875]), right_face: const_vec2!([0.0,0.875])},
     VoxelTypeTexture{ // Sand
-    top_face: const_vec2!([0.3,0.9]), back_face: const_vec2!([0.3,0.9]),
-    bottom_face: const_vec2!([0.3,0.9]), front_face: const_vec2!([0.3,0.9]),
-    left_face: const_vec2!([0.3,0.9]), right_face: const_vec2!([0.3,0.9])}
+    top_face: const_vec2!([0.375,0.875]), back_face: const_vec2!([0.375,0.875]),
+    bottom_face: const_vec2!([0.375,0.875]), front_face: const_vec2!([0.375,0.875]),
+    left_face: const_vec2!([0.375,0.875]), right_face: const_vec2!([0.375,0.875])}
     ];
 
 #[derive(Clone,Copy)]
@@ -104,9 +104,9 @@ impl Voxel
         let uv = VoxelUVData[self.voxel_type as usize];
 
         let uv1 = Vec2::new(0.0 ,0.0);
-        let uv2 = Vec2::new(0.0 ,0.1);
-        let uv3 = Vec2::new(0.1 ,0.1);
-        let uv4 = Vec2::new(0.1 ,0.0);
+        let uv2 = Vec2::new(0.0 ,0.125);
+        let uv3 = Vec2::new(0.125 ,0.125);
+        let uv4 = Vec2::new(0.125 ,0.0);
 
         //TODO: could refactor by defining the vertices for each face, and then iterate
 
