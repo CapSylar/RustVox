@@ -14,8 +14,8 @@ pub struct Csm
     width: i32,
     height:i32,
 
-    // light parameters
-    light_direction: Vec3,
+    // // light parameters
+    // light_direction: Vec3,
 
     // opengl objects
     matrices_ubo: u32,
@@ -29,7 +29,7 @@ impl Csm
 {
     // TODO: create a new() where the partitions are passed in
 
-    pub fn new( width: i32, height: i32, eye: &Eye, light_direction: Vec3) -> Self
+    pub fn new( width: i32, height: i32, eye: &Eye ) -> Self
     {
         let near_plane = eye.near_plane;
         let far_plane = eye.far_plane;
@@ -77,13 +77,13 @@ impl Csm
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, 0); // unbind
         }
 
-        Self{ cascades, prev_view_trans, depth_texture_array, matrices_ubo, light_space_matrices, cascade_bounds, width, height, light_direction }
+        Self{ cascades, prev_view_trans, depth_texture_array, matrices_ubo, light_space_matrices, cascade_bounds, width, height }
     }
 
-    pub fn update(&mut self , eye: &Eye)
+    pub fn update(&mut self , eye: &Eye, light_direction: Vec3)
     {
         // calculate the updated light-space matrices for each cascasde
-        self.get_cascaded_lightspace_matrices(eye);
+        self.get_cascaded_lightspace_matrices(eye,light_direction);
         unsafe
         {
             // upload the matrices into the Uniform Buffer
@@ -118,14 +118,14 @@ impl Csm
 
     /// Generated matrices go into the passed in "matrices_out" slice
     /// Assumes cascades.len > 2
-    fn get_cascaded_lightspace_matrices(&mut self, eye: &Eye)
+    fn get_cascaded_lightspace_matrices(&mut self, eye: &Eye, light_direction: Vec3)
     {
         // first cascade starts from the near plane
         let mut i : usize = 0;
 
         while i < self.cascades.len()-1
         {
-            self.light_space_matrices[i] = Self::get_lightspace_transformation(&self.cascade_bounds[i],eye, self.width, self.light_direction, &mut self.prev_view_trans[i]);
+            self.light_space_matrices[i] = Self::get_lightspace_transformation(&self.cascade_bounds[i],eye, self.width, light_direction, &mut self.prev_view_trans[i]);
             i += 1;
         }
     }

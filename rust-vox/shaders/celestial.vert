@@ -7,12 +7,13 @@ layout (location = 2) in uint normal_index;
 
 out vec2 tex_coord;
 
+uniform mat4 model;
 uniform mat4 view;
 uniform mat4 perspective;
 
 void main()
 {
-    vec4 pos = perspective * view * vec4(pos,1.0);
+    vec4 pos = perspective * view * model * vec4(pos,1.0);
     gl_Position = pos.xyww; // set z to w such that the depth is maximum
     tex_coord = in_tex_coord;
 }

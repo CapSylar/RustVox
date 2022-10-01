@@ -1,33 +1,31 @@
 use __core::f32::consts::PI;
-use glam::{Vec3};
+use glam::Vec3;
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     event::Event,
-    video::{GLProfile, SwapInterval}, keyboard
+    keyboard,
+    video::{GLProfile, SwapInterval},
 };
 
 #[macro_use]
 extern crate lazy_static;
 
-mod ui;
 mod engine;
 mod input;
 mod threadpool;
+mod ui;
 
-use engine::{eye::{Eye}, renderer::Renderer, world::World};
+use engine::{eye::Eye, renderer::Renderer, world::World};
 
 use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
-pub struct Diagnostic
-{
+pub struct Diagnostic {
     calculation_time: u128, // same as frame_time, but without waiting for the framebuffer swap
-    frame_time: u128, // should be 16ms on 60 Hz refresh rate
+    frame_time: u128,       // should be 16ms on 60 Hz refresh rate
 }
-
-fn main()
-{
+fn main() {
     // initialize SDL and its video subsystem
     let sdl = sdl2::init().unwrap();
     let video_subsystem = sdl.video().unwrap();
@@ -46,10 +44,9 @@ fn main()
         .build()
         .unwrap();
 
-
     // create a new opengl context and make it current
     let gl_context = window.gl_create_context().unwrap();
-    
+
     // load up every opengl function, is this good ?
     gl::load_with(|s| video_subsystem.gl_get_proc_address(s) as _);
 
@@ -58,9 +55,8 @@ fn main()
     // enable vsync to cap framerate
     let res = window.subsystem().gl_set_swap_interval(SwapInterval::VSync);
 
-    if let Err(s) = res
-    {
-        println!("error occured:{}" , s );
+    if let Err(s) = res {
+        println!("error occured:{}", s);
     }
 
     let mut imgui = Context::create();
@@ -69,33 +65,37 @@ fn main()
 
     // setup platform and renderer, and fonts to imgui
     let ui_renderer = ui::Ui::new(&mut imgui);
-    
+
     let mut platform = SdlPlatform::init(&mut imgui);
-    let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| video_subsystem.gl_get_proc_address(s) as _);
+    let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
+        video_subsystem.gl_get_proc_address(s) as _
+    });
     let mut event_pump = sdl.event_pump().unwrap();
 
     sdl.mouse().set_relative_mouse_mode(false);
-    
-    let mut state = Diagnostic{frame_time:0,calculation_time:0};
+
+    let mut state = Diagnostic {
+        frame_time: 0,
+        calculation_time: 0,
+    };
     let mut voxel_world = World::new(Eye::new(
-        PI/4.0,
-        1920.0/1080.0,
+        PI / 4.0,
+        1920.0 / 1080.0,
         0.1,
         500.0,
-        Vec3::new(0.0,30.0,0.0),
-        Vec3::new(0.0,0.0,1.0),
-        Vec3::new(0.0,1.0,0.0),
-        1.0)
-    );
+        Vec3::new(0.0, 30.0, 0.0),
+        Vec3::new(0.0, 0.0, 1.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        1.0,
+    ));
 
     let mut world_renderer = Renderer::new(&video_subsystem, &voxel_world);
 
     // FIXME: remove this
-    let mut is_filled_mode = true ; // opengl rendering mode
+    let mut is_filled_mode = true; // opengl rendering mode
     let mut is_vsync_on = true;
 
-    'main: loop
-    {
+    'main: loop {
         let start = Instant::now();
         // clear the frame
 
@@ -104,31 +104,52 @@ fn main()
             /* pass all events to imgui platfrom */
             platform.handle_event(&mut imgui, &event);
 
-            match event
-            {
+            match event {
                 Event::Quit { .. } => break 'main,
-                Event::KeyDown{ keycode: code , .. } => 
-                {
-                    if let Some(s) = code 
-                    {
-                        match s
-                        {
-                            keyboard::Keycode::Num1 => { sdl.mouse().set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()) }
-                            keyboard::Keycode::Num2 => 
-                            {world_renderer.set_mode( if is_filled_mode {gl::LINE} else {gl::FILL} ); is_filled_mode = !is_filled_mode },
-                            keyboard::Keycode::Num3 => {window.subsystem().gl_set_swap_interval( if is_vsync_on {SwapInterval::VSync} else {SwapInterval::Immediate} ).expect("error setting swap interval");
-                                is_vsync_on = !is_vsync_on},
-                            keyboard::Keycode::Escape => { break 'main; }
+                Event::KeyDown { keycode: code, .. } => {
+                    if let Some(s) = code {
+                        match s {
+                            keyboard::Keycode::Num1 => sdl
+                                .mouse()
+                                .set_relative_mouse_mode(!sdl.mouse().relative_mouse_mode()),
+                            keyboard::Keycode::Num2 => {
+                                world_renderer.set_mode(if is_filled_mode {
+                                    gl::LINE
+                                } else {
+                                    gl::FILL
+                                });
+                                is_filled_mode = !is_filled_mode
+                            }
+                            keyboard::Keycode::Num3 => {
+                                window
+                                    .subsystem()
+                                    .gl_set_swap_interval(if is_vsync_on {
+                                        SwapInterval::VSync
+                                    } else {
+                                        SwapInterval::Immediate
+                                    })
+                                    .expect("error setting swap interval");
+                                is_vsync_on = !is_vsync_on
+                            }
+                            keyboard::Keycode::Escape => {
+                                break 'main;
+                            }
                             keyboard::Keycode::W => voxel_world.eye.move_forward(),
                             keyboard::Keycode::S => voxel_world.eye.move_backward(),
                             keyboard::Keycode::A => voxel_world.eye.strafe_left(),
                             keyboard::Keycode::D => voxel_world.eye.strafe_right(),
-                            _ => ()
+                            _ => (),
                         };
                     }
-                },
-                Event::MouseMotion { xrel: x_rel , yrel: y_rel , .. } => 
-                    voxel_world.eye.change_front_rel(x_rel as f32 * MOUSE_SENSITIVITY, y_rel as f32 * MOUSE_SENSITIVITY),
+                }
+                Event::MouseMotion {
+                    xrel: x_rel,
+                    yrel: y_rel,
+                    ..
+                } => voxel_world.eye.change_front_rel(
+                    x_rel as f32 * MOUSE_SENSITIVITY,
+                    y_rel as f32 * MOUSE_SENSITIVITY,
+                ),
                 _ => (),
             };
         }
@@ -142,9 +163,8 @@ fn main()
         // render the UI
         platform.prepare_frame(&mut imgui, &window, &event_pump);
 
-        renderer.render( &mut imgui , | ui: &mut Ui |
-        {
-            ui_renderer.build_ui(ui, &mut state );
+        renderer.render(&mut imgui, |ui: &mut Ui| {
+            ui_renderer.build_ui(ui, &mut state);
         });
         window.gl_swap_window();
 

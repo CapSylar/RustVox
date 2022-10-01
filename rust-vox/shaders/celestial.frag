@@ -4,9 +4,9 @@ out vec4 color;
 in vec2 tex_coord;
 
 uniform float sub;
-uniform sampler2D sky_quad;
+uniform sampler2D text;
 
 void main()
 {
-    color = texture(sky_quad,tex_coord-vec2(sub,0));
+    color = texture(text,tex_coord-vec2(sub,0));
 }
