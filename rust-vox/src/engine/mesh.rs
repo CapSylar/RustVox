@@ -1,15 +1,15 @@
 use std::mem::size_of;
 
-use glam::{Vec3, Vec2};
-use super::{chunk::{Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z}, voxel::VOXEL_FACE_VALUES, types::Vec3i32, renderer::opengl_abstractions::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}};
+use glam::{Vec3, Vec2, IVec3};
+use super::{chunk::{Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z}, voxel::VOXEL_FACE_VALUES, renderer::opengl_abstractions::{vertex_array::{VertexArray, VertexBufferLayout}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}};
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices
-pub struct Mesh
+pub struct Mesh<T>
 {
-    pub vertices: Vec<Vertex>,
+    pub vertices: Vec<T>,
     pub indices: Vec<u32>,
-    pub vao: Option<VertexArray>,
+    pub vao: Option<VertexArray<T>>,
 }
 
 /// Holds all the data which constitute a *vertex*
@@ -30,14 +30,14 @@ impl Vertex
     }
 }
 
-impl Mesh
+impl<T> Mesh<T>
 {
     pub fn new() -> Self
     {
         Self {vertices:Vec::new(),indices:Vec::new(),vao:None}
     }
 
-    pub fn from_chunk(chunk: &mut Chunk) -> Mesh
+    pub fn from_chunk(chunk: &mut Chunk) -> Mesh<Vertex>
     {
         // Generate the mesh
         let mut mesh = Mesh{vertices:Vec::<Vertex>::new(),indices:Vec::<u32>::new(),vao: None};
@@ -55,20 +55,20 @@ impl Mesh
                         let mut faces_to_render: [bool;6] = [false;6];
 
                         // TODO: refactor
-                        for offset in VOXEL_FACE_VALUES.iter().enumerate()
+                        for (index, offset) in VOXEL_FACE_VALUES.iter().enumerate()
                         {
                             // is the neighbor of the current voxel in the given direction filled ? 
-                            let pos = Vec3i32::new(x as i32,y as i32,z as i32) + *offset.1;
+                            let pos = IVec3::new(x as i32 + offset.0,y as i32 + offset.1,z as i32 + offset.2);
                             if let Some(neighbor) = chunk.get_voxel(pos.x, pos.y, pos.z)
                             {
                                 if !neighbor.is_filled()
                                 {
-                                    faces_to_render[offset.0] = true ;
+                                    faces_to_render[index] = true ;
                                 }
                             }
                             else
                             {
-                                faces_to_render[offset.0] = true;    
+                                faces_to_render[index] = true;    
                             }
                         }
 
@@ -87,7 +87,7 @@ impl Mesh
     pub fn upload(&mut self)
     {
         // create the vertex buffer
-        let vertex_buffer = VertexBuffer::new(self.size_bytes(), &self.vertices );
+        let vertex_buffer = VertexBuffer::new(&self.vertices);
          // create a vertex buffer layout
          let mut layout = VertexBufferLayout::new();
         
@@ -101,7 +101,7 @@ impl Mesh
          self.vao = Some(vao);
     }
 
-    pub fn add_vertex(&mut self, vertex: Vertex) -> u32
+    pub fn add_vertex(&mut self, vertex: T) -> u32
     {
         self.vertices.push(vertex);
         self.vertices.len() as u32 -1

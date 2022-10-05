@@ -13,7 +13,7 @@ uniform sampler2DArray shadow_map;
 uniform int cascade_count;
 uniform float cascades[8]; // max 8
 
-layout (std140, binding = 0) uniform light_space_transforms
+layout (std140, binding = 2) uniform light_space_transforms
 {
     mat4 transforms[8];
 };

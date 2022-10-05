@@ -9,12 +9,19 @@ const vec3 normal_lut[6] = vec3[6](
     vec3(-1.0,0.0,0.0) // NEGX
 );
 
+// transforms ubo
+layout (std140, binding = 0) uniform transforms
+{
+    mat4 perspective;
+    mat4 view;
+};
+
 layout (location = 0) in vec3 pos;
 layout (location = 1) in vec2 in_tex_coord;
 layout (location = 2) in uint normal_index;
 
-uniform mat4 view;
-uniform mat4 perspective;
+// uniform mat4 view;
+// uniform mat4 perspective;
 uniform vec3 animation_offset;
 
 out vec3 frag_pos_world; // fragment position in world space

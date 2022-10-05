@@ -3,7 +3,7 @@
 layout (triangles, invocations = 5) in;
 layout (triangle_strip, max_vertices = 3) out;
 
-layout (std140, binding = 0) uniform light_space_transforms
+layout (std140, binding = 2) uniform light_space_transforms
 {
     mat4 transforms[8];
 };

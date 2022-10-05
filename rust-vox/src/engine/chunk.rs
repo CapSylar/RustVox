@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use glam::Vec3;
 
-use super::{mesh::{Mesh}, terrain::TerrainGenerator, voxel::Voxel, animation::ChunkMeshAnimation};
+use super::{mesh::{Mesh, Vertex}, terrain::TerrainGenerator, voxel::Voxel, animation::ChunkMeshAnimation};
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z : usize = 20;
@@ -13,7 +13,7 @@ pub struct Chunk
     //TODO: shouldn't this be on the heap? 
     pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
     pos: Vec3, // position in chunk space
-    pub mesh: Option<Mesh>,
+    pub mesh: Option<Mesh<Vertex>>,
 
     // animation
     pub animation: Option<ChunkMeshAnimation>
@@ -53,7 +53,7 @@ impl Chunk
     /// Generate the chunk mesh    
     pub fn create_mesh(&mut self)
     {
-        let mesh = Mesh::from_chunk(self);
+        let mesh = Mesh::<Vertex>::from_chunk(self);
         // assign the created mesh
         self.mesh = Some(mesh);
     }

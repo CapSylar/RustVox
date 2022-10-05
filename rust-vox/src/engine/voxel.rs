@@ -1,6 +1,6 @@
 use glam::{Vec3, Vec2, const_vec2};
-
-use super::{mesh::{Vertex, Mesh}, types::Vec3i32};
+use super::mesh::{Vertex, Mesh};
+use glam::UVec4;
 
 const VOXEL_SIZE: f32 = 1.0;
 
@@ -35,25 +35,25 @@ const VoxelUVData : [VoxelTypeTexture ; 2] = [
     left_face: const_vec2!([0.375,0.875]), right_face: const_vec2!([0.375,0.875])}
     ];
 
-#[derive(Clone,Copy)]
-pub enum VoxelFace
-{
-    TOP(Vec3i32),
-    BOTTOM(Vec3i32), // if a cube is Axis aligned with the right hand coordinate system, position the compas on the top cube face to determine what face is north,east,south and west
-    NORTH(Vec3i32),
-    SOUTH(Vec3i32),
-    EAST(Vec3i32),
-    WEST(Vec3i32),
-}
+// #[derive(Clone,Copy)]
+// pub enum VoxelFace
+// {
+//     TOP(IVec3),
+//     BOTTOM(IVec3), // if a cube is Axis aligned with the right hand coordinate system, position the compas on the top cube face to determine what face is north,east,south and west
+//     NORTH(IVec3),
+//     SOUTH(IVec3),
+//     EAST(IVec3),
+//     WEST(IVec3),
+// }
 
-pub const VOXEL_FACE_VALUES : [Vec3i32;6] = 
+pub const VOXEL_FACE_VALUES : [(i32,i32,i32);6] = 
 [
-     Vec3i32::new(0, 1, 0),
-     Vec3i32::new(0,-1,0),
-     Vec3i32::new(0,0,1),
-     Vec3i32::new(0,0,-1),
-     Vec3i32::new(1,0,0),
-     Vec3i32::new(-1,0,0)
+    (0,1,0),
+    (0,-1,0),
+    (0,0,1),
+    (0,0,-1),
+    (1,0,0),
+    (-1,0,0)
 ];
 
 pub enum Normals
@@ -86,7 +86,7 @@ impl Voxel
 
     pub fn set_type(&mut self, voxel_type : VoxelType ) {self.voxel_type = voxel_type }
 
-    pub fn append_mesh_faces( &self, faces: &[bool;6], pos: Vec3 , mesh: &mut Mesh)
+    pub fn append_mesh_faces( &self, faces: &[bool;6], pos: Vec3 , mesh: &mut Mesh<Vertex>)
     {
         // generate the 8 vertices to draw the voxel
         //bottom

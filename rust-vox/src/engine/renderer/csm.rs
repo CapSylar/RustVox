@@ -40,8 +40,8 @@ impl Csm
         {
             gl::GenBuffers(1, &mut matrices_ubo);
             gl::BindBuffer(gl::UNIFORM_BUFFER, matrices_ubo);
-            gl::BufferData(gl::UNIFORM_BUFFER, (size_of::<Mat4>()*8).try_into().unwrap(), std::ptr::null::<c_void>(), gl::STATIC_DRAW);
-            gl::BindBufferBase(gl::UNIFORM_BUFFER,0,matrices_ubo);
+            gl::BufferData(gl::UNIFORM_BUFFER, (size_of::<Mat4>()*8).try_into().unwrap(), std::ptr::null::<c_void>(), gl::DYNAMIC_DRAW);
+            gl::BindBufferBase(gl::UNIFORM_BUFFER,2,matrices_ubo);
             gl::BindBuffer(gl::UNIFORM_BUFFER, 0);
         }
 

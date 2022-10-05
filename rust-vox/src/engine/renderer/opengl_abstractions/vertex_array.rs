@@ -1,16 +1,17 @@
-use std::{mem::size_of, ffi::c_void};
+use std::{mem::size_of, ffi::c_void, marker::PhantomData};
 use super::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer};
 
-pub struct VertexArray
+pub struct VertexArray<T>
 {
     renderer_id : u32, // vao ID
-    _vbo : VertexBuffer,
+    _vbo : VertexBuffer<T>,
     _ebo: IndexBuffer,
+    _phantom: PhantomData<T>
 }
 
-impl VertexArray
+impl<T> VertexArray<T>
 {
-    pub fn new(vertex_buffer: VertexBuffer, vertex_layout: &VertexBufferLayout, index_buffer: IndexBuffer) -> Self
+    pub fn new(vertex_buffer: VertexBuffer<T>, vertex_layout: &VertexBufferLayout, index_buffer: IndexBuffer) -> Self
     {
         let mut vao = 0;
         unsafe
@@ -20,17 +21,17 @@ impl VertexArray
         }
 
         // add the buffer, binds the vertex buffer implicitely
-        VertexArray::add_buffer(&vertex_buffer, &vertex_layout);
+        VertexArray::add_buffer(&vertex_buffer, vertex_layout);
         // bind the index buffer
         index_buffer.bind();
         // unbind the vao
         unsafe { gl::BindVertexArray(0); } 
         
-        Self{renderer_id:vao, _vbo:vertex_buffer, _ebo:index_buffer}
+        Self{ _phantom: PhantomData, renderer_id:vao, _vbo:vertex_buffer, _ebo:index_buffer}
     }
 
     //TODO: Document
-    fn add_buffer(vertex_buffer: &VertexBuffer , layout: &VertexBufferLayout)
+    fn add_buffer(vertex_buffer: &VertexBuffer<T> , layout: &VertexBufferLayout)
     {
         // setup
         vertex_buffer.bind();

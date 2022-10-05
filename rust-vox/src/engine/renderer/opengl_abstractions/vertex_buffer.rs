@@ -1,15 +1,15 @@
-use crate::engine::mesh::Vertex;
-
+use std::{marker::PhantomData, mem::size_of};
 
 /// Abstraction over OpenGL's Vertex Buffer Object
-pub struct VertexBuffer
+pub struct VertexBuffer<T>
 {
     renderer_id : u32,
+    _phantom: PhantomData<T>,
 }
 
-impl VertexBuffer
+impl<T> VertexBuffer<T>
 {
-    pub fn new( size_bytes: usize , vertex_data: &[Vertex] ) -> Self
+    pub fn new(vertex_data: &[T]) -> Self
     {
         let mut buffer_id = 0;
 
@@ -17,10 +17,10 @@ impl VertexBuffer
         {
             gl::GenBuffers(1, &mut buffer_id);
             gl::BindBuffer(gl::ARRAY_BUFFER, buffer_id);
-            gl::BufferData(gl::ARRAY_BUFFER, size_bytes as isize , vertex_data.as_ptr().cast() , gl::STATIC_DRAW);
+            gl::BufferData(gl::ARRAY_BUFFER, (vertex_data.len() * size_of::<T>()) as isize , vertex_data.as_ptr().cast() , gl::STATIC_DRAW);
         }
 
-        Self{ renderer_id: buffer_id }
+        Self{ _phantom: PhantomData, renderer_id: buffer_id }
     }
 
     pub fn delete(&self)

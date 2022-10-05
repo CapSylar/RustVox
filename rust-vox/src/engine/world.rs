@@ -1,4 +1,4 @@
-use super::{chunkManager::ChunkManager,eye::Eye};
+use super::{eye::Eye, chunk_manager::ChunkManager};
 
 pub struct World
 {
