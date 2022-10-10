@@ -1,8 +1,7 @@
-use std::time::Instant;
+use glam::{Vec3, IVec3};
 
-use glam::Vec3;
-
-use super::{mesh::{Mesh, Vertex}, terrain::TerrainGenerator, voxel::Voxel, animation::ChunkMeshAnimation};
+use super::{terrain::TerrainGenerator, voxel::{Voxel, VOXEL_FACE_VALUES}, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, opengl_vertex::OpenglVertex}};
+use super::voxel::VoxelVertex;
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z : usize = 20;
@@ -13,7 +12,7 @@ pub struct Chunk
     //TODO: shouldn't this be on the heap? 
     pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
     pos: Vec3, // position in chunk space
-    pub mesh: Option<Mesh<Vertex>>,
+    pub mesh: Option<Mesh<VoxelVertex>>,
 
     // animation
     pub animation: Option<ChunkMeshAnimation>
@@ -43,18 +42,52 @@ impl Chunk
             }
         }
 
-        //FIXME: jesus christ
-        // let pos = Vec3::new((pos_x * CHUNK_X as i32 ) as f32 , (pos_y *CHUNK_Y as i32 ) as f32 , (pos_z * CHUNK_Z as i32 ) as f32 );
-        // convert position from chunk space
-        let chunk = Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None , animation: None};
-        chunk
+        Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None::<Mesh<VoxelVertex>> , animation: None}
     }
 
-    /// Generate the chunk mesh    
-    pub fn create_mesh(&mut self)
+    /// Generate the chunk mesh
+    pub fn generate_mesh(&mut self)
     {
-        let mesh = Mesh::<Vertex>::from_chunk(self);
-        // assign the created mesh
+        // Generate the mesh
+        let mut mesh: Mesh<VoxelVertex> = Mesh::new();
+        
+        //Generate the directly in here, good enough for now
+        // for now render the mesh of all the voxels as is
+        for x in 0..CHUNK_X
+        {
+            for y in 0..CHUNK_Y
+            {
+                for z in 0..CHUNK_X
+                {
+                    if self.voxels[x][y][z].is_filled() // not an air block
+                    {
+                        let mut faces_to_render: [bool;6] = [false;6];
+
+                        // TODO: refactor
+                        for (index, offset) in VOXEL_FACE_VALUES.iter().enumerate()
+                        {
+                            // is the neighbor of the current voxel in the given direction filled ? 
+                            let pos = IVec3::new(x as i32 + offset.0,y as i32 + offset.1,z as i32 + offset.2);
+                            if let Some(neighbor) = self.get_voxel(pos.x, pos.y, pos.z)
+                            {
+                                if !neighbor.is_filled()
+                                {
+                                    faces_to_render[index] = true ;
+                                }
+                            }
+                            else
+                            {
+                                faces_to_render[index] = true;    
+                            }
+                        }
+
+                        self.voxels[x][y][z].append_mesh_faces( &faces_to_render ,
+                                self.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
+                                &mut mesh);
+                    }
+                }
+            }
+        }
         self.mesh = Some(mesh);
     }
 

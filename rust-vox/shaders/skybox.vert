@@ -4,7 +4,7 @@ layout(std140, binding = 0) uniform transforms
 {
     mat4 perspective;
     mat4 view;
-    mat4 view_no_trans;
+    mat4 view_no_trans; // view but with no translation = 0 always
 };
 
 layout (location = 0) in vec3 pos;

@@ -11,7 +11,7 @@ pub struct VertexArray<T>
 
 impl<T> VertexArray<T>
 {
-    pub fn new(vertex_buffer: VertexBuffer<T>, vertex_layout: &VertexBufferLayout, index_buffer: IndexBuffer) -> Self
+    pub fn new(vertex_buffer: VertexBuffer<T>, vertex_layout: &VertexLayout, index_buffer: IndexBuffer) -> Self
     {
         let mut vao = 0;
         unsafe
@@ -31,7 +31,7 @@ impl<T> VertexArray<T>
     }
 
     //TODO: Document
-    fn add_buffer(vertex_buffer: &VertexBuffer<T> , layout: &VertexBufferLayout)
+    fn add_buffer(vertex_buffer: &VertexBuffer<T> , layout: &VertexLayout)
     {
         // setup
         vertex_buffer.bind();
@@ -79,7 +79,7 @@ impl<T> VertexArray<T>
 
 }
 
-struct VertexBufferLayoutElement
+struct VertexLayoutElement
 {
     element_type: u32,
     count: usize,
@@ -88,13 +88,13 @@ struct VertexBufferLayoutElement
     integral: bool,
 }
 
-pub struct VertexBufferLayout
+pub struct VertexLayout
 {
-    elements: Vec<VertexBufferLayoutElement>,
+    elements: Vec<VertexLayoutElement>,
     stride_bytes: usize,
 }
 
-impl VertexBufferLayout
+impl VertexLayout
 {
     pub fn new() -> Self
     {
@@ -103,23 +103,23 @@ impl VertexBufferLayout
 
     pub fn push_f32(&mut self, count: usize)
     {
-        let element = VertexBufferLayoutElement { element_type: gl::FLOAT, count , normalized: gl::FALSE , size_bytes: size_of::<f32>() * count, integral: false};
+        let element = VertexLayoutElement { element_type: gl::FLOAT, count , normalized: gl::FALSE , size_bytes: size_of::<f32>() * count, integral: false};
         self.push_element(element);
     }
 
     pub fn push_u8(&mut self, count: usize)
     {
-        let element = VertexBufferLayoutElement { element_type: gl::UNSIGNED_BYTE, count , normalized: gl::FALSE , size_bytes: size_of::<u8>() * count, integral: true};
+        let element = VertexLayoutElement { element_type: gl::UNSIGNED_BYTE, count , normalized: gl::FALSE , size_bytes: size_of::<u8>() * count, integral: true};
         self.push_element(element);
     }
 
     pub fn _push_unsigned(&mut self, count: usize)
     {
-        let element = VertexBufferLayoutElement { element_type: gl::UNSIGNED_INT, count , normalized: gl::FALSE , size_bytes: size_of::<u32>() * count, integral: true};
+        let element = VertexLayoutElement { element_type: gl::UNSIGNED_INT, count , normalized: gl::FALSE , size_bytes: size_of::<u32>() * count, integral: true};
         self.push_element(element);
     }
 
-    fn push_element(&mut self, element: VertexBufferLayoutElement)
+    fn push_element(&mut self, element: VertexLayoutElement)
     {
         self.stride_bytes += element.size_bytes;
         self.elements.push(element);

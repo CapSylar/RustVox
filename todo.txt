@@ -13,3 +13,4 @@
 // LOW LEVEL IMPROVEMENTS
 - [X] Move view and perspective transforms to a Uniform Buffer Object
 - [] Figure out a dynamic way of specifying a "Vertex" for a Buffer
+- [X] add a trait for all types of vertex, directly specifying the data layout inside the vertex type

@@ -8,10 +8,10 @@
 // The Moon rises from the east and sets west
 // No particular motion or position will be set for stars
 
-use glam::{Vec4, Vec3, Vec2, Mat4, Mat3};
+use glam::{Vec4, Vec3, Vec2, Mat4};
 use core::f32::consts::PI;
 use std::{time::{Instant}};
-use super::{renderer::{opengl_abstractions::shader::Shader, Renderer}, mesh::{Mesh, Vertex}, world::World};
+use super::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::VertexLayout}, Renderer}, world::World, geometry::{mesh::{Mesh}, opengl_vertex::OpenglVertex}, voxel::VoxelVertex};
 
 const TIME_MULTIPLIER: f32 = 1000.0;
 
@@ -20,6 +20,27 @@ struct SkyBoxVertex
 {
     position: Vec3, // X, Y, Z
     color: Vec3, // R, G ,B
+}
+
+impl SkyBoxVertex
+{
+    pub fn new(position: Vec3, color: Vec3) -> Self
+    {
+        Self{position,color}
+    }
+}
+
+impl OpenglVertex for SkyBoxVertex
+{
+    fn get_layout() -> VertexLayout
+    {
+        let mut vertex_layout = VertexLayout::new();
+
+        vertex_layout.push_f32(3); // vertex(x,y,z)
+        vertex_layout.push_f32(3); // color(r,g,b)
+
+        vertex_layout
+    }
 }
 
 struct SkyState
@@ -58,7 +79,7 @@ enum DayNightPhase
     Night,
 }
 
-const PhaseConfig : [SkyState;4] =
+const PHASE_CONFIG : [SkyState;4] =
 [
     SkyState{start_time:0.0,moon_present:false,sun_present:true,pos_moon:(0.0,0.0),pos_sun:(0.0,PI/8.0),
         sky_box_color: [Vec4::ZERO;8]},
@@ -106,10 +127,10 @@ pub struct SkyRenderer
     // renderer inner state
     celestial_shader: Shader,
     skybox_shader: Shader,
-    sky_quad: Mesh<Vertex>,
-    sun_quad: Mesh<Vertex>,
+    sky_quad: Mesh<VoxelVertex>,
+    sun_quad: Mesh<VoxelVertex>,
     sun_angle_rad: f32,
-    sky_box: Mesh<Vertex>,
+    sky_box: Mesh<SkyBoxVertex>,
     tick: f32,
     time: Instant, // time of day in seconds
 }
@@ -126,10 +147,10 @@ impl SkyRenderer
         let mut sky_quad = Mesh::new();
         //TODO: refactor needed, we should be able to customize the Attributes for according to each Shader
         // define it anti-clockwise, no need to rotate it in this case
-        let i1 = sky_quad.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,1.0),0,Vec2::new(0.0,0.0)));
-        let i2 = sky_quad.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,-1.0),0,Vec2::new(0.0,1.0)));
-        let i3 = sky_quad.add_vertex(Vertex::new(Vec3::new(1.0,0.2,-1.0),0,Vec2::new(1.0,1.0)));
-        let i4 = sky_quad.add_vertex(Vertex::new(Vec3::new(1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
+        let i1 = sky_quad.add_vertex(VoxelVertex::new(Vec3::new(-1.0,0.2,1.0),0,Vec2::new(0.0,0.0)));
+        let i2 = sky_quad.add_vertex(VoxelVertex::new(Vec3::new(-1.0,0.2,-1.0),0,Vec2::new(0.0,1.0)));
+        let i3 = sky_quad.add_vertex(VoxelVertex::new(Vec3::new(1.0,0.2,-1.0),0,Vec2::new(1.0,1.0)));
+        let i4 = sky_quad.add_vertex(VoxelVertex::new(Vec3::new(1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
 
         sky_quad.add_triangle(i4, i2, i1);
         sky_quad.add_triangle(i2, i4, i3);
@@ -168,15 +189,25 @@ impl SkyRenderer
         let mut sky_box = Mesh::new();
         // we need 8 vertices
         // bottom 4
-        let i1 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,-0.2,1.0),0,Vec2::new(0.0,0.0)));
-        let i2 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,-0.2,-1.0),0,Vec2::new(0.0,0.0)));
-        let i3 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,-0.2,-1.0),0,Vec2::new(0.0,0.0)));
-        let i4 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,-0.2,1.0),0,Vec2::new(0.0,0.0)));
+        // let i1 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,-0.2,1.0),0,Vec2::new(0.0,0.0)));
+        // let i2 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,-0.2,-1.0),0,Vec2::new(0.0,0.0)));
+        // let i3 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,-0.2,-1.0),0,Vec2::new(0.0,0.0)));
+        // let i4 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,-0.2,1.0),0,Vec2::new(0.0,0.0)));
+        // // top 4
+        // let i5 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
+        // let i6 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,-1.0),0,Vec2::new(1.0,0.0)));
+        // let i7 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,0.2,-1.0),0,Vec2::new(1.0,0.0)));
+        // let i8 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
+
+        let i1 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,1.0),Vec3::ZERO));
+        let i2 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,-1.0),Vec3::ZERO));
+        let i3 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(1.0,-0.2,-1.0),Vec3::ZERO));
+        let i4 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(1.0,-0.2,1.0),Vec3::ZERO));
         // top 4
-        let i5 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
-        let i6 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,-1.0),0,Vec2::new(1.0,0.0)));
-        let i7 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,0.2,-1.0),0,Vec2::new(1.0,0.0)));
-        let i8 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
+        let i5 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,0.2,1.0),Vec3::ZERO));
+        let i6 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,0.2,-1.0),Vec3::ZERO));
+        let i7 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(1.0,0.2,-1.0),Vec3::ZERO));
+        let i8 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(1.0,0.2,1.0),Vec3::ZERO));
 
         // we are sitting at the origin looking down -Z
         // define triangles
@@ -214,10 +245,10 @@ impl SkyRenderer
         // the sun is just a textured quad
         let mut sun_quad = Mesh::new();
         
-        let i1 = sun_quad.add_vertex(Vertex::new(Vec3::new(-1.0,-1.0,-5.0),0,Vec2::new(0.0,0.0)));
-        let i2 = sun_quad.add_vertex(Vertex::new(Vec3::new(-1.0,1.0,-5.0),0,Vec2::new(0.0,1.0)));
-        let i3 = sun_quad.add_vertex(Vertex::new(Vec3::new(1.0,1.0,-5.0),0,Vec2::new(1.0,1.0)));
-        let i4 = sun_quad.add_vertex(Vertex::new(Vec3::new(1.0,-1.0,-5.0),0,Vec2::new(1.0,0.0)));
+        let i1 = sun_quad.add_vertex(VoxelVertex::new(Vec3::new(-1.0,-1.0,-5.0),0,Vec2::new(0.0,0.0)));
+        let i2 = sun_quad.add_vertex(VoxelVertex::new(Vec3::new(-1.0,1.0,-5.0),0,Vec2::new(0.0,1.0)));
+        let i3 = sun_quad.add_vertex(VoxelVertex::new(Vec3::new(1.0,1.0,-5.0),0,Vec2::new(1.0,1.0)));
+        let i4 = sun_quad.add_vertex(VoxelVertex::new(Vec3::new(1.0,-1.0,-5.0),0,Vec2::new(1.0,0.0)));
         
         sun_quad.add_triangle(i1, i2, i4);
         sun_quad.add_triangle(i2, i3, i4);
@@ -260,8 +291,8 @@ impl SkyRenderer
             self.time = Instant::now(); // restart timer
         }
 
-        let mut current_phase = &PhaseConfig[self.current_phase as usize];
-        let next_phase = &PhaseConfig[self.current_phase.get_next() as usize];
+        let mut current_phase = &PHASE_CONFIG[self.current_phase as usize];
+        let next_phase = &PHASE_CONFIG[self.current_phase.get_next() as usize];
 
         let mut progress = (self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER - current_phase.start_time) / (next_phase.start_time - current_phase.start_time);
         
@@ -269,7 +300,7 @@ impl SkyRenderer
         {
             println!("next phase!");
             self.current_phase = self.current_phase.get_next();
-            current_phase = &PhaseConfig[self.current_phase as usize];
+            current_phase = &PHASE_CONFIG[self.current_phase as usize];
             progress = 0.0;
         }
 
@@ -307,7 +338,7 @@ impl SkyRenderer
         self.update_sun();
         self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
         self.celestial_shader.set_uniform1i("text", 3).expect("error setting the sun texture");
-        println!("sun coords: {:?}", sky_state.pos_sun);
+        // println!("sun coords: {:?}", sky_state.pos_sun);
         let sun_quad_trans = Mat4::from_rotation_x(sky_state.pos_sun.0) * Mat4::from_rotation_y(sky_state.pos_sun.1);
         self.celestial_shader.set_uniform_matrix4fv("model", &sun_quad_trans).expect("error setting the model transformation for the sun_quad");
         Renderer::draw_mesh(&self.sun_quad);

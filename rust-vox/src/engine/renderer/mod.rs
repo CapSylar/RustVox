@@ -2,7 +2,7 @@ use std::{ffi::{c_void, CStr}, mem::size_of};
 use glam::{Vec3, Mat3, Mat4};
 use sdl2::{VideoSubsystem};
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
-use super::{world::{World}, mesh::{Mesh}, sky::{SkyRenderer, self}};
+use super::{world::{World}, sky::{SkyRenderer}, geometry::mesh::Mesh};
 
 pub mod opengl_abstractions;
 pub mod csm;
