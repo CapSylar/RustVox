@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, mem::size_of};
+use std::{marker::PhantomData, mem::size_of, ffi::c_void};
 
 /// Abstraction over OpenGL's Vertex Buffer Object
 pub struct VertexBuffer<T>
@@ -21,6 +21,17 @@ impl<T> VertexBuffer<T>
         }
 
         Self{ _phantom: PhantomData, renderer_id: buffer_id }
+    }
+
+    pub fn respecify(&self,vertex_data: &[T])
+    {
+        // Buffer Respecification (Orphaning)
+        unsafe
+        {
+            gl::BindBuffer(gl::ARRAY_BUFFER, self.renderer_id);
+            gl::BufferData(gl::ARRAY_BUFFER, (vertex_data.len() * size_of::<T>()) as isize, std::ptr::null::<c_void>(), gl::STREAM_DRAW);
+            gl::BufferData(gl::ARRAY_BUFFER, (vertex_data.len() * size_of::<T>()) as isize , vertex_data.as_ptr().cast() , gl::STREAM_DRAW);
+        }
     }
 
     pub fn delete(&self)

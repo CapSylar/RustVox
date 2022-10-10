@@ -147,7 +147,7 @@ impl Renderer
             Self::draw_geometry(world, &mut self.default_shader);
             Shader::unbind();
 
-            self.sky_rend.render(world);
+            self.sky_rend.render();
         }
     }
 

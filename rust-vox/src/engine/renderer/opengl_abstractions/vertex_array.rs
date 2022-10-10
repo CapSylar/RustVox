@@ -4,7 +4,7 @@ use super::{vertex_buffer::VertexBuffer, index_buffer::IndexBuffer};
 pub struct VertexArray<T>
 {
     renderer_id : u32, // vao ID
-    _vbo : VertexBuffer<T>,
+    pub vbo : VertexBuffer<T>,
     _ebo: IndexBuffer,
     _phantom: PhantomData<T>
 }
@@ -27,7 +27,7 @@ impl<T> VertexArray<T>
         // unbind the vao
         unsafe { gl::BindVertexArray(0); } 
         
-        Self{ _phantom: PhantomData, renderer_id:vao, _vbo:vertex_buffer, _ebo:index_buffer}
+        Self{ _phantom: PhantomData, renderer_id:vao, vbo:vertex_buffer, _ebo:index_buffer}
     }
 
     //TODO: Document

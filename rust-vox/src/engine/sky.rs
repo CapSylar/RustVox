@@ -8,12 +8,12 @@
 // The Moon rises from the east and sets west
 // No particular motion or position will be set for stars
 
-use glam::{Vec4, Vec3, Vec2, Mat4};
+use glam::{Vec3, Vec2, Mat4, const_vec3};
 use core::f32::consts::PI;
-use std::{time::{Instant}};
-use super::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::VertexLayout}, Renderer}, world::World, geometry::{mesh::{Mesh}, opengl_vertex::OpenglVertex}, voxel::VoxelVertex};
+use std::{time::{Instant}, thread::current};
+use super::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::VertexLayout}, Renderer}, geometry::{mesh::{Mesh}, opengl_vertex::OpenglVertex}, voxel::VoxelVertex};
 
-const TIME_MULTIPLIER: f32 = 1000.0;
+const TIME_MULTIPLIER: f32 = 3000.0;
 
 // TODO: where to put this ?
 struct SkyBoxVertex
@@ -51,7 +51,7 @@ struct SkyState
     //TODO: document phi and teta
     pub pos_sun: (f32,f32), // phi and teta
     pub pos_moon: (f32,f32),
-    pub sky_box_color: [Vec4;8],
+    pub sky_box_color: [Vec3;8],
 }
 
 impl SkyState
@@ -60,15 +60,15 @@ impl SkyState
     {
         // only positions and colors are lerped
         let pos_sun = (self.pos_sun.0 + (dest.pos_sun.0 - self.pos_sun.0) * s, self.pos_sun.1 + (dest.pos_sun.1 - self.pos_sun.1) * s);
-        let pos_moon= (self.pos_moon.0 + (dest.pos_moon.0 - self.pos_moon.0) * s,self.pos_moon.1 + (dest.pos_moon.1 - self.pos_moon.1) * s);
-        let mut sky_box_color = [Vec4::ZERO;8];
+        let pos_moon= (self.pos_moon.0 + (dest.pos_moon.0 - self.pos_moon.0) * s, self.pos_moon.1 + (dest.pos_moon.1 - self.pos_moon.1) * s);
+        let mut sky_box_color = [Vec3::ZERO;8];
 
         (0..7).for_each(|i| {
             sky_box_color[i] = self.sky_box_color[i].lerp(dest.sky_box_color[i], s);
         });
 
         SkyState { start_time: self.start_time, sun_present: self.sun_present, moon_present: self.moon_present, pos_sun, pos_moon, sky_box_color}
-    }   
+    }
 }
 
 enum DayNightPhase
@@ -81,17 +81,21 @@ enum DayNightPhase
 
 const PHASE_CONFIG : [SkyState;4] =
 [
-    SkyState{start_time:0.0,moon_present:false,sun_present:true,pos_moon:(0.0,0.0),pos_sun:(0.0,PI/8.0),
-        sky_box_color: [Vec4::ZERO;8]},
+    SkyState{start_time:0.0,moon_present:false,sun_present:true,pos_moon:(PI,PI/8.0),pos_sun:(0.0,PI/8.0),
+        sky_box_color: [const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),
+                        const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0])]},
         
-    SkyState{start_time:3.0*3600.0,moon_present:false,sun_present:true,pos_moon:(0.0,0.0),pos_sun:(30.0*PI/180.0,PI/8.0),
-            sky_box_color: [Vec4::ZERO;8]},
+    SkyState{start_time:2.0,moon_present:false,sun_present:true,pos_moon:(0.0,PI/8.0),pos_sun:(30.0*PI/180.0,PI/8.0),
+        sky_box_color: [const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),
+        const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0])]},
 
-    SkyState{start_time:11.0*3600.0,moon_present:false,sun_present:true,pos_moon:(0.0,0.0),pos_sun:(150.0*PI/180.0,PI/8.0),
-        sky_box_color: [Vec4::ZERO;8]},
+    SkyState{start_time:10.0,moon_present:false,sun_present:true,pos_moon:(0.0,PI/8.0),pos_sun:(150.0*PI/180.0,PI/8.0),
+        sky_box_color: [const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),
+                        const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0])]},
 
-    SkyState{start_time:12.0*3600.0,moon_present:true,sun_present:false,pos_moon:(0.0,0.0),pos_sun:(PI,0.0),
-        sky_box_color: [Vec4::ZERO;8]},
+    SkyState{start_time:12.0,moon_present:true,sun_present:false,pos_moon:(0.0,PI/8.0),pos_sun:(PI,PI/8.0),
+        sky_box_color: [const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),
+        const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0])]},
 ];
 
 impl TryFrom<i32> for DayNightPhase
@@ -129,6 +133,7 @@ pub struct SkyRenderer
     skybox_shader: Shader,
     sky_quad: Mesh<VoxelVertex>,
     sun_quad: Mesh<VoxelVertex>,
+    moon_quad: Mesh<VoxelVertex>,
     sun_angle_rad: f32,
     sky_box: Mesh<SkyBoxVertex>,
     tick: f32,
@@ -187,17 +192,6 @@ impl SkyRenderer
         // perspective projection, the corners are not noticable due to the small cube size
         
         let mut sky_box = Mesh::new();
-        // we need 8 vertices
-        // bottom 4
-        // let i1 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,-0.2,1.0),0,Vec2::new(0.0,0.0)));
-        // let i2 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,-0.2,-1.0),0,Vec2::new(0.0,0.0)));
-        // let i3 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,-0.2,-1.0),0,Vec2::new(0.0,0.0)));
-        // let i4 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,-0.2,1.0),0,Vec2::new(0.0,0.0)));
-        // // top 4
-        // let i5 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
-        // let i6 = sky_box.add_vertex(Vertex::new(Vec3::new(-1.0,0.2,-1.0),0,Vec2::new(1.0,0.0)));
-        // let i7 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,0.2,-1.0),0,Vec2::new(1.0,0.0)));
-        // let i8 = sky_box.add_vertex(Vertex::new(Vec3::new(1.0,0.2,1.0),0,Vec2::new(1.0,0.0)));
 
         let i1 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,1.0),Vec3::ZERO));
         let i2 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,-1.0),Vec3::ZERO));
@@ -239,8 +233,6 @@ impl SkyRenderer
         // generate the sun
         // assuming that bisector between -Z and +X is east, and bisector between +Z and -X is west
         let sun_angle_rad: f32 = 0.0; // angle in radians if looking at the sun from the north or south
-        // let sun_direction = Vec3::new(1.0,0.0,-1.0);
-        // TODO: continue here, adjust sun position to be at an angle with the world's geometry such that shadow's are prettiers
         
         // the sun is just a textured quad
         let mut sun_quad = Mesh::new();
@@ -279,26 +271,68 @@ impl SkyRenderer
             gl::GenerateMipmap(gl::TEXTURE_2D);
         }
 
-        Self{current_phase: DayNightPhase::SunRise, tick:0.0, celestial_shader,skybox_shader,sky_box,sky_quad,sun_quad,sun_angle_rad,time:Instant::now()}
+        // setup the moon texture
+        let mut moon_quad = Mesh::new();
+        
+        let i1 = moon_quad.add_vertex(VoxelVertex::new(Vec3::new(-1.0,-1.0,-5.0),0,Vec2::new(0.0,0.0)));
+        let i2 = moon_quad.add_vertex(VoxelVertex::new(Vec3::new(-1.0,1.0,-5.0),0,Vec2::new(0.0,1.0)));
+        let i3 = moon_quad.add_vertex(VoxelVertex::new(Vec3::new(1.0,1.0,-5.0),0,Vec2::new(1.0,1.0)));
+        let i4 = moon_quad.add_vertex(VoxelVertex::new(Vec3::new(1.0,-1.0,-5.0),0,Vec2::new(1.0,0.0)));
+        
+        moon_quad.add_triangle(i1, i2, i4);
+        moon_quad.add_triangle(i2, i3, i4);
+
+        moon_quad.upload();
+
+        let mut moon_texture = 0;        
+        // load texture atlas
+        let img = image::open("rust-vox/textures/moon.png").unwrap().flipv();
+        let width = img.width();
+        let height = img.height();
+        let data = img.as_bytes();
+
+        unsafe
+        {
+            gl::GenTextures(1, &mut moon_texture);
+            
+            gl::ActiveTexture(gl::TEXTURE4);
+            gl::BindTexture(gl::TEXTURE_2D, moon_texture);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _ );
+            gl::TexParameteri(gl::TEXTURE_2D ,gl::TEXTURE_MAG_FILTER, gl::NEAREST as _ );
+
+            gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as _ , width.try_into().unwrap() , height.try_into().unwrap() ,
+                0, gl::RGBA as _ , gl::UNSIGNED_BYTE , data.as_ptr().cast() );
+            gl::GenerateMipmap(gl::TEXTURE_2D);
+        }
+
+        Self{current_phase: DayNightPhase::SunRise, tick:0.0, celestial_shader,skybox_shader,sky_box,sky_quad,sun_quad,moon_quad,sun_angle_rad,time:Instant::now()}
     }
 
     fn update(&mut self) -> SkyState
     {
-        //FIXME: time reset may not be correctly implemented
         // make sure to reset the timer accordingly
-        if self.time.elapsed().as_secs_f32() >= 24.0*3600.0
+        if self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER >= 24.0*3600.0
         {
             self.time = Instant::now(); // restart timer
         }
 
         let mut current_phase = &PHASE_CONFIG[self.current_phase as usize];
         let next_phase = &PHASE_CONFIG[self.current_phase.get_next() as usize];
+        
+        let mut denom = next_phase.start_time - current_phase.start_time;
+        if denom < 0.0 {denom += 24.0;} // happens only in the case where the clock is wrapping around. ex: current start 13:00h, next phase start 2:00h
 
-        let mut progress = (self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER - current_phase.start_time) / (next_phase.start_time - current_phase.start_time);
+        let mut nume = (self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER - current_phase.start_time * 3600.0);
+        if nume < 0.0 {nume += 24.0 * 3600.0;}
+
+        let mut progress = nume / (denom * 3600.0);
+        // println!("progress: {} || start_time: {} || denom: {} || time: {}", progress, current_phase.start_time, denom, self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER);
         
         if progress >= 1.0 // current phase is done, proceed to next phase
         {
-            println!("next phase!");
             self.current_phase = self.current_phase.get_next();
             current_phase = &PHASE_CONFIG[self.current_phase as usize];
             progress = 0.0;
@@ -309,10 +343,18 @@ impl SkyRenderer
         current_phase.lerp(next_phase, progress)
     }
 
-    pub fn render(&mut self, world: &World)
+    pub fn render(&mut self)
     {
         let sky_state = self.update();
 
+        // update the sky mesh
+        self.sky_box.respecify_vertices(|vertices| {
+            for (index, vert) in vertices.iter_mut().enumerate()
+            {
+                vert.color = sky_state.sky_box_color[index];
+            }
+        });
+        
         // PASS 4: draw skybox
         self.skybox_shader.bind();
         Renderer::draw_mesh(&self.sky_box);
@@ -335,20 +377,28 @@ impl SkyRenderer
         self.celestial_shader.set_uniform1i("text", 2).expect("error setting the sky texture");
         self.celestial_shader.set_uniform_matrix4fv("model", &Mat4::IDENTITY).expect("error setting the view uniform");
         Renderer::draw_mesh(&self.sky_quad);
-        self.update_sun();
-        self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
-        self.celestial_shader.set_uniform1i("text", 3).expect("error setting the sun texture");
-        // println!("sun coords: {:?}", sky_state.pos_sun);
-        let sun_quad_trans = Mat4::from_rotation_x(sky_state.pos_sun.0) * Mat4::from_rotation_y(sky_state.pos_sun.1);
-        self.celestial_shader.set_uniform_matrix4fv("model", &sun_quad_trans).expect("error setting the model transformation for the sun_quad");
-        Renderer::draw_mesh(&self.sun_quad);
-        unsafe {gl::Disable(gl::BLEND);}
+        // self.update_sun();
 
-        // Buffer Respecification (Orphaning)
-        // 
-        // gl::BindBuffer()
-        // gl::BufferData(gl::ARRAY_BUFFER, data_size, NULL, gl::STREAM_DRAW)
-        // gl::BufferData(gl::ARRAY_BUFFER, data_size, mydata_ptr, gl::STREAM_DRAW) use same spec arguments
+        // println!("sun coords: {:?}", sky_state.pos_sun);
+        if sky_state.sun_present
+        {
+            self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
+            self.celestial_shader.set_uniform1i("text", 3).expect("error setting the sun texture");
+            let sun_quad_trans = Mat4::from_rotation_x(sky_state.pos_sun.0) * Mat4::from_rotation_y(sky_state.pos_sun.1);
+            self.celestial_shader.set_uniform_matrix4fv("model", &sun_quad_trans).expect("error setting the model transformation for the sun_quad");
+            Renderer::draw_mesh(&self.sun_quad);
+        }
+
+        if sky_state.moon_present
+        {
+            self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
+            self.celestial_shader.set_uniform1i("text", 4).expect("error setting the sun texture");
+            let moon_quad_trans = Mat4::from_rotation_x(sky_state.pos_moon.0) * Mat4::from_rotation_y(sky_state.pos_moon.1);
+            self.celestial_shader.set_uniform_matrix4fv("model", &moon_quad_trans).expect("error setting the model transformation for the sun_quad");
+            Renderer::draw_mesh(&self.moon_quad);
+        }
+
+        unsafe {gl::Disable(gl::BLEND);}
     }
 
     //TODO: this does not belong here obviously

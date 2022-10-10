@@ -1,6 +1,5 @@
 use std::mem::size_of;
-use crate::engine::{renderer::opengl_abstractions::{vertex_array::{VertexLayout, VertexArray}, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer}, chunk::{Chunk, CHUNK_X, CHUNK_Y}, voxel::VOXEL_FACE_VALUES};
-
+use crate::engine::renderer::opengl_abstractions::{vertex_array::VertexArray, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer};
 use super::opengl_vertex::OpenglVertex;
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
@@ -31,6 +30,17 @@ impl<T> Mesh<T>
 
         let vao = VertexArray::new(vertex_buffer,&T::get_layout(), index_buffer);
         self.vao = Some(vao);
+    }
+
+    pub fn respecify_vertices<F>( &mut self,func: F )
+        where F: FnOnce(&mut Vec<T>)
+    {
+        func(&mut self.vertices); // change the vertices
+        
+        if let Some(vao) = &self.vao
+        {
+            vao.vbo.respecify(&self.vertices);
+        }
     }
 
     pub fn add_vertex(&mut self, vertex: T) -> u32
