@@ -10,10 +10,10 @@
 
 use glam::{Vec3, Vec2, Mat4, const_vec3};
 use core::f32::consts::PI;
-use std::{time::{Instant}, thread::current};
+use std::{time::{Instant}};
 use super::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::VertexLayout}, Renderer}, geometry::{mesh::{Mesh}, opengl_vertex::OpenglVertex}, voxel::VoxelVertex};
 
-const TIME_MULTIPLIER: f32 = 3000.0;
+const TIME_MULTIPLIER: f32 = 2000.0;
 
 // TODO: where to put this ?
 struct SkyBoxVertex
@@ -63,7 +63,7 @@ impl SkyState
         let pos_moon= (self.pos_moon.0 + (dest.pos_moon.0 - self.pos_moon.0) * s, self.pos_moon.1 + (dest.pos_moon.1 - self.pos_moon.1) * s);
         let mut sky_box_color = [Vec3::ZERO;8];
 
-        (0..7).for_each(|i| {
+        (0..8).for_each(|i| {
             sky_box_color[i] = self.sky_box_color[i].lerp(dest.sky_box_color[i], s);
         });
 
@@ -82,7 +82,7 @@ enum DayNightPhase
 const PHASE_CONFIG : [SkyState;4] =
 [
     SkyState{start_time:0.0,moon_present:false,sun_present:true,pos_moon:(PI,PI/8.0),pos_sun:(0.0,PI/8.0),
-        sky_box_color: [const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),
+        sky_box_color: [const_vec3!([1.0, 1.0,1.0]),const_vec3!([0.0, 0.0,0.0]),const_vec3!([0.0, 0.0,0.0]),const_vec3!([1.0, 1.0,1.0]),
                         const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0])]},
         
     SkyState{start_time:2.0,moon_present:false,sun_present:true,pos_moon:(0.0,PI/8.0),pos_sun:(30.0*PI/180.0,PI/8.0),
@@ -145,8 +145,6 @@ impl SkyRenderer
     pub fn new() -> Self
     {
         // Initialise everything needed to render the sky + objects
-
-        // TESTING
         let celestial_shader = Shader::new_from_vs_fs("rust-vox/shaders/celestial.vert", "rust-vox/shaders/celestial.frag").expect("Shader Error");
         // create sky plane
         let mut sky_quad = Mesh::new();
@@ -193,10 +191,12 @@ impl SkyRenderer
         
         let mut sky_box = Mesh::new();
 
+        // bottom 4
         let i1 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,1.0),Vec3::ZERO));
         let i2 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,-1.0),Vec3::ZERO));
         let i3 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(1.0,-0.2,-1.0),Vec3::ZERO));
         let i4 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(1.0,-0.2,1.0),Vec3::ZERO));
+
         // top 4
         let i5 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,0.2,1.0),Vec3::ZERO));
         let i6 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,0.2,-1.0),Vec3::ZERO));
@@ -206,28 +206,22 @@ impl SkyRenderer
         // we are sitting at the origin looking down -Z
         // define triangles
         // bottom plane
-        sky_box.add_triangle(i1, i2, i4);
-        sky_box.add_triangle(i4, i2, i3);
+        sky_box.add_quad(i1,i2,i3, i4);
         // top plane
-        sky_box.add_triangle(i8, i6, i5);
-        sky_box.add_triangle(i8, i7, i6);
+        sky_box.add_quad(i8,i7,i6,i5);
         // left plane
-        sky_box.add_triangle(i1, i5, i2);
-        sky_box.add_triangle(i2, i5, i6);
+        sky_box.add_quad(i1,i5,i6,i2);
         // right plane
-        sky_box.add_triangle(i3, i8, i4);
-        sky_box.add_triangle(i8, i3, i7);
+        sky_box.add_quad(i3,i7,i8,i4);
         // front plane
-        sky_box.add_triangle(i1, i4, i5);
-        sky_box.add_triangle(i5, i4, i8);
+        sky_box.add_quad(i2,i6,i7,i3);
         // back plane
-        sky_box.add_triangle(i2, i6, i3);
-        sky_box.add_triangle(i3, i6, i7);
+        sky_box.add_quad(i4,i8,i5,i1);
 
         sky_box.upload();
 
-        let skybox_shader = Shader::new_from_vs_fs("rust-vox/shaders/skybox.vert",
-        "rust-vox/shaders/skybox.frag" ).expect("Shader Error");
+        let skybox_shader = Shader::new_from_vs_gs_fs("rust-vox/shaders/skybox.vert",
+        "rust-vox/shaders/skybox.geom", "rust-vox/shaders/skybox.frag").expect("Shader Error");
 
         // TESTING
         // generate the sun
@@ -325,7 +319,7 @@ impl SkyRenderer
         let mut denom = next_phase.start_time - current_phase.start_time;
         if denom < 0.0 {denom += 24.0;} // happens only in the case where the clock is wrapping around. ex: current start 13:00h, next phase start 2:00h
 
-        let mut nume = (self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER - current_phase.start_time * 3600.0);
+        let mut nume = self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER - current_phase.start_time * 3600.0;
         if nume < 0.0 {nume += 24.0 * 3600.0;}
 
         let mut progress = nume / (denom * 3600.0);
@@ -339,7 +333,6 @@ impl SkyRenderer
         }
 
         // interpolate positions and colors between the two phases
-        
         current_phase.lerp(next_phase, progress)
     }
 
@@ -355,9 +348,17 @@ impl SkyRenderer
             }
         });
         
-        // PASS 4: draw skybox
+        // setting the depth func to always will make every fragment pass the depth test
+        // we need this since we set all sky geometry to have a depth = 1 such that it is always drawn behind foreground objects
+        // but Z fighting will exist between sky objects themselves, to solve this we set the depth test to always pass and
+        // then draw the sky objects from back to front manually ourselves
+        unsafe
+        {
+            gl::DepthFunc(gl::ALWAYS);
+        }
+
         self.skybox_shader.bind();
-        Renderer::draw_mesh(&self.sky_box);
+        Renderer::draw_mesh_with_mode(&self.sky_box, gl::LINES_ADJACENCY);
         Shader::unbind();
 
         // PASS 3: draw celestial bodies
@@ -368,18 +369,16 @@ impl SkyRenderer
         }
 
         // remove the translation component from the camera's view matrix, since the background
-        // must appear the same from any camera position
-        // this done by taking the upper 3x3 matrix from original 4x4 view matrix
+        // must appear the same distance from any camera position
+        // this is done by taking the upper 3x3 matrix from original 4x4 view matrix
         self.celestial_shader.bind();
         self.tick += 0.0001;
         if self.tick > 1.0 {self.tick = 0.0;}
         self.celestial_shader.set_uniform_1f("sub", self.tick).expect("error setting sub float uniform");
         self.celestial_shader.set_uniform1i("text", 2).expect("error setting the sky texture");
         self.celestial_shader.set_uniform_matrix4fv("model", &Mat4::IDENTITY).expect("error setting the view uniform");
-        Renderer::draw_mesh(&self.sky_quad);
-        // self.update_sun();
+        // Renderer::draw_mesh(&self.sky_quad);
 
-        // println!("sun coords: {:?}", sky_state.pos_sun);
         if sky_state.sun_present
         {
             self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
@@ -398,28 +397,11 @@ impl SkyRenderer
             Renderer::draw_mesh(&self.moon_quad);
         }
 
-        unsafe {gl::Disable(gl::BLEND);}
-    }
-
-    //TODO: this does not belong here obviously
-    fn update_sun(&mut self)
-    {
-        self.sun_angle_rad += 0.001; // TODO: should be set according to the frame rate
-        if self.sun_angle_rad >= 2.0*PI
+        unsafe
         {
-            self.sun_angle_rad -= 2.0*PI;
+            gl::Disable(gl::BLEND);
+            gl::DepthFunc(gl::LESS);
         }
-        
-        // adjust the sun's direction angle
-        
-        let y_coord = self.sun_angle_rad.sin();
-        let along_bisector = self.sun_angle_rad.cos();
-        // project the bisector onto X and Z
-        let x_coord = along_bisector * (PI/8.0).cos();
-        let z_coord = along_bisector * (PI/8.0).sin();
-
-        // self.sun_direction = Vec3::new(x_coord,y_coord,z_coord);
-        // println!("[DEBUG] sun direction: {}", self.sun_direction);
     }
 }
 

@@ -56,6 +56,14 @@ impl<T> Mesh<T>
         self.indices.push(p3);
     }
 
+    pub fn add_quad(&mut self, p1: u32, p2: u32, p3: u32, p4: u32)
+    {
+        self.indices.push(p1);
+        self.indices.push(p2);
+        self.indices.push(p3);
+        self.indices.push(p4);
+    }
+
     pub fn size_bytes(&self) -> usize
     {
         self.vertices.len() * size_of::<T>()

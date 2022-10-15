@@ -1,4 +1,5 @@
 use std::{ffi::{c_void, CStr}, mem::size_of};
+use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use sdl2::{VideoSubsystem};
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
@@ -120,21 +121,22 @@ impl Renderer
 
         unsafe
         {
-            gl::Disable(gl::BLEND);
-            gl::DepthFunc(gl::LEQUAL);
             // PASS 1: render to the shadow map
             self.render_shadow(world);
             
             // PASS 2: render the scene normally
-            self.default_shader.bind();
-
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0); // bind default framebuffer
             gl::Viewport(0, 0, 1700 ,900);
             gl::ClearColor(0.25,0.5,0.88,1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
             gl::Enable(gl::CULL_FACE);
             gl::CullFace(gl::BACK);
-            
+
+            // render the sky
+            self.sky_rend.render();
+
+            self.default_shader.bind();
+        
             self.default_shader.set_uniform1i("texture_atlas", 0).expect("error binding texture altlas");
             self.default_shader.set_uniform1i("shadow_map", 1).expect("error setting the shadow_map array textures");
 
@@ -144,10 +146,8 @@ impl Renderer
             self.default_shader.set_uniform1i("cascade_count", cascades.len() as i32 ).expect("error setting the cascade count");
             self.default_shader.set_uniform_1fv("cascades", cascades).expect("error setting the cascades");
 
-            Self::draw_geometry(world, &mut self.default_shader);
+            // Self::draw_geometry(world, &mut self.default_shader);
             Shader::unbind();
-
-            self.sky_rend.render();
         }
     }
 
@@ -200,6 +200,17 @@ impl Renderer
         {
             mesh.vao.as_ref().unwrap().bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
+            VertexArray::<T>::unbind();
+        }
+    }
+
+    // FIXME: duplicate code with function above, refactor
+    pub fn draw_mesh_with_mode<T> (mesh: &Mesh<T>, mode: types::GLenum )
+    {
+        unsafe
+        {
+            mesh.vao.as_ref().unwrap().bind();
+            gl::DrawElements(mode, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
             VertexArray::<T>::unbind();
         }
     }

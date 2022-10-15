@@ -1,4 +1,3 @@
-// for now this shader is used to render the sky
 #version 460 core
 
 layout(std140, binding = 0) uniform transforms
