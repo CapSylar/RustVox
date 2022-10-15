@@ -20,15 +20,12 @@ layout (location = 0) in vec3 pos;
 layout (location = 1) in vec2 in_tex_coord;
 layout (location = 2) in uint normal_index;
 
-// uniform mat4 view;
-// uniform mat4 perspective;
 uniform vec3 animation_offset;
 
 out vec3 frag_pos_world; // fragment position in world space
 out vec3 frag_pos_view; // fragment position in the camera's view space
 out vec2 tex_coord;
 out vec3 normal;
-// out vec4 frag_light_space_pos; // fragment position in light space
 
 void main()
 {

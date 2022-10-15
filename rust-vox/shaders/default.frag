@@ -10,6 +10,7 @@ in vec3 normal;
 uniform sampler2D texture_atlas;
 uniform sampler2DArray shadow_map;
 
+uniform int render_csm; // controls whether or not the shadows are rendered
 uniform int cascade_count;
 uniform float cascades[8]; // max 8
 
@@ -109,24 +110,29 @@ float is_in_shadow(vec4 point, int shadow_map_layer, out bool color_x, out bool 
 
 void main()
 {
-    // choose the light space transform according to which cascade we are targeting
-    float depth = abs(frag_pos_view.z);
-    
-    // determine which layer we must use
-    int layer = cascade_count-1; // if nothing matches, use the biggest cascade
-    for ( int i = 1 ; i < cascade_count ; ++i )
+    float shadow = 1; // when the sun is not present, everything is technically in shadow
+
+    if (render_csm == 1)
     {
-        if ( depth < cascades[i] )
+        // choose the light space transform according to which cascade we are targeting
+        float depth = abs(frag_pos_view.z);
+        
+        // determine which layer we must use
+        int layer = cascade_count-1; // if nothing matches, use the biggest cascade
+        for ( int i = 1 ; i < cascade_count ; ++i )
         {
-            layer = i-1;
-            break;
+            if ( depth < cascades[i] )
+            {
+                layer = i-1;
+                break;
+            }
         }
+
+        vec4 frag_light_space_pos = transforms[layer] * vec4(frag_pos_world,1.0);
+        bool color_x , color_y ;
+        shadow = is_in_shadow(frag_light_space_pos , layer, color_x, color_y);
     }
-
-    bool color_x , color_y ;
-
-    vec4 frag_light_space_pos = transforms[layer] * vec4(frag_pos_world,1.0);
-    float shadow = is_in_shadow(frag_light_space_pos , layer, color_x, color_y);
+    
     float diffuse = max(dot(normal,normalize(vec3(0.5,0.5,0.5))),0.0);
     // for now, being in shadow just means the texture's albedo colors get a bit darker
 

@@ -3,7 +3,7 @@ use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use sdl2::{VideoSubsystem};
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
-use super::{world::{World}, sky::{SkyRenderer}, geometry::mesh::Mesh};
+use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
 pub mod csm;
@@ -16,6 +16,7 @@ pub struct Renderer
     shadow_shader : Shader,
     _atlas_texture: u32,
     sun_direction: Vec3,
+    sky: Sky,
     sky_rend : SkyRenderer,
 }
 
@@ -100,7 +101,7 @@ impl Renderer
 
             let sky_rend = SkyRenderer::new();
             
-            Self { trans_ubo, default_shader , shadow_shader , _atlas_texture: atlas_texture , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend}
+            Self { trans_ubo, default_shader , shadow_shader , _atlas_texture: atlas_texture , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new()}
         }
     }
 
@@ -121,8 +122,16 @@ impl Renderer
 
         unsafe
         {
-            // PASS 1: render to the shadow map
-            self.render_shadow(world);
+            self.sky.update();
+            self.sun_direction = self.sky.get_sun_direction();
+            
+            let sun_present = self.sky.is_sun_present();
+
+            if sun_present // do not render shadows is the sun is not present
+            {
+                // PASS 1: render to the shadow map
+                self.render_shadow(world);
+            }
             
             // PASS 2: render the scene normally
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0); // bind default framebuffer
@@ -133,10 +142,11 @@ impl Renderer
             gl::CullFace(gl::BACK);
 
             // render the sky
-            self.sky_rend.render();
+            self.sky_rend.render(&self.sky);
 
             self.default_shader.bind();
-        
+
+            self.default_shader.set_uniform1i("render_csm", if sun_present {1} else {0}).expect("error setting the sun present uniform");
             self.default_shader.set_uniform1i("texture_atlas", 0).expect("error binding texture altlas");
             self.default_shader.set_uniform1i("shadow_map", 1).expect("error setting the shadow_map array textures");
 
@@ -146,7 +156,7 @@ impl Renderer
             self.default_shader.set_uniform1i("cascade_count", cascades.len() as i32 ).expect("error setting the cascade count");
             self.default_shader.set_uniform_1fv("cascades", cascades).expect("error setting the cascades");
 
-            // Self::draw_geometry(world, &mut self.default_shader);
+            Self::draw_geometry(world, &mut self.default_shader);
             Shader::unbind();
         }
     }
