@@ -64,7 +64,7 @@ impl<T> Mesh<T>
         self.indices.push(p4);
     }
 
-    pub fn size_bytes(&self) -> usize
+    pub fn _size_bytes(&self) -> usize
     {
         self.vertices.len() * size_of::<T>()
     }

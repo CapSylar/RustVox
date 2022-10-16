@@ -1,6 +1,6 @@
 use glam::{Vec3, IVec3};
 
-use super::{terrain::TerrainGenerator, voxel::{Voxel, VOXEL_FACE_VALUES}, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, opengl_vertex::OpenglVertex}};
+use super::{terrain::TerrainGenerator, voxel::{Voxel, VOXEL_FACE_VALUES}, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}}};
 use super::voxel::VoxelVertex;
 
 pub const CHUNK_X : usize = 20;
@@ -9,7 +9,6 @@ pub const CHUNK_Y : usize = 100;
 
 pub struct Chunk
 {
-    //TODO: shouldn't this be on the heap? 
     pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
     pos: Vec3, // position in chunk space
     pub mesh: Option<Mesh<VoxelVertex>>,
@@ -31,13 +30,13 @@ impl Chunk
         let z_offset = pos_z * CHUNK_Z as i32 ;
 
         // iterate over the voxels, requesting the type of each from the terrain generator
-        for x in 0..CHUNK_X
+        for (x, x_row) in voxels.iter_mut().enumerate()
         {
-            for y in 0..CHUNK_Y
+            for (y, y_row) in x_row.iter_mut().enumerate()
             {
-                for z in 0..CHUNK_Z
+                for (z, voxel) in y_row.iter_mut().enumerate()
                 {
-                    generator.generate(&mut voxels[x][y][z] , x as i32 + x_offset , y as i32 + y_offset,z as i32 + z_offset);
+                    generator.generate(voxel , x as i32 + x_offset , y as i32 + y_offset,z as i32 + z_offset);
                 }
             }
         }

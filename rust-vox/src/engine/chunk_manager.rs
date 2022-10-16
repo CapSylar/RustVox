@@ -72,7 +72,7 @@ impl ChunkManager
                 match self.chunks.get(&(x,z))
                 {
                     Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
-                    None => {self.create_chunk(x,0,z,&GENERATOR); } // Needs to be created
+                    None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
                 };
             }
         }
@@ -115,7 +115,7 @@ impl ChunkManager
             self.last_upload = Instant::now(); // reset counter
             for _ in 0..UPLOAD_LIMIT_FRAME
             {
-                if self.to_upload.len() > 0
+                if !self.to_upload.is_empty()
                 {
                     let mut chunk = self.to_upload.remove(0);
                     chunk.mesh.as_mut().unwrap().upload();
@@ -171,13 +171,13 @@ impl ChunkManager
     /// Uses a threadpool
     /// 
     /// ### Note: Does not Upload the mesh
-    fn create_chunk(&self , pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &'static Box<dyn TerrainGenerator>)
+    fn create_chunk(&self , pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &'static dyn TerrainGenerator)
     {
         let vec = Arc::clone(&self.chunks_to_load);
         
         self.threadpool.execute( move ||
         {
-            let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator.as_ref());
+            let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator);
             chunk.generate_mesh();
             // append the mesh to the list of chunks to be loaded
             vec.lock().unwrap().push(chunk);

@@ -1,3 +1,6 @@
+#![warn(clippy::all)]
+#![allow(clippy::too_many_arguments)]
+
 use __core::f32::consts::PI;
 use glam::Vec3;
 use imgui::*;
@@ -12,7 +15,6 @@ use sdl2::{
 extern crate lazy_static;
 
 mod engine;
-mod input;
 mod threadpool;
 mod ui;
 
@@ -106,8 +108,7 @@ fn main() {
 
             match event {
                 Event::Quit { .. } => break 'main,
-                Event::KeyDown { keycode: code, .. } => {
-                    if let Some(s) = code {
+                Event::KeyDown { keycode: Some(s) , .. } => {
                         match s {
                             keyboard::Keycode::Num1 => sdl
                                 .mouse()
@@ -140,7 +141,6 @@ fn main() {
                             keyboard::Keycode::D => voxel_world.eye.strafe_right(),
                             _ => (),
                         };
-                    }
                 }
                 Event::MouseMotion {
                     xrel: x_rel,

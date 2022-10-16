@@ -43,7 +43,7 @@ impl Shader
     /// Compile + Links Program
     fn new(vertex_src: String, fragment_src: String, geometry_src: Option<String>) -> Result<Self,Error>
     {
-        let mut program_id: u32 = 0;
+        let program_id: u32;
 
         unsafe
         {
@@ -145,7 +145,7 @@ impl Shader
 
     //TODO: API interface ambiguous
     //TODO: COPY PASTE COPY PASTE,refactor !!!!
-    pub fn set_uniform4f(&mut self, name: &str , value: Vec4 ) -> Result<bool,String>
+    pub fn _set_uniform4f(&mut self, name: &str , value: Vec4 ) -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
 
@@ -181,7 +181,7 @@ impl Shader
         }
     }
 
-    pub fn set_uniform1iv(&mut self , name: &str , value: i32) -> Result<bool,String>
+    pub fn _set_uniform1iv(&mut self , name: &str , value: i32) -> Result<bool,String>
     {
         let location = self.get_uniform_location(name);
 
@@ -287,7 +287,7 @@ impl Shader
         }
     }
 
-    pub fn delete(&self)
+    pub fn _delete(&self)
     {
         unsafe
         {

@@ -36,26 +36,24 @@ impl<T> VertexArray<T>
         // setup
         vertex_buffer.bind();
         let mut offset: usize = 0;
-        let mut attrib_index = 0;
 
-        for element in &layout.elements
+        for (index, element) in layout.elements.iter().enumerate()
         {
             unsafe
             {
                 if element.integral // if the attribute is of integral type, another API call must be used 
                 {
-                    gl::VertexAttribIPointer(attrib_index, element.count as _, element.element_type,
+                    gl::VertexAttribIPointer(index as u32, element.count as _, element.element_type,
                         layout.stride_bytes.try_into().unwrap(), offset as *const c_void);
                 }
                 else
                 {
-                    gl::VertexAttribPointer(attrib_index, element.count as _ , element.element_type,
+                    gl::VertexAttribPointer(index as u32, element.count as _ , element.element_type,
                         element.normalized, layout.stride_bytes.try_into().unwrap()  , offset as *const c_void );
                 }
         
-                gl::EnableVertexAttribArray(attrib_index);
+                gl::EnableVertexAttribArray(index as u32);
             }
-            attrib_index += 1;
             offset += element.size_bytes;
         };
     }

@@ -34,7 +34,7 @@ impl<T> VertexBuffer<T>
         }
     }
 
-    pub fn delete(&self)
+    pub fn _delete(&self)
     {
         unsafe
         {
@@ -50,7 +50,7 @@ impl<T> VertexBuffer<T>
         }
     }
 
-    pub fn unbind()
+    pub fn _unbind()
     {
         unsafe
         {

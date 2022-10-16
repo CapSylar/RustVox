@@ -20,7 +20,7 @@ impl ChunkMeshAnimation
     }
 
     /// Get current position of chunk in animation
-    pub fn get_pos(&self) -> Vec3
+    pub fn _get_pos(&self) -> Vec3
     {
         self.current
     }

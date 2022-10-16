@@ -4,7 +4,7 @@ use std::mem::size_of;
 pub struct IndexBuffer
 {
     renderer_id : u32,
-    count: usize,
+    _count: usize,
 }
 
 impl IndexBuffer
@@ -20,10 +20,10 @@ impl IndexBuffer
             gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (index_data.len() * size_of::<u32>()) as isize , index_data.as_ptr().cast() , gl::STATIC_DRAW);
         }
 
-        Self{ renderer_id: buffer_id, count: index_data.len() }
+        Self{ renderer_id: buffer_id, _count: index_data.len() }
     }
 
-    pub fn delete(&self)
+    pub fn _delete(&self)
     {
         unsafe
         {
@@ -39,16 +39,11 @@ impl IndexBuffer
         }
     }
 
-    pub fn unbind()
+    pub fn _unbind()
     {
         unsafe
         {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0); // 0 unbinds the currently bound buffer
         }
-    }
-
-    pub fn count(&self)
-    {
-        self.count;
     }
 }
