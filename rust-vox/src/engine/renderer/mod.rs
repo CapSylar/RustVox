@@ -147,6 +147,7 @@ impl Renderer
             self.default_shader.bind();
 
             self.default_shader.set_uniform1i("render_csm", if sun_present {1} else {0}).expect("error setting the sun present uniform");
+            self.default_shader.set_uniform3fv("light_dir", &self.sun_direction).expect("error setting the light direction uniform");
             self.default_shader.set_uniform1i("texture_atlas", 0).expect("error binding texture altlas");
             self.default_shader.set_uniform1i("shadow_map", 1).expect("error setting the shadow_map array textures");
 

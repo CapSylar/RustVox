@@ -107,7 +107,7 @@ pub mod sky_state
             let x_coord = xz_projection * self.pos_sun.1.cos();
             let z_coord = xz_projection * self.pos_sun.1.sin();
 
-            Vec3::new(x_coord,y_coord,z_coord)
+            Vec3::new(x_coord,y_coord,z_coord).normalize()
         }
     }
 
