@@ -1,11 +1,13 @@
 # RustVox
 
+![My Image](rust-vox/resources/vox_logo.png)
+
 A Voxel engine written in Rust using openGL
 
 ## Running
 
 ```
-cargo run
+cargo run --release
 ```
 
 ## Credits
