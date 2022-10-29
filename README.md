@@ -1,6 +1,8 @@
 # RustVox
 
 ![My Image](rust-vox/resources/vox_logo.png)
+![](https://tokei.rs/b1/github/CapSylar/RustVox)
+
 
 A Voxel engine written in Rust using openGL
 
