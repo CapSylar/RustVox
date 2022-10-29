@@ -1,7 +1,6 @@
 use glam::{Vec3, IVec3};
 
-use super::{terrain::TerrainGenerator, voxel::{Voxel, VOXEL_FACE_VALUES}, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}}};
-use super::voxel::VoxelVertex;
+use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel, VoxelVertex, VOXEL_FACE_VALUES}}};
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z : usize = 20;

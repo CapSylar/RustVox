@@ -264,8 +264,8 @@ pub mod sky_renderer
             let i3 = sky_quad.add_vertex(SkyQuadVertex::new(Vec3::new(1.0,0.2,-1.0),Vec2::new(1.0,1.0)));
             let i4 = sky_quad.add_vertex(SkyQuadVertex::new(Vec3::new(1.0,0.2,1.0),Vec2::new(1.0,0.0)));
     
-            sky_quad.add_triangle(i4, i2, i1);
-            sky_quad.add_triangle(i2, i4, i3);
+            sky_quad.add_triangle_indices(i4, i2, i1);
+            sky_quad.add_triangle_indices(i2, i4, i3);
     
             sky_quad.upload();
     
@@ -311,17 +311,17 @@ pub mod sky_renderer
             // we are sitting at the origin looking down -Z
             // define triangles
             // bottom plane
-            sky_box.add_quad(i1,i2,i3, i4);
+            sky_box.add_quad_indices(i1,i2,i3, i4);
             // top plane
-            sky_box.add_quad(i8,i7,i6,i5);
+            sky_box.add_quad_indices(i8,i7,i6,i5);
             // left plane
-            sky_box.add_quad(i1,i5,i6,i2);
+            sky_box.add_quad_indices(i1,i5,i6,i2);
             // right plane
-            sky_box.add_quad(i3,i7,i8,i4);
+            sky_box.add_quad_indices(i3,i7,i8,i4);
             // front plane
-            sky_box.add_quad(i2,i6,i7,i3);
+            sky_box.add_quad_indices(i2,i6,i7,i3);
             // back plane
-            sky_box.add_quad(i4,i8,i5,i1);
+            sky_box.add_quad_indices(i4,i8,i5,i1);
     
             sky_box.upload();
     
@@ -331,15 +331,14 @@ pub mod sky_renderer
             // generate the sun
             // the sun is just a textured quad
             let mut sun_quad = Mesh::new();
-            
-            let i1 = sun_quad.add_vertex(SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)));
-            let i2 = sun_quad.add_vertex(SkyQuadVertex::new(Vec3::new(-1.0,1.0,-5.0),Vec2::new(0.0,1.0)));
-            let i3 = sun_quad.add_vertex(SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)));
-            let i4 = sun_quad.add_vertex(SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0)));
-            
-            sun_quad.add_triangle(i1, i2, i4);
-            sun_quad.add_triangle(i2, i3, i4);
-    
+
+            sun_quad.add_quad(
+                SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)),
+                SkyQuadVertex::new(Vec3::new(-1.0,1.0,-5.0),Vec2::new(0.0,1.0)),
+                SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)),
+                SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0))
+                );
+
             sun_quad.upload();
     
             let mut sun_texture = 0;        
@@ -368,14 +367,12 @@ pub mod sky_renderer
     
             // setup the moon texture
             let mut moon_quad = Mesh::new();
-            
-            let i1 = moon_quad.add_vertex(SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)));
-            let i2 = moon_quad.add_vertex(SkyQuadVertex::new(Vec3::new(-1.0,1.0,-5.0),Vec2::new(0.0,1.0)));
-            let i3 = moon_quad.add_vertex(SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)));
-            let i4 = moon_quad.add_vertex(SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0)));
-            
-            moon_quad.add_triangle(i1, i2, i4);
-            moon_quad.add_triangle(i2, i3, i4);
+
+            moon_quad.add_quad(
+                SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)),
+                SkyQuadVertex::new(Vec3::new(-1.0,1.0,-5.0),Vec2::new(0.0,1.0)),
+                SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)),
+                SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0)));
     
             moon_quad.upload();
     

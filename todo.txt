@@ -6,14 +6,16 @@
 - [X] Chunk manager
 - [X] Stable Cascaded shadow maps
 - [X] Moving Clouds
-- [] Celestial Bodies - Sun, Moon, Stars
-- [] Dynamic "SkyBox" showing Day-Night cycle
+- [X] Celestial Bodies - Sun, Moon, Stars
+- [X] Dynamic "SkyBox" showing Day-Night cycle
 - [] YAML file for simple configs and data
 
 // LOW LEVEL IMPROVEMENTS
 - [X] Move view and perspective transforms to a Uniform Buffer Object
-- [] Figure out a dynamic way of specifying a "Vertex" for a Buffer
-- [X] add a trait for all types of vertex, directly specifying the data layout inside the vertex type
+- [X] Figure out a dynamic way of specifying a "Vertex" for a Buffer
+- [X] Add a trait for all types of vertex, directly specifying the data layout inside the vertex type
+- [] Optimize chunk generation speed
+- [] Optimize chunk storage space
 
 // ISSUES
 - [] Clouds too visible during the night, not affected by lighting

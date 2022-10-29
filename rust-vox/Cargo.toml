@@ -11,5 +11,12 @@ glam = "0.20.5"
 imgui-opengl-renderer = { path = "../rust-imgui-opengl-renderer"}
 imgui  = { git = "https://github.com/imgui-rs/imgui-rs.git" }
 imgui_sdl2_support = { git = "https://github.com/imgui-rs/imgui-rs.git", package="imgui-sdl2-support" }
-noise = "0.7.0"
+noise = "0.8"
 lazy_static = "1.4.0"
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "benchmark"
+harness = false

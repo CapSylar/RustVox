@@ -1,8 +1,8 @@
-use noise::{Perlin, NoiseFn, Seedable};
+use noise::{Perlin, NoiseFn};
 
-use crate::engine::voxel::VoxelType;
+use crate::engine::geometry::voxel::VoxelType;
 
-use super::voxel::Voxel;
+use super::geometry::voxel::Voxel;
 
 // unsafe impl Sync for TerrainGenerator{}
 pub trait TerrainGenerator : Sync
@@ -22,9 +22,9 @@ impl PerlinGenerator
 {
     pub fn new() -> Self
     {
-        let layer0 = Perlin::new();
-        let layer1 = Perlin::new();
-        layer1.set_seed(2345345);
+        //TODO: use PlaneMapBuilder instead
+        let layer0 = Perlin::new(2345345);
+        let layer1 = Perlin::new(2345345);
         Self{layer0, layer1}
     }
 }

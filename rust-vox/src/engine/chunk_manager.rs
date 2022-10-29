@@ -29,6 +29,7 @@ pub struct ChunkManager
     chunks_render: Vec<Rc<RefCell<Chunk>>>,
     chunks_animation: Vec<Rc<RefCell<Chunk>>>,
 
+    // FIXME: vec of chunk structs, isnt't that too much ? Should consider storing pointers to boxes
     chunks_to_load: Arc<Mutex<Vec<Chunk>>>, // chunks that exist here are not necessarily in the chunks list
 
     // to render chunk list
@@ -38,7 +39,7 @@ pub struct ChunkManager
 
     // update state
     anchor_point: (i32,i32), // anchor chunk point
-    to_upload: Vec<Chunk>,
+    to_upload: Vec<Chunk>, // same as fixme above
     last_upload: Instant,
 }
 
