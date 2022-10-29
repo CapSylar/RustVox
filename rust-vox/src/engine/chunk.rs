@@ -1,6 +1,6 @@
-use glam::{Vec3, IVec3};
+use glam::{Vec3};
 
-use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel, VoxelVertex, VOXEL_FACE_VALUES}}};
+use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, mesher::ChunkMesher, voxel_vertex::VoxelVertex}};
 
 pub const CHUNK_X : usize = 20;
 pub const CHUNK_Z : usize = 20;
@@ -44,49 +44,10 @@ impl Chunk
     }
 
     /// Generate the chunk mesh
-    pub fn generate_mesh(&mut self)
+    pub fn generate_mesh<T> (&mut self)
+        where T: ChunkMesher
     {
-        // Generate the mesh
-        let mut mesh: Mesh<VoxelVertex> = Mesh::new();
-        
-        //Generate the directly in here, good enough for now
-        // for now render the mesh of all the voxels as is
-        for x in 0..CHUNK_X
-        {
-            for y in 0..CHUNK_Y
-            {
-                for z in 0..CHUNK_X
-                {
-                    if self.voxels[x][y][z].is_filled() // not an air block
-                    {
-                        let mut faces_to_render: [bool;6] = [false;6];
-
-                        // TODO: refactor
-                        for (index, offset) in VOXEL_FACE_VALUES.iter().enumerate()
-                        {
-                            // is the neighbor of the current voxel in the given direction filled ? 
-                            let pos = IVec3::new(x as i32 + offset.0,y as i32 + offset.1,z as i32 + offset.2);
-                            if let Some(neighbor) = self.get_voxel(pos.x, pos.y, pos.z)
-                            {
-                                if !neighbor.is_filled()
-                                {
-                                    faces_to_render[index] = true ;
-                                }
-                            }
-                            else
-                            {
-                                faces_to_render[index] = true;    
-                            }
-                        }
-
-                        self.voxels[x][y][z].append_mesh_faces( &faces_to_render ,
-                                self.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
-                                &mut mesh);
-                    }
-                }
-            }
-        }
-        self.mesh = Some(mesh);
+        self.mesh = Some(T::generate_mesh(self));
     }
 
     pub fn get_voxel(&self, pos_x: i32 , pos_y:i32 , pos_z:i32) -> Option<Voxel>

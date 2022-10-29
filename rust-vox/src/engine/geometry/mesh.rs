@@ -74,7 +74,7 @@ impl<T> Mesh<T>
     }
 
     /// add a quad to the mesh by providing the vertices
-    pub fn add_triangle(&mut self, p1: T, p2: T, p3:T)
+    pub fn _add_triangle(&mut self, p1: T, p2: T, p3:T)
     {
         self.vertices.push(p1);
         self.vertices.push(p2);

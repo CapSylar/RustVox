@@ -4,7 +4,7 @@ use glam::Vec3;
 
 use crate::threadpool::ThreadPool;
 
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_Z, CHUNK_X}};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_Z, CHUNK_X}, geometry::mesher::CullingMesher};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
@@ -179,7 +179,7 @@ impl ChunkManager
         self.threadpool.execute( move ||
         {
             let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator);
-            chunk.generate_mesh();
+            chunk.generate_mesh::<CullingMesher>();
             // append the mesh to the list of chunks to be loaded
             vec.lock().unwrap().push(chunk);
         });
