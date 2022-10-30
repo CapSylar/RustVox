@@ -1,10 +1,7 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
-
 use glam::Vec3;
-
 use crate::{threadpool::ThreadPool, Telemetry};
-
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_Z, CHUNK_X}, geometry::mesher::CullingMesher};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_Z, CHUNK_X}, geometry::meshing::culling_mesher::CullingMesher};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
@@ -65,18 +62,24 @@ impl ChunkManager
     fn load_visible(&mut self)
     {
         // load every chunk that falls within the NOT_VISIBLE square
-        for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
-        {
-            for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
-            {
-                // check if the chunks have already been created
-                match self.chunks.get(&(x,z))
-                {
-                    Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
-                    None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
-                };
-            }
-        }
+        // for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
+        // {
+        //     for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
+        //     {
+        //         // check if the chunks have already been created
+        //         match self.chunks.get(&(x,z))
+        //         {
+        //             Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
+        //             None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
+        //         };
+        //     }
+        // }
+
+        // quick hax to only load the center chunk
+        let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
+        chunk.generate_mesh::<CullingMesher>();
+        chunk.mesh.as_mut().unwrap().upload();
+        self.register_chunk(chunk);
     }
 
     /// Everything related to updating the chunks list, loading new chunks, unloading chunks...

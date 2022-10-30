@@ -21,7 +21,7 @@ impl World
     pub fn update(&mut self)
     {
         // update the chunks if needed
-        self.chunk_manager.update(self.eye.get_position());
+        // self.chunk_manager.update(self.eye.get_position());
     }
 
     //TODO: does not belong here

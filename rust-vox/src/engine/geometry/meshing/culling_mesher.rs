@@ -1,54 +1,8 @@
-use glam::{IVec3, Vec3, Vec2, const_vec2};
-use crate::engine::chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk};
-use super::{mesh::Mesh, voxel::{VoxelType}, voxel_vertex::VoxelVertex};
+use glam::{Vec3, Vec2, IVec3};
 
+use crate::engine::{geometry::{voxel::VoxelType, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z}};
 
-pub trait ChunkMesher
-{
-    /// generate the mesh for the chunk
-    fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>;
-}
-
-const VOXEL_SIZE: f32 = 1.0;
-
-/// Holds the texture UV information for each block type
-/// Each entry holds the lower left UV coordinates of the texture for the face
-#[derive(Clone, Copy)]
-struct VoxelTypeTexture
-{
-    top_face: Vec2,
-    bottom_face: Vec2,
-    front_face: Vec2,
-    back_face: Vec2,
-    right_face: Vec2,
-    left_face: Vec2,
-}
-
-const VOXEL_UVDATA : [VoxelTypeTexture ; 2] = [
-    VoxelTypeTexture{ // Grass
-    top_face: const_vec2!([0.125,0.875]), back_face: const_vec2!([0.0,0.875]),
-    bottom_face: const_vec2!([0.25,0.875]), front_face: const_vec2!([0.0,0.875]),
-    left_face: const_vec2!([0.0,0.875]), right_face: const_vec2!([0.0,0.875])},
-    VoxelTypeTexture{ // Sand
-    top_face: const_vec2!([0.375,0.875]), back_face: const_vec2!([0.375,0.875]),
-    bottom_face: const_vec2!([0.375,0.875]), front_face: const_vec2!([0.375,0.875]),
-    left_face: const_vec2!([0.375,0.875]), right_face: const_vec2!([0.375,0.875])}
-    ];
-
-pub const VOXEL_FACE_VALUES : [(i32,i32,i32);6] = 
-[
-    (0,1,0),
-    (0,-1,0),
-    (0,0,1),
-    (0,0,-1),
-    (1,0,0),
-    (-1,0,0)
-];
-    
-pub enum Normals
-{
-    Posy,Negy,Posz,Negz,Posx,Negx
-}
+use super::chunk_mesher::{Normals, ChunkMesher, VOXEL_SIZE, VOXEL_UVDATA, VOXEL_FACE_VALUES};
 
 pub struct CullingMesher;
 
@@ -194,15 +148,5 @@ impl ChunkMesher for CullingMesher
         }
 
         mesh
-    }
-}
-
-struct GreedyMesher;
-
-impl ChunkMesher for GreedyMesher
-{
-    fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>
-    {
-        todo!()
     }
 }
