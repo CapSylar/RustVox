@@ -1,5 +1,5 @@
 use glam::{Vec2, const_vec2};
-use crate::engine::{chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
+use crate::engine::{chunk::{CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z, Chunk}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
 
 pub trait ChunkMesher
 {
@@ -46,14 +46,4 @@ pub const VOXEL_FACE_VALUES : [(i32,i32,i32);6] =
 pub enum Normals
 {
     Posy,Negy,Posz,Negz,Posx,Negx
-}
-
-struct GreedyMesher;
-
-impl ChunkMesher for GreedyMesher
-{
-    fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>
-    {
-        todo!()
-    }
 }

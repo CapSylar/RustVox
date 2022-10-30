@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use glam::Vec3;
 use crate::{threadpool::ThreadPool, Telemetry};
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_Z, CHUNK_X}, geometry::meshing::culling_mesher::CullingMesher};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
@@ -77,7 +77,7 @@ impl ChunkManager
 
         // quick hax to only load the center chunk
         let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
-        chunk.generate_mesh::<CullingMesher>();
+        chunk.generate_mesh::<GreedyMesher>();
         chunk.mesh.as_mut().unwrap().upload();
         self.register_chunk(chunk);
     }
@@ -86,8 +86,8 @@ impl ChunkManager
     pub fn update(&mut self , player_pos: Vec3)
     {
         // in which chunk are we ? 
-        let chunk_x = player_pos.x as i32 / CHUNK_X as i32;
-        let chunk_z = player_pos.z as i32 / CHUNK_Z as i32;
+        let chunk_x = player_pos.x as i32 / CHUNK_SIZE_X as i32;
+        let chunk_z = player_pos.z as i32 / CHUNK_SIZE_Z as i32;
         let new_pos = (chunk_x,chunk_z);
 
         // did we change chunks and are now outside the no-update zone ?
@@ -147,7 +147,7 @@ impl ChunkManager
     fn register_chunk(&mut self , mut chunk : Chunk)
     {
         let pos = chunk.pos_chunk_space();
-        chunk.add_animation(ChunkMeshAnimation::new());
+        // chunk.add_animation(ChunkMeshAnimation::new());
         let c = Rc::new(RefCell::new(chunk));
         self.chunks_animation.push(Rc::clone(&c));
         self.chunks_render.push(Rc::clone(&c));

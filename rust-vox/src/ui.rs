@@ -24,13 +24,17 @@ impl Ui
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
         .position([0.0,0.0], Condition::Always)
-        .size([400.0, 600.0], Condition::FirstUseEver)
+        .size([500.0, 500.0], Condition::FirstUseEver)
         .build(|| {
         ui.text_wrapped("Controls");
         ui.separator();
         ui.text("Num1 to Toggle Mouse");
         ui.text("Num2 to Toggle Line Mode");
         ui.text("NUm3 to Toggle between Vsync Off/On");
+        ui.separator();
+        ui.text_wrapped("Info");
+        ui.text(format!("player position: {}", state.player_pos));
+        ui.text(format!("look_at vector: {}", state.front));
         ui.separator();
         ui.text_wrapped("Performance");
         ui.text(format!("calculation time: {}ms", state.calculation_time));

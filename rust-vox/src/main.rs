@@ -24,6 +24,8 @@ use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
 pub struct Telemetry {
+    player_pos: Vec3,       // player position in absolute coordinates
+    front: Vec3,          // front vector
     calculation_time: u128, // same as frame_time, but without waiting for the framebuffer swap
     frame_time: u128,       // should be 16ms on 60 Hz refresh rate
     num_triangles: usize,   // number of triangles on screen coming from chunks
@@ -81,6 +83,8 @@ fn main() {
     sdl.mouse().set_relative_mouse_mode(false);
 
     let mut state = Telemetry {
+        player_pos: Vec3::ZERO,
+        front: Vec3::ZERO,
         frame_time: 0,
         calculation_time: 0,
         num_triangles: 0,
@@ -92,7 +96,7 @@ fn main() {
         1920.0 / 1080.0,
         0.1,
         500.0,
-        Vec3::new(0.0, 30.0, 0.0),
+        Vec3::new(0.0, 0.0, 0.0),
         Vec3::new(0.0, 0.0, 1.0),
         Vec3::new(0.0, 1.0, 0.0),
         1.0,

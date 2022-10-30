@@ -2,13 +2,15 @@ use glam::{Vec3};
 
 use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher}};
 
-pub const CHUNK_X : usize = 20;
-pub const CHUNK_Z : usize = 20;
-pub const CHUNK_Y : usize = 100;
+pub const CHUNK_SIZE_X : usize = 20;
+pub const CHUNK_SIZE_Y : usize = 100;
+pub const CHUNK_SIZE_Z : usize = 20;
+
+pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_Z];
 
 pub struct Chunk
 {
-    pub voxels: [[[Voxel; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X],
+    pub voxels: [[[Voxel; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X],
     pos: Vec3, // position in chunk space
     pub mesh: Option<Mesh<VoxelVertex>>,
 
@@ -21,12 +23,12 @@ impl Chunk
     /// Lazily create the Chunk, no mesh is created
     pub fn new(pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator) -> Chunk
     {
-        let mut voxels = [[[Voxel::new_default() ; CHUNK_Z] ; CHUNK_Y] ; CHUNK_X];
+        let mut voxels = [[[Voxel::new_default() ; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X];
 
         // chunk position offset in the world
-        let x_offset = pos_x * CHUNK_X as i32  ;
-        let y_offset = pos_y * CHUNK_Y as i32  ;
-        let z_offset = pos_z * CHUNK_Z as i32 ;
+        let x_offset = pos_x * CHUNK_SIZE_X as i32  ;
+        let y_offset = pos_y * CHUNK_SIZE_Y as i32  ;
+        let z_offset = pos_z * CHUNK_SIZE_Z as i32 ;
 
         // iterate over the voxels, requesting the type of each from the terrain generator
         for (x, x_row) in voxels.iter_mut().enumerate()
@@ -53,9 +55,9 @@ impl Chunk
     pub fn get_voxel(&self, pos_x: i32 , pos_y:i32 , pos_z:i32) -> Option<Voxel>
     {
         // make sure the pos is within bounds
-        if pos_x < 0 || pos_x >= CHUNK_X as i32  ||
-             pos_y < 0 || pos_y >= CHUNK_Y as i32  ||
-             pos_z < 0 || pos_z >= CHUNK_Z as i32
+        if pos_x < 0 || pos_x >= CHUNK_SIZE_X as i32  ||
+             pos_y < 0 || pos_y >= CHUNK_SIZE_Y as i32  ||
+             pos_z < 0 || pos_z >= CHUNK_SIZE_Z as i32
         {
             return None;
         }
@@ -88,8 +90,8 @@ impl Chunk
 
     pub fn pos_chunk_space(&self) -> Vec3 { self.pos }
 
-    pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_X as i32 ) as f32 ,
-             (self.pos.y as i32 *CHUNK_Y as i32 ) as f32 ,
-                 (self.pos.z as i32 * CHUNK_Z as i32 ) as f32 ) }
+    pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_SIZE_X as i32 ) as f32 ,
+             (self.pos.y as i32 *CHUNK_SIZE_Y as i32 ) as f32 ,
+                 (self.pos.z as i32 * CHUNK_SIZE_Z as i32 ) as f32 ) }
 
 }

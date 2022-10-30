@@ -31,6 +31,11 @@ impl Eye
         self.position
     }
 
+    pub fn get_front(&self) -> Vec3
+    {
+        self.front
+    }
+
     pub fn move_forward(&mut self)
     {
         self.position += self.front * self.speed;

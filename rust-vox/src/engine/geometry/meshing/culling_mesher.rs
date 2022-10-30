@@ -1,6 +1,6 @@
 use glam::{Vec3, Vec2, IVec3};
 
-use crate::engine::{geometry::{voxel::VoxelType, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_X, CHUNK_Y, CHUNK_Z}};
+use crate::engine::{geometry::{voxel::VoxelType, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z}};
 
 use super::chunk_mesher::{Normals, ChunkMesher, VOXEL_SIZE, VOXEL_UVDATA, VOXEL_FACE_VALUES};
 
@@ -110,11 +110,11 @@ impl ChunkMesher for CullingMesher
         
         //Generate the directly in here, good enough for now
         // for now render the mesh of all the voxels as is
-        for x in 0..CHUNK_X
+        for x in 0..CHUNK_SIZE_X
         {
-            for y in 0..CHUNK_Y
+            for y in 0..CHUNK_SIZE_Y
             {
-                for z in 0..CHUNK_Z
+                for z in 0..CHUNK_SIZE_Z
                 {
                     if chunk.voxels[x][y][z].is_filled() // not an air block
                     {

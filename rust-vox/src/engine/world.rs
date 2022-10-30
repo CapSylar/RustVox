@@ -25,8 +25,10 @@ impl World
     }
 
     //TODO: does not belong here
-    pub fn set_stat(&self, diagnostic: &mut Telemetry)
+    pub fn set_stat(&self, telemetry: &mut Telemetry)
     {
-        self.chunk_manager.set_stat(diagnostic);
+        self.chunk_manager.set_stat(telemetry);
+        telemetry.player_pos = self.eye.get_position();
+        telemetry.front = self.eye.get_front();
     }
 }
