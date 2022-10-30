@@ -1,5 +1,5 @@
 use imgui::{Condition, FontSource, Context, FontId};
-use crate::Diagnostic;
+use crate::Telemetry;
 
 pub struct Ui
 {
@@ -19,7 +19,7 @@ impl Ui
         Ui{ used_font }
     }
     
-    pub fn build_ui(&self, ui: & imgui::Ui , state:&mut Diagnostic)
+    pub fn build_ui(&self, ui: & imgui::Ui , state:&mut Telemetry)
     {
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
@@ -36,7 +36,8 @@ impl Ui
         ui.text(format!("calculation time: {}ms", state.calculation_time));
         ui.text(format!("frame time: {}us" , state.frame_time));
         ui.text(format!("FPS: {}", 1.0/(state.frame_time as f32 / 1000000.0) ));
+        ui.text(format!("Chunk Triangles: {}", state.num_triangles));
+        ui.text(format!("Chunk Vertices: {}", state.num_vertices));
         font.pop();});
     }
 }
-

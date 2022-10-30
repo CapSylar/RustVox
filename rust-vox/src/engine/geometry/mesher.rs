@@ -1,7 +1,5 @@
 use glam::{IVec3, Vec3, Vec2, const_vec2};
-
 use crate::engine::chunk::{CHUNK_X, CHUNK_Y, CHUNK_Z, Chunk};
-
 use super::{mesh::Mesh, voxel::{VoxelType}, voxel_vertex::VoxelVertex};
 
 

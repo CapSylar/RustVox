@@ -23,10 +23,14 @@ use engine::{eye::Eye, renderer::Renderer, world::World};
 use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
-pub struct Diagnostic {
+pub struct Telemetry {
     calculation_time: u128, // same as frame_time, but without waiting for the framebuffer swap
     frame_time: u128,       // should be 16ms on 60 Hz refresh rate
+    num_triangles: usize,   // number of triangles on screen coming from chunks
+    num_vertices: usize,    // number of vertices on screen coming from chunks
 }
+
+//TODO: refactor main
 fn main() {
     // initialize SDL and its video subsystem
     let sdl = sdl2::init().unwrap();
@@ -76,10 +80,13 @@ fn main() {
 
     sdl.mouse().set_relative_mouse_mode(false);
 
-    let mut state = Diagnostic {
+    let mut state = Telemetry {
         frame_time: 0,
         calculation_time: 0,
+        num_triangles: 0,
+        num_vertices: 0,
     };
+
     let mut voxel_world = World::new(Eye::new(
         PI / 4.0,
         1920.0 / 1080.0,
@@ -171,5 +178,6 @@ fn main() {
         let end = start.elapsed();
         state.frame_time = end.as_micros();
         state.calculation_time = calculation_end.as_millis();
+        voxel_world.set_stat(& mut state);
     }
 }

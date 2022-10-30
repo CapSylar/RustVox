@@ -9,6 +9,8 @@ pub struct Mesh<T>
     pub vertices: Vec<T>,
     pub indices: Vec<u32>,
     pub vao: Option<VertexArray<T>>,
+
+    num_triangles: usize
 }
 
 impl<T> Mesh<T>
@@ -16,7 +18,7 @@ impl<T> Mesh<T>
 {
     pub fn new() -> Self
     {
-        Self{vertices:Vec::new(),indices:Vec::new(),vao:None}
+        Self{vertices:Vec::new(),indices:Vec::new(),vao:None,num_triangles:0}
     }
 
     /// `Upload Mesh to the GPU`
@@ -62,6 +64,8 @@ impl<T> Mesh<T>
         self.indices.push(p1 as u32);
         self.indices.push(p2 as u32);
         self.indices.push(p3 as u32);
+
+        self.num_triangles += 1;
     }
 
     /// add a quad to the mesh by specifying the index of vertices already added to the mesh
@@ -104,6 +108,16 @@ impl<T> Mesh<T>
     pub fn _size_bytes(&self) -> usize
     {
         self.vertices.len() * size_of::<T>()
+    }
+
+    pub fn get_num_triangles(&self) -> usize
+    {
+        self.num_triangles
+    }
+
+    pub fn get_num_vertices(&self) -> usize
+    {
+        self.vertices.len()
     }
 
 }

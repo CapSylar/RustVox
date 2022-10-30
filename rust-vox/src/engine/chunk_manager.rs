@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time:
 
 use glam::Vec3;
 
-use crate::threadpool::ThreadPool;
+use crate::{threadpool::ThreadPool, Telemetry};
 
 use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_Z, CHUNK_X}, geometry::mesher::CullingMesher};
 
@@ -183,6 +183,27 @@ impl ChunkManager
             // append the mesh to the list of chunks to be loaded
             vec.lock().unwrap().push(chunk);
         });
+    }
+
+    //TODO: refactor
+    /// Gets the number of triangles of the current displayed chunks
+    pub fn set_stat(&self, diagnostic: &mut Telemetry)
+    {
+        let mut num_trigs = 0;
+        let mut num_vertices = 0;
+
+        for chunk in &self.chunks_render
+        {
+            let x = chunk.as_ref().borrow();
+            if let Some(mesh) = x.mesh.as_ref()
+            {
+                num_trigs += mesh.get_num_triangles();
+                num_vertices += mesh.get_num_vertices();
+            }
+        }
+
+        diagnostic.num_triangles = num_trigs;
+        diagnostic.num_vertices = num_vertices;
     }
 
 }

@@ -1,3 +1,5 @@
+use crate::Telemetry;
+
 use super::{eye::Eye, chunk_manager::ChunkManager};
 
 pub struct World
@@ -20,5 +22,11 @@ impl World
     {
         // update the chunks if needed
         self.chunk_manager.update(self.eye.get_position());
+    }
+
+    //TODO: does not belong here
+    pub fn set_stat(&self, diagnostic: &mut Telemetry)
+    {
+        self.chunk_manager.set_stat(diagnostic);
     }
 }
