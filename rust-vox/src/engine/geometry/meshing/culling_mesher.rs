@@ -2,7 +2,7 @@ use glam::{Vec3, Vec2, IVec3};
 
 use crate::engine::{geometry::{voxel::VoxelType, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z}};
 
-use super::chunk_mesher::{Normals, ChunkMesher, VOXEL_SIZE, VOXEL_UVDATA, VOXEL_FACE_VALUES};
+use super::chunk_mesher::{Normals, ChunkMesher, VOXEL_SIZE, VOXEL_FACE_VALUES, UVs};
 
 pub struct CullingMesher;
 
@@ -23,23 +23,16 @@ impl CullingMesher
         let p7 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
         let p8 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + 0.0);
 
-        let uv = VOXEL_UVDATA[voxel_type as usize];
-
-        let uv1 = Vec2::new(0.0 ,0.0);
-        let uv2 = Vec2::new(0.0 ,0.125);
-        let uv3 = Vec2::new(0.125 ,0.125);
-        let uv4 = Vec2::new(0.125 ,0.0);
-
         //TODO: could refactor by defining the vertices for each face, and then iterate
 
        if faces[0] 
         {
             // add the 2 top triangles
             mesh.add_quad(
-                VoxelVertex::new( p5, Normals::Posy as u8,uv.top_face + uv1),
-                VoxelVertex::new( p6, Normals::Posy as u8, uv.top_face + uv2),
-                VoxelVertex::new( p7, Normals::Posy as u8, uv.top_face + uv3),
-                VoxelVertex::new( p8, Normals::Posy as u8, uv.top_face + uv4)
+                VoxelVertex::new( p5, Normals::Posy as u8,UVs::LowerLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p6, Normals::Posy as u8, UVs::UpperLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p7, Normals::Posy as u8, UVs::UpperRight as u8, voxel_type as u8),
+                VoxelVertex::new( p8, Normals::Posy as u8, UVs::LowerRight as u8, voxel_type as u8)
             );
         }
 
@@ -47,10 +40,10 @@ impl CullingMesher
         {
             // add the 2 bottom triangles
             mesh.add_quad(
-                VoxelVertex::new( p3, Normals::Negy as u8, uv.bottom_face + uv3),
-                VoxelVertex::new( p2, Normals::Negy as u8, uv.bottom_face + uv2),
-                VoxelVertex::new( p1, Normals::Negy as u8, uv.bottom_face + uv1),
-                VoxelVertex::new( p4, Normals::Negy as u8, uv.bottom_face + uv4)
+                VoxelVertex::new( p3, Normals::Negy as u8, UVs::LowerLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p2, Normals::Negy as u8, UVs::UpperLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p1, Normals::Negy as u8, UVs::UpperRight as u8, voxel_type as u8),
+                VoxelVertex::new( p4, Normals::Negy as u8, UVs::LowerRight as u8, voxel_type as u8)
             );
         }
         
@@ -58,10 +51,10 @@ impl CullingMesher
         {
             // add the 2 front triangles
             mesh.add_quad(
-                VoxelVertex::new( p1, Normals::Posz as u8, uv.front_face + uv1),
-                VoxelVertex::new( p5, Normals::Posz as u8, uv.front_face + uv2),
-                VoxelVertex::new( p8, Normals::Posz as u8, uv.front_face + uv3),
-                VoxelVertex::new( p4, Normals::Posz as u8, uv.front_face + uv4)
+                VoxelVertex::new( p1, Normals::Posz as u8, UVs::LowerLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p5, Normals::Posz as u8, UVs::UpperLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p8, Normals::Posz as u8, UVs::UpperRight as u8, voxel_type as u8),
+                VoxelVertex::new( p4, Normals::Posz as u8, UVs::LowerRight as u8, voxel_type as u8)
             );
         }
 
@@ -69,10 +62,10 @@ impl CullingMesher
         {
             // add the 2 back triangles
             mesh.add_quad(
-                VoxelVertex::new( p7, Normals::Negz as u8, uv.back_face + uv3),
-                VoxelVertex::new( p6, Normals::Negz as u8, uv.back_face + uv2),
-                VoxelVertex::new( p2, Normals::Negz as u8, uv.back_face + uv1),
-                VoxelVertex::new( p3, Normals::Negz as u8, uv.back_face + uv4)
+                VoxelVertex::new( p7, Normals::Negz as u8, UVs::LowerLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p6, Normals::Negz as u8, UVs::UpperLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p2, Normals::Negz as u8, UVs::UpperRight as u8, voxel_type as u8),
+                VoxelVertex::new( p3, Normals::Negz as u8, UVs::LowerRight as u8, voxel_type as u8)
             );
         }
 
@@ -80,10 +73,10 @@ impl CullingMesher
         {
             // add the 2 right triangles
             mesh.add_quad(
-                VoxelVertex::new( p4, Normals::Posx as u8, uv.right_face + uv1),
-                VoxelVertex::new( p8, Normals::Posx as u8, uv.right_face + uv2),
-                VoxelVertex::new( p7, Normals::Posx as u8, uv.right_face + uv3),
-                VoxelVertex::new( p3, Normals::Posx as u8, uv.right_face + uv4)
+                VoxelVertex::new( p4, Normals::Posx as u8, UVs::LowerLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p8, Normals::Posx as u8, UVs::UpperLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p7, Normals::Posx as u8, UVs::UpperRight as u8, voxel_type as u8),
+                VoxelVertex::new( p3, Normals::Posx as u8, UVs::LowerRight as u8, voxel_type as u8)
             );
         }
 
@@ -91,10 +84,10 @@ impl CullingMesher
         {
             // add the 2 left triangles
             mesh.add_quad(
-                VoxelVertex::new( p6, Normals::Negx as u8, uv.left_face + uv3),
-                VoxelVertex::new( p5, Normals::Negx as u8, uv.left_face + uv2),
-                VoxelVertex::new( p1, Normals::Negx as u8, uv.left_face + uv1),
-                VoxelVertex::new( p2, Normals::Negx as u8, uv.left_face + uv4)
+                VoxelVertex::new( p6, Normals::Negx as u8, UVs::LowerLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p5, Normals::Negx as u8, UVs::UpperLeft as u8, voxel_type as u8),
+                VoxelVertex::new( p1, Normals::Negx as u8, UVs::UpperRight as u8, voxel_type as u8),
+                VoxelVertex::new( p2, Normals::Negx as u8, UVs::LowerRight as u8, voxel_type as u8)
             );
         }
 

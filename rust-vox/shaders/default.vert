@@ -17,14 +17,16 @@ layout (std140, binding = 0) uniform transforms
 };
 
 layout (location = 0) in vec3 pos;
-layout (location = 1) in vec2 in_tex_coord;
-layout (location = 2) in uint normal_index;
+layout (location = 1) in uint tex_coord;
+layout (location = 2) in uint texture_index_in;
+layout (location = 3) in uint normal_index;
 
 uniform vec3 animation_offset;
 
 out vec3 frag_pos_world; // fragment position in world space
 out vec3 frag_pos_view; // fragment position in the camera's view space
-out vec2 tex_coord;
+out uint texture_index;
+out vec2 texture_uv; // needs to be vec2 so that interpolation is enabled
 out vec3 normal;
 
 void main()
@@ -36,7 +38,12 @@ void main()
     
     gl_Position = perspective * pos_view ;
 
-    tex_coord = in_tex_coord;
+    texture_index = texture_index_in;
+    // unpack tex_coord into vec2
+
+    // TODO: why does the second bit manip not work ?
+    texture_uv = vec2(tex_coord & 0x1, (tex_coord & 0x2) == 2 ? 1 : 0 );
+
     vec3 normal_vec = normal_lut[normal_index];
     normal = normal_vec;
 }

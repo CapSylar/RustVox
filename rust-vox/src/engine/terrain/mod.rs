@@ -53,7 +53,7 @@ impl TerrainGenerator for PerlinGenerator
 
         if y >= 20
         {
-            voxel.set_type(VoxelType::Grass);
+            voxel.set_type(VoxelType::Dirt);
         }
         else  // first 20 blocks are bedrock
         {

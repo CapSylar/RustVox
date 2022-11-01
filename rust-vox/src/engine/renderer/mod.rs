@@ -1,6 +1,7 @@
 use std::{ffi::{c_void, CStr}, mem::size_of};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
+use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
 use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
@@ -14,7 +15,6 @@ pub struct Renderer
     shadow_fb: u32,
     default_shader : Shader,
     shadow_shader : Shader,
-    _atlas_texture: u32,
     sun_direction: Vec3,
     sky: Sky,
     sky_rend : SkyRenderer,
@@ -44,30 +44,59 @@ impl Renderer
             gl::BindBufferBase(gl::UNIFORM_BUFFER,0,trans_ubo);
             gl::BindBuffer(gl::UNIFORM_BUFFER,0);
 
-            let mut atlas_texture = 0;        
-            // load texture atlas
-            let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
-            let width = img.width();
-            let height = img.height();
-            let data = img.as_bytes();
+            // TODO: this does not belong here
+            // Load the Voxel Textures
 
-            gl::GenTextures(1, &mut atlas_texture);
+            let tex_width = 64;
+            let tex_height = 64;
+            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv();
+            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv();
+
+            let sand = sand.into_rgba8();
+            let dirt = dirt.into_rgba8();
+
+            let layer_count = 2; // only dirt and grass for now
+            let mut texture_array = 0;
+            gl::GenTextures(1, &mut texture_array);
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture_array);
+            gl::TexStorage3D(gl::TEXTURE_2D_ARRAY, 5, gl::RGBA8, tex_width, tex_height, layer_count);
+            // upload one texture at a time
+            gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 0, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, dirt.as_bytes().as_ptr().cast());
+            gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 1, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, sand.as_bytes().as_ptr().cast());
+
+            gl::GenerateMipmap(gl::TEXTURE_2D_ARRAY);
+
+            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
+            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
+            gl::TexParameteri(gl::TEXTURE_2D_ARRAY, gl::TEXTURE_MIN_FILTER, gl::NEAREST_MIPMAP_LINEAR as _ );
+            gl::TexParameteri(gl::TEXTURE_2D_ARRAY ,gl::TEXTURE_MAG_FILTER, gl::NEAREST as _ );
+
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY,0); // unbind
+
+            // let mut atlas_texture = 0;        
+            // // load texture atlas
+            // let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
+            // let width = img.width();
+            // let height = img.height();
+            // let data = img.as_bytes();
+
+            // gl::GenTextures(1, &mut atlas_texture);
             
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, atlas_texture);
+            // gl::ActiveTexture(gl::TEXTURE0);
+            // gl::BindTexture(gl::TEXTURE_2D, atlas_texture);
 
-            gl::TexStorage2D(gl::TEXTURE_2D, 5, gl::RGBA8, width.try_into().unwrap(), height.try_into().unwrap());
-            gl::TexSubImage2D(gl::TEXTURE_2D, 0, 0, 0, width.try_into().unwrap(), height.try_into().unwrap(), gl::RGBA, gl::UNSIGNED_BYTE, data.as_ptr().cast());
+            // gl::TexStorage2D(gl::TEXTURE_2D, 5, gl::RGBA8, width.try_into().unwrap(), height.try_into().unwrap());
+            // gl::TexSubImage2D(gl::TEXTURE_2D, 0, 0, 0, width.try_into().unwrap(), height.try_into().unwrap(), gl::RGBA, gl::UNSIGNED_BYTE, data.as_ptr().cast());
 
-            gl::GenerateMipmap(gl::TEXTURE_2D);
+            // gl::GenerateMipmap(gl::TEXTURE_2D);
 
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST_MIPMAP_LINEAR as _ );
-            gl::TexParameteri(gl::TEXTURE_2D ,gl::TEXTURE_MAG_FILTER, gl::NEAREST as _ );
+            // gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
+            // gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
+            // gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST_MIPMAP_LINEAR as _ );
+            // gl::TexParameteri(gl::TEXTURE_2D ,gl::TEXTURE_MAG_FILTER, gl::NEAREST as _ );
 
-            gl::BindVertexArray(0); // unbind VAO
-            gl::BindBuffer(gl::ARRAY_BUFFER , 0); // unbind currently bound buffer
+            // gl::BindVertexArray(0); // unbind VAO
+            // gl::BindBuffer(gl::ARRAY_BUFFER , 0); // unbind currently bound buffer
 
             // load the program
 
@@ -99,9 +128,12 @@ impl Renderer
             gl::ActiveTexture(gl::TEXTURE1);
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, csm.get_depth_texture_id());
 
+            gl::ActiveTexture(gl::TEXTURE0);
+            gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture_array);
+
             let sky_rend = SkyRenderer::new();
             
-            Self { trans_ubo, default_shader , shadow_shader , _atlas_texture: atlas_texture , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new()}
+            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new()}
         }
     }
 
@@ -148,7 +180,7 @@ impl Renderer
 
             self.default_shader.set_uniform1i("render_csm", if sun_present {1} else {0}).expect("error setting the sun present uniform");
             self.default_shader.set_uniform3fv("light_dir", &self.sun_direction).expect("error setting the light direction uniform");
-            self.default_shader.set_uniform1i("texture_atlas", 0).expect("error binding texture altlas");
+            self.default_shader.set_uniform1i("voxel_textures", 0).expect("error binding texture altlas");
             self.default_shader.set_uniform1i("shadow_map", 1).expect("error setting the shadow_map array textures");
 
             // FIXME: setting the constant uniforms at every draw ?

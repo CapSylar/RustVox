@@ -1,7 +1,7 @@
 #[derive(Clone,Copy)]
 pub enum VoxelType
 {
-    Grass,
+    Dirt,
     Sand,
 }
 
@@ -21,7 +21,7 @@ impl Voxel
 
     pub fn new_default() -> Voxel
     {
-        Voxel { voxel_type: VoxelType::Grass, is_filled: true }
+        Voxel { voxel_type: VoxelType::Dirt, is_filled: true }
     }
 
     pub fn set_filled(&mut self, filled: bool) { self.is_filled = filled; }

@@ -14,6 +14,7 @@
 - [X] Move view and perspective transforms to a Uniform Buffer Object
 - [X] Figure out a dynamic way of specifying a "Vertex" for a Buffer
 - [X] Add a trait for all types of vertex, directly specifying the data layout inside the vertex type
+- [X] Optimize chunk meshing, implement greedy meshing
 - [] Optimize chunk generation speed
 - [] Optimize chunk storage space
 

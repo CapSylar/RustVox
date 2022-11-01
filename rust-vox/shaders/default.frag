@@ -4,10 +4,11 @@ out vec4 color;
 
 in vec3 frag_pos_world;
 in vec3 frag_pos_view;
-in vec2 tex_coord;
+in vec2 texture_uv;
+flat in uint texture_index;
 in vec3 normal;
 
-uniform sampler2D texture_atlas;
+uniform sampler2DArray voxel_textures;
 uniform sampler2DArray shadow_map;
 
 uniform int render_csm; // controls whether or not the shadows are rendered
@@ -130,7 +131,7 @@ void main()
     // for now, being in shadow just means the texture's albedo colors get a bit darker
 
     float ambient = 0.5;
-    vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(texture_atlas, tex_coord);
+    vec4 albedo = (ambient + (1.0 - shadow) * diffuse ) * texture(voxel_textures, vec3 (texture_uv,texture_index) );
     float fog_intensity =  fog_intensity(linearize_depth(gl_FragCoord.z) / far);
     color = albedo ; //fog_intensity * clear_color + (1-fog_intensity) * albedo;
 }
