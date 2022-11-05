@@ -49,8 +49,8 @@ impl Renderer
 
             let tex_width = 64;
             let tex_height = 64;
-            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv();
-            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv();
+            let dirt = image::open("rust-vox/textures/jigsaw_side.png").unwrap().flipv();
+            let sand = image::open("rust-vox/textures/jigsaw_side.png").unwrap().flipv();
 
             let sand = sand.into_rgba8();
             let dirt = dirt.into_rgba8();
@@ -73,33 +73,7 @@ impl Renderer
 
             gl::BindTexture(gl::TEXTURE_2D_ARRAY,0); // unbind
 
-            // let mut atlas_texture = 0;        
-            // // load texture atlas
-            // let img = image::open("rust-vox/textures/atlas.png").unwrap().flipv();
-            // let width = img.width();
-            // let height = img.height();
-            // let data = img.as_bytes();
-
-            // gl::GenTextures(1, &mut atlas_texture);
-            
-            // gl::ActiveTexture(gl::TEXTURE0);
-            // gl::BindTexture(gl::TEXTURE_2D, atlas_texture);
-
-            // gl::TexStorage2D(gl::TEXTURE_2D, 5, gl::RGBA8, width.try_into().unwrap(), height.try_into().unwrap());
-            // gl::TexSubImage2D(gl::TEXTURE_2D, 0, 0, 0, width.try_into().unwrap(), height.try_into().unwrap(), gl::RGBA, gl::UNSIGNED_BYTE, data.as_ptr().cast());
-
-            // gl::GenerateMipmap(gl::TEXTURE_2D);
-
-            // gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as _ );
-            // gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as _ );
-            // gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST_MIPMAP_LINEAR as _ );
-            // gl::TexParameteri(gl::TEXTURE_2D ,gl::TEXTURE_MAG_FILTER, gl::NEAREST as _ );
-
-            // gl::BindVertexArray(0); // unbind VAO
-            // gl::BindBuffer(gl::ARRAY_BUFFER , 0); // unbind currently bound buffer
-
             // load the program
-
             let default_shader = Shader::new_from_vs_fs("rust-vox/shaders/default.vert",
              "rust-vox/shaders/default.frag" ).expect("Shader Error");
             

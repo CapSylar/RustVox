@@ -35,7 +35,7 @@ pub mod sky_state
             const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0])]},
     ];
 
-
+    #[derive(Copy,Clone)]
     enum DayNightPhase
     {
         SunRise,

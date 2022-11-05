@@ -51,7 +51,7 @@ impl TerrainGenerator for PerlinGenerator
 
         voxel.set_filled(true);
 
-        if y >= 20
+        if y >= 15
         {
             voxel.set_type(VoxelType::Dirt);
         }

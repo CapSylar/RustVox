@@ -11,16 +11,17 @@ use super::opengl_vertex::OpenglVertex;
 pub struct VoxelVertex
 {
     position: Vec3, // X, Y, Z
-    texture_uv: u8, // U, V 0 => (0,0) 1 =>(1,0) 2 => (0,1) 3 => (1,1)
+    texture_u: u8, // U
+    texture_v: u8, // V
     texture_index: u8, // what texture to display
     normal_index : u8, // byte index into a normal LUT in the shader, 6 possible normal vectors
 }
 
 impl VoxelVertex
 {
-    pub fn new( position: Vec3 , normal_index : u8 , texture_uv: u8, texture_index: u8 ) -> Self
+    pub fn new( position: Vec3 , normal_index : u8 , texture_uv: (u8,u8), texture_index: u8 ) -> Self
     {
-        Self { position , texture_uv, normal_index, texture_index }
+        Self { position , texture_u: texture_uv.0, texture_v: texture_uv.1, normal_index, texture_index }
     }
 }
 
@@ -31,7 +32,8 @@ impl OpenglVertex for VoxelVertex
         let mut vertex_layout = VertexLayout::new();
 
         vertex_layout.push_f32(3); // vertex(x,y,z)
-        vertex_layout.push_u8(1); // texture UVs
+        vertex_layout.push_u8(1); // texture U
+        vertex_layout.push_u8(1); // texture V
         vertex_layout.push_u8(1); // texture index
         vertex_layout.push_u8(1); // Normal Index
 

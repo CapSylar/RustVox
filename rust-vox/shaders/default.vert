@@ -17,9 +17,10 @@ layout (std140, binding = 0) uniform transforms
 };
 
 layout (location = 0) in vec3 pos;
-layout (location = 1) in uint tex_coord;
-layout (location = 2) in uint texture_index_in;
-layout (location = 3) in uint normal_index;
+layout (location = 1) in uint tex_coord_u;
+layout (location = 2) in uint tex_coord_v;
+layout (location = 3) in uint texture_index_in;
+layout (location = 4) in uint normal_index;
 
 uniform vec3 animation_offset;
 
@@ -39,10 +40,9 @@ void main()
     gl_Position = perspective * pos_view ;
 
     texture_index = texture_index_in;
-    // unpack tex_coord into vec2
 
     // TODO: why does the second bit manip not work ?
-    texture_uv = vec2(tex_coord & 0x1, (tex_coord & 0x2) == 2 ? 1 : 0 );
+    texture_uv = vec2(tex_coord_u,tex_coord_v);
 
     vec3 normal_vec = normal_lut[normal_index];
     normal = normal_vec;
