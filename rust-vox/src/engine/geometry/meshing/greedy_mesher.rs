@@ -9,7 +9,7 @@ pub struct GreedyMesher;
 impl GreedyMesher
 {
     //TODO: this is a mess
-    fn add_quad(mesh: &mut Mesh<VoxelVertex>, face:(u8,VoxelType), x_dir: usize , y_dir: usize, lower_left:IVec3, upper_left: IVec3, upper_right:IVec3, lower_right:IVec3)
+    fn add_quad(mesh: &mut Mesh<VoxelVertex>, face:(u8,VoxelType), x_dir: usize , y_dir: usize, lower_left:Vec3, upper_left: Vec3, upper_right:Vec3, lower_right:Vec3)
     {
         let texture_index = face.1 as u8;
 
@@ -36,10 +36,10 @@ impl GreedyMesher
             upper_right_uv = (x,y);
         }
 
-        let lower_left = VoxelVertex::new(lower_left.as_vec3() * VOXEL_SIZE,0,lower_left_uv, texture_index);
-        let upper_left =  VoxelVertex::new(upper_left.as_vec3() * VOXEL_SIZE,0,upper_left_uv, texture_index);
-        let upper_right = VoxelVertex::new(upper_right.as_vec3() * VOXEL_SIZE,0,upper_right_uv, texture_index);
-        let lower_right = VoxelVertex::new(lower_right.as_vec3() * VOXEL_SIZE,0,lower_right_uv, texture_index);
+        let lower_left = VoxelVertex::new(lower_left * VOXEL_SIZE,0,lower_left_uv, texture_index);
+        let upper_left =  VoxelVertex::new(upper_left * VOXEL_SIZE,0,upper_left_uv, texture_index);
+        let upper_right = VoxelVertex::new(upper_right * VOXEL_SIZE,0,upper_right_uv, texture_index);
+        let lower_right = VoxelVertex::new(lower_right * VOXEL_SIZE,0,lower_right_uv, texture_index);
 
         if face.0 == 1
         {
@@ -62,15 +62,9 @@ impl ChunkMesher for GreedyMesher
         for current_dir in 0usize..3 // 0 is X, 1 is Y, 2 is Z
         {
             let mut current_pos: [i32;3] = [0,0,0]; // X,Y,Z
-
-            // let n_dir = if current_dir != 1 {1} else {0}; // normally go into across Y, else across X
             
             let n_dir = (current_dir+1) % 3;
             let nn_dir = (current_dir+2) % 3;
-            // let nn_dir = if n_dir == 0 || current_dir == 0 {2} else {0};
-            // let reverse_w = (n_dir+1)%3 != nn_dir; //TODO: document
-
-            println!("current_dir: {}, n_dir: {}, nn_dir: {}", current_dir , n_dir ,  nn_dir);
 
             //TODO: better documentation
             // mask coverting every voxel in the direction we are traversing, as if we took a knife and cut through the chunk perpendicular to the direction
@@ -131,19 +125,6 @@ impl ChunkMesher for GreedyMesher
                 // Step 2: use the mask and iterate over every block in this slice of the chunk
                 // print the mask
 
-                // println!("Slice index: {}", slice);
-                // for i in 0..CHUNK_SIZE[n_dir]
-                // {
-                //     let mut x: String = String::new();
-
-                //     for j in 0..CHUNK_SIZE[nn_dir]
-                //     {
-                //         x += &format!("{} ",mask[i*n_dir + j].0);
-                //     }
-
-                //     println!("{}", x);
-                // }
-
                 // iterate over the faces of the slice
                 let mut mask_index = 0;
                 for j in 0..CHUNK_SIZE[n_dir]
@@ -187,16 +168,15 @@ impl ChunkMesher for GreedyMesher
 
                             let mut du: [i32;3] = [0,0,0];
                             du[nn_dir] = width as i32;
-                            // if reverse_w {du[nn_dir] = -du[nn_dir];}
 
                             let mut dv: [i32;3] = [0,0,0];
                             dv[n_dir] = height as i32;
 
                             // append the quad
-                            let upper_left = IVec3::new(current_pos[0] + dv[0],current_pos[1] + dv[1],current_pos[2] + dv[2]);
-                            let lower_left = IVec3::new(current_pos[0],current_pos[1],current_pos[2]);
-                            let lower_right = IVec3::new(current_pos[0] + du[0],current_pos[1] + du[1],current_pos[2] + du[2]);
-                            let upper_right = IVec3::new(current_pos[0] + du[0] + dv[0],current_pos[1] + du[1] + dv[1],current_pos[2] + du[2] + dv[2]);
+                            let upper_left = IVec3::new(current_pos[0] + dv[0],current_pos[1] + dv[1],current_pos[2] + dv[2]).as_vec3() + chunk.pos_world_space();
+                            let lower_left = IVec3::new(current_pos[0],current_pos[1],current_pos[2]).as_vec3() + chunk.pos_world_space();
+                            let lower_right = IVec3::new(current_pos[0] + du[0],current_pos[1] + du[1],current_pos[2] + du[2]).as_vec3() + chunk.pos_world_space();
+                            let upper_right = IVec3::new(current_pos[0] + du[0] + dv[0],current_pos[1] + du[1] + dv[1],current_pos[2] + du[2] + dv[2]).as_vec3() + chunk.pos_world_space();
 
                             GreedyMesher::add_quad(&mut mesh, face_direction, nn_dir, n_dir, lower_left, upper_left, upper_right, lower_right);
 

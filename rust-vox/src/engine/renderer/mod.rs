@@ -49,8 +49,8 @@ impl Renderer
 
             let tex_width = 64;
             let tex_height = 64;
-            let dirt = image::open("rust-vox/textures/jigsaw_side.png").unwrap().flipv();
-            let sand = image::open("rust-vox/textures/jigsaw_side.png").unwrap().flipv();
+            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv();
+            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv();
 
             let sand = sand.into_rgba8();
             let dirt = dirt.into_rgba8();
