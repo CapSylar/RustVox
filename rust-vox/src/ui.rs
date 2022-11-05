@@ -1,5 +1,14 @@
+use glam::Vec3;
 use imgui::{Condition, FontSource, Context, FontId};
-use crate::Telemetry;
+
+pub struct Telemetry {
+    pub player_pos: Vec3,       // player position in absolute coordinates
+    pub front: Vec3,          // front vector
+    pub calculation_time: u128, // same as frame_time, but without waiting for the framebuffer swap
+    pub frame_time: u128,       // should be 16ms on 60 Hz refresh rate
+    pub num_triangles: usize,   // number of triangles on screen coming from chunks
+    pub num_vertices: usize,    // number of vertices on screen coming from chunks
+}
 
 pub struct Ui
 {

@@ -12,5 +12,13 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("fib 20", |b| b.iter(|| fibonacci(black_box(20))));
 }
 
+fn benchmark_greedy_mesher(c: &mut Criterion)
+{
+    // let generator = PerlinGenerator::new();
+
+    // c.bench_function("meshing 20", |b| b.iter( || ));
+}
+
+
 criterion_group!(benches, criterion_benchmark);
 criterion_main!(benches);

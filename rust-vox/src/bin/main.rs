@@ -2,6 +2,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use __core::f32::consts::PI;
+use engine::{Telemetry, world::World, eye::Eye, Renderer};
 use glam::Vec3;
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
@@ -11,26 +12,8 @@ use sdl2::{
     video::{GLProfile, SwapInterval},
 };
 
-#[macro_use]
-extern crate lazy_static;
-
-mod engine;
-mod threadpool;
-mod ui;
-
-use engine::{eye::Eye, renderer::Renderer, world::World};
-
 use std::time::Instant;
 static MOUSE_SENSITIVITY: f32 = 0.05;
-
-pub struct Telemetry {
-    player_pos: Vec3,       // player position in absolute coordinates
-    front: Vec3,          // front vector
-    calculation_time: u128, // same as frame_time, but without waiting for the framebuffer swap
-    frame_time: u128,       // should be 16ms on 60 Hz refresh rate
-    num_triangles: usize,   // number of triangles on screen coming from chunks
-    num_vertices: usize,    // number of vertices on screen coming from chunks
-}
 
 //TODO: refactor main
 fn main() {
@@ -72,7 +55,7 @@ fn main() {
     imgui.set_log_filename(None);
 
     // setup platform and renderer, and fonts to imgui
-    let ui_renderer = ui::Ui::new(&mut imgui);
+    let ui_renderer = engine::Ui::new(&mut imgui);
 
     let mut platform = SdlPlatform::init(&mut imgui);
     let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
@@ -96,7 +79,7 @@ fn main() {
         1920.0 / 1080.0,
         0.1,
         500.0,
-        Vec3::new(-60.0, 60.0, 5.0),
+        Vec3::new(0.0, 60.0, 0.0),
         Vec3::new(1.0, 0.3, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         1.0,

@@ -3,6 +3,10 @@ name = "rust-vox"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "engine"
+path = "src/lib.rs"
+
 [dependencies]
 sdl2 = "*"
 image = "0.24.2"

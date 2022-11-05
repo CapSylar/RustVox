@@ -131,7 +131,7 @@ impl ChunkMesher for CullingMesher
                             }
                         }
 
-                        CullingMesher::append_voxel_mesh_faces( chunk.voxels[x][y][z].voxel_type,
+                        CullingMesher::append_voxel_mesh_faces(chunk.voxels[x][y][z].voxel_type,
                             &faces_to_render,
                             chunk.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
                             &mut mesh);

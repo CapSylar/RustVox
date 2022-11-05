@@ -1,4 +1,4 @@
-use crate::Telemetry;
+use crate::ui::Telemetry;
 
 use super::{eye::Eye, chunk_manager::ChunkManager};
 

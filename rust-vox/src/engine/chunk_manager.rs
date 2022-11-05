@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use glam::Vec3;
-use crate::{threadpool::ThreadPool, Telemetry};
+use crate::{threadpool::ThreadPool, ui::Telemetry};
 use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}};
 
 // length are in chunks
@@ -41,7 +41,7 @@ pub struct ChunkManager
 }
 
 impl ChunkManager
-{   
+{
     pub fn new( theadcount: usize ) -> Self
     {
         // create the fields
@@ -182,10 +182,9 @@ impl ChunkManager
         self.threadpool.execute( move ||
         {
             let mut chunk = Chunk::new(pos_x,pos_y,pos_z, generator);
-            chunk.generate_mesh::<CullingMesher>();
+            chunk.generate_mesh::<GreedyMesher>();
             // append the mesh to the list of chunks to be loaded
             vec.lock().unwrap().push(chunk);
-            println!("chunk done");
         });
     }
 
