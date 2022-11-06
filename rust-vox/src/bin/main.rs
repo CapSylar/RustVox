@@ -1,8 +1,8 @@
 #![warn(clippy::all)]
 #![allow(clippy::too_many_arguments)]
 
-use __core::f32::consts::PI;
-use engine::{Telemetry, world::World, eye::Eye, Renderer};
+use __core::{f32::consts::PI, fmt::Debug};
+use engine::{DebugData, world::World, eye::Eye, Renderer};
 use glam::Vec3;
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
@@ -65,14 +65,7 @@ fn main() {
 
     sdl.mouse().set_relative_mouse_mode(false);
 
-    let mut state = Telemetry {
-        player_pos: Vec3::ZERO,
-        front: Vec3::ZERO,
-        frame_time: 0,
-        calculation_time: 0,
-        num_triangles: 0,
-        num_vertices: 0,
-    };
+    let mut state = DebugData::default();
 
     let mut voxel_world = World::new(Eye::new(
         PI / 4.0,
@@ -154,6 +147,11 @@ fn main() {
         world_renderer.draw_world(&voxel_world);
         let calculation_end = calculation_start.elapsed();
 
+        let end = start.elapsed();
+        state.frame_time = end.as_micros();
+        state.add_calculation_time(calculation_end.as_secs_f32());
+        voxel_world.set_stat(& mut state);
+
         // render the UI
         platform.prepare_frame(&mut imgui, &window, &event_pump);
 
@@ -161,10 +159,5 @@ fn main() {
             ui_renderer.build_ui(ui, &mut state);
         });
         window.gl_swap_window();
-
-        let end = start.elapsed();
-        state.frame_time = end.as_micros();
-        state.calculation_time = calculation_end.as_millis();
-        voxel_world.set_stat(& mut state);
     }
 }

@@ -1,3 +1,6 @@
+use std::mem::{size_of, self};
+
+use gl::VertexArrayElementBuffer;
 use glam::{Vec3};
 
 use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher}};
@@ -93,5 +96,11 @@ impl Chunk
     pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_SIZE_X as i32 ) as f32 ,
              (self.pos.y as i32 *CHUNK_SIZE_Y as i32 ) as f32 ,
                  (self.pos.z as i32 * CHUNK_SIZE_Z as i32 ) as f32 ) }
+
+    /// Returns the size in bytes on the chunk, the size of the mesh is excluded
+    pub fn get_size_bytes(&self) -> usize
+    {
+        CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z * mem::size_of::<Voxel>()
+    }
 
 }

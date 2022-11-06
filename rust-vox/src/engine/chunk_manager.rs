@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use glam::Vec3;
-use crate::{threadpool::ThreadPool, ui::Telemetry};
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}};
+use crate::{threadpool::ThreadPool, ui::DebugData};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X, self}, geometry::meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
@@ -190,10 +190,11 @@ impl ChunkManager
 
     //TODO: refactor
     /// Gets the number of triangles of the current displayed chunks
-    pub fn set_stat(&self, diagnostic: &mut Telemetry)
+    pub fn set_stat(&self, diagnostic: &mut DebugData)
     {
         let mut num_trigs = 0;
         let mut num_vertices = 0;
+        let mut chunk_sizes = 0;
 
         for chunk in &self.chunks_render
         {
@@ -203,10 +204,13 @@ impl ChunkManager
                 num_trigs += mesh.get_num_triangles();
                 num_vertices += mesh.get_num_vertices();
             }
+
+            chunk_sizes += x.get_size_bytes();
         }
 
         diagnostic.num_triangles = num_trigs;
         diagnostic.num_vertices = num_vertices;
+        diagnostic.chunk_size_bytes = chunk_sizes;
     }
 
 }
