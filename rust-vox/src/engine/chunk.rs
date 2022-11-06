@@ -2,11 +2,11 @@ use glam::{Vec3};
 
 use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher}};
 
-pub const CHUNK_SIZE_X : usize = 20;
+pub const CHUNK_SIZE_X : usize = 20; // Should be equal to Z
 pub const CHUNK_SIZE_Y : usize = 100;
 pub const CHUNK_SIZE_Z : usize = 20;
 
-pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_Z];
+pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_X];
 
 pub struct Chunk
 {

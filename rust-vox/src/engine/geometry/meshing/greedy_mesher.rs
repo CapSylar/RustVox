@@ -1,23 +1,23 @@
-use std::{thread::current, num::NonZeroI128, string, f32::consts::E, mem::swap};
-
-use glam::{Vec2, Vec3, IVec3};
-use crate::engine::{chunk::{Chunk, CHUNK_SIZE}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, opengl_vertex::OpenglVertex, voxel::{VoxelType, Voxel, self}}};
-use super::chunk_mesher::{ChunkMesher, VOXEL_SIZE, UVs};
+use glam::{Vec3, IVec3};
+use crate::engine::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, opengl_vertex::OpenglVertex, voxel::{VoxelType, Voxel, self}}};
+use super::chunk_mesher::{ChunkMesher, VOXEL_SIZE, Direction};
 
 pub struct GreedyMesher;
 
 impl GreedyMesher
 {
     //TODO: this is a mess
-    fn add_quad(mesh: &mut Mesh<VoxelVertex>, face:(u8,VoxelType), x_dir: usize , y_dir: usize, lower_left:Vec3, upper_left: Vec3, upper_right:Vec3, lower_right:Vec3)
+    fn add_quad(mesh: &mut Mesh<VoxelVertex>, face: SliceFace, current_dir: usize, x_dir: usize , y_dir: usize, lower_left:Vec3, upper_left: Vec3, upper_right:Vec3, lower_right:Vec3)
     {
-        let texture_index = face.1 as u8;
+        let mut current_dir = Direction::from_index(current_dir);
+        if face.face_state == FaceState::OppositeDirection {current_dir = current_dir.opposite();} // reverse direction if face is actually facing the opposite direction
 
         let lower_left_uv: (u8,u8);
         let upper_left_uv: (u8,u8);
         let upper_right_uv: (u8,u8);
         let lower_right_uv: (u8,u8);
 
+        // get in the number of voxels that span in the U direction, same for the V direction
         let x = (lower_right[x_dir] - lower_left[x_dir]).abs() as u8;
         let y = (upper_right[y_dir] - lower_right[y_dir]).abs() as u8;
 
@@ -36,12 +36,12 @@ impl GreedyMesher
             upper_right_uv = (x,y);
         }
 
-        let lower_left = VoxelVertex::new(lower_left * VOXEL_SIZE,0,lower_left_uv, texture_index);
-        let upper_left =  VoxelVertex::new(upper_left * VOXEL_SIZE,0,upper_left_uv, texture_index);
-        let upper_right = VoxelVertex::new(upper_right * VOXEL_SIZE,0,upper_right_uv, texture_index);
-        let lower_right = VoxelVertex::new(lower_right * VOXEL_SIZE,0,lower_right_uv, texture_index);
+        let lower_left = VoxelVertex::new(lower_left * VOXEL_SIZE,current_dir,lower_left_uv, face.voxel_type);
+        let upper_left =  VoxelVertex::new(upper_left * VOXEL_SIZE,current_dir,upper_left_uv, face.voxel_type);
+        let upper_right = VoxelVertex::new(upper_right * VOXEL_SIZE,current_dir,upper_right_uv, face.voxel_type);
+        let lower_right = VoxelVertex::new(lower_right * VOXEL_SIZE,current_dir,lower_right_uv, face.voxel_type);
 
-        if face.0 == 1
+        if face.face_state == FaceState::CurrentDirection
         {
             mesh.add_quad(lower_left, upper_left, upper_right, lower_right);
         }
@@ -52,6 +52,21 @@ impl GreedyMesher
     }
 }
 
+#[derive(Clone,Copy,PartialOrd,PartialEq)]
+enum FaceState
+{
+    NotPresent, // face is not present because it is culled, present between two voxels that are not Air
+    CurrentDirection, // facing us in the current direction
+    OppositeDirection, // not facing us in the current direction
+}
+
+#[derive(Clone,Copy,PartialEq,PartialOrd)]
+struct SliceFace
+{
+    pub face_state: FaceState,
+    pub voxel_type: VoxelType,
+}
+
 impl ChunkMesher for GreedyMesher
 {
     fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>
@@ -59,18 +74,20 @@ impl ChunkMesher for GreedyMesher
         let mut mesh = Mesh::new();
         // sweep over each axis separately (X,Y,Z)
 
+        //TODO: better documentation
+        // mask coverting every voxel in the direction we are traversing, as if we took a knife and cut through the chunk perpendicular to the direction
+        // we are traversing, every voxel in the cut has an entry
+
+        // reserve the maximum number that we can use, so for the largest 2 dimensions
+        let mut mask = [SliceFace{face_state:FaceState::NotPresent,voxel_type:VoxelType::Dirt}; CHUNK_SIZE_X * CHUNK_SIZE_Y];
+
         for current_dir in 0usize..3 // 0 is X, 1 is Y, 2 is Z
         {
             let mut current_pos: [i32;3] = [0,0,0]; // X,Y,Z
             
             let n_dir = (current_dir+1) % 3;
             let nn_dir = (current_dir+2) % 3;
-
-            //TODO: better documentation
-            // mask coverting every voxel in the direction we are traversing, as if we took a knife and cut through the chunk perpendicular to the direction
-            // we are traversing, every voxel in the cut has an entry
-
-            let mut mask = vec![(0u8,VoxelType::Dirt);CHUNK_SIZE[n_dir] * CHUNK_SIZE[nn_dir]];
+            
             let mut offset : [i32;3] = [0,0,0];
             offset[current_dir] = 1;
 
@@ -105,15 +122,15 @@ impl ChunkMesher for GreedyMesher
                         
                         if current_opaque.0 == next_opaque.0
                         {
-                            mask[mask_index].0 = 0;
+                            mask[mask_index].face_state = FaceState::NotPresent;
                         }
                         else if !current_opaque.0 && next_opaque.0
                         {
-                            mask[mask_index] = (1,next_opaque.1); // quad is facing us in the current direction
+                            mask[mask_index] = SliceFace{face_state:FaceState::CurrentDirection, voxel_type:next_opaque.1}; // quad is facing us in the current direction
                         }
                         else
                         {
-                            mask[mask_index] = (2,current_opaque.1); // quad is facing the opposite direction
+                            mask[mask_index] = SliceFace{face_state:FaceState::OppositeDirection,voxel_type:current_opaque.1}; // quad is facing the opposite direction
                         }
 
                         mask_index += 1;
@@ -132,13 +149,13 @@ impl ChunkMesher for GreedyMesher
                     let mut i = 0;
                     while i < CHUNK_SIZE[nn_dir]
                     {
-                        if mask[mask_index].0 != 0 // if current face is visible
+                        if mask[mask_index].face_state !=  FaceState::NotPresent// if current face is visible
                         {
-                            let face_direction = mask[mask_index];
+                            let reference_face = mask[mask_index]; // all faces that will be merged into a single large quad are identical to this reference face
                             // search along the current axis until mask[mask_index + w] is false, we are searching the quad with height 1 and the largest possible width
 
                             let mut width = 1;
-                            while (i + width) < CHUNK_SIZE[nn_dir] && mask[mask_index+width] == face_direction // they must also be of the same type
+                            while (i + width) < CHUNK_SIZE[nn_dir] && mask[mask_index+width] == reference_face // they must also be of the same type
                             {
                                 width += 1;
                             }
@@ -151,7 +168,7 @@ impl ChunkMesher for GreedyMesher
                                 // for each height, loop over all the faces in the width making sure there are no holes
                                 for w in 0..width
                                 {
-                                    if mask[mask_index + w + height * CHUNK_SIZE[nn_dir]] != face_direction // carefull
+                                    if mask[mask_index + w + height * CHUNK_SIZE[nn_dir]] != reference_face // carefull
                                     {
                                         break 'outer;
                                     }
@@ -178,14 +195,14 @@ impl ChunkMesher for GreedyMesher
                             let lower_right = IVec3::new(current_pos[0] + du[0],current_pos[1] + du[1],current_pos[2] + du[2]).as_vec3() + chunk.pos_world_space();
                             let upper_right = IVec3::new(current_pos[0] + du[0] + dv[0],current_pos[1] + du[1] + dv[1],current_pos[2] + du[2] + dv[2]).as_vec3() + chunk.pos_world_space();
 
-                            GreedyMesher::add_quad(&mut mesh, face_direction, nn_dir, n_dir, lower_left, upper_left, upper_right, lower_right);
+                            GreedyMesher::add_quad(&mut mesh, reference_face, current_dir, nn_dir, n_dir, lower_left, upper_left, upper_right, lower_right);
 
                             // clear the mask for each face that was used
                             for w in 0..width
                             {
                                 for h in 0..height
                                 {
-                                    mask[mask_index + w + h * CHUNK_SIZE[nn_dir]].0 = 0; // careful
+                                    mask[mask_index + w + h * CHUNK_SIZE[nn_dir]].face_state = FaceState::NotPresent; // careful
                                 }
                             }
 

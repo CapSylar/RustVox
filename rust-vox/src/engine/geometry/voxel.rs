@@ -1,4 +1,4 @@
-#[derive(Clone,Copy,Eq, PartialEq)]
+#[derive(Clone,Copy,PartialOrd, PartialEq)]
 pub enum VoxelType
 {
     Dirt,

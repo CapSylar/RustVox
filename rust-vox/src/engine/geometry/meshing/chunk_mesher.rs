@@ -1,5 +1,4 @@
-use glam::{Vec2, const_vec2};
-use crate::engine::{chunk::{CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z, Chunk}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
+use crate::engine::{chunk::{Chunk}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
 
 pub trait ChunkMesher
 {
@@ -19,9 +18,32 @@ pub const VOXEL_FACE_VALUES : [(i32,i32,i32);6] =
     (-1,0,0)
 ];
     
-pub enum Normals
+#[derive(Clone, Copy)]
+pub enum Direction // order is important, since the indices are used to index the normal table in the shader
 {
-    Posy,Negy,Posz,Negz,Posx,Negx
+    Posx,Posy,Posz,Negx,Negy,Negz
+}
+
+impl Direction
+{
+    pub fn from_index(index: usize) -> Direction
+    {
+        match index
+        {
+            0 => Direction::Posx,
+            1 => Direction::Posy,
+            2 => Direction::Posz,
+            3 => Direction::Negx,
+            4 => Direction::Negy,
+            5 => Direction::Negz,
+            _ => Direction::Posx,
+        }
+    }
+
+    pub fn opposite(&self) -> Direction
+    {
+        Direction::from_index(*self as usize + 3)
+    }
 }
 
 pub enum UVs

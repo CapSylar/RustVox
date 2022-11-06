@@ -1,24 +1,21 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-
-fn fibonacci(n: u64) -> u64 {
-    match n {
-        0 => 1,
-        1 => 1,
-        n => fibonacci(n-1) + fibonacci(n-2),
-    }
-}
-
-fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("fib 20", |b| b.iter(|| fibonacci(black_box(20))));
-}
+use engine::engine::{terrain::PerlinGenerator, chunk::Chunk, geometry::meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}};
 
 fn benchmark_greedy_mesher(c: &mut Criterion)
 {
-    // let generator = PerlinGenerator::new();
+    let generator = Box::new(PerlinGenerator::new());
+    let mut chunk = Chunk::new(0,0,0,generator.as_ref());
 
-    // c.bench_function("meshing 20", |b| b.iter( || ));
+    c.bench_function("greedy_mesher", |b| b.iter( || chunk.generate_mesh::<GreedyMesher>()));
 }
 
+fn benchmark_culling_mesher(c: &mut Criterion)
+{
+    let generator = Box::new(PerlinGenerator::new());
+    let mut chunk = Chunk::new(0,0,0,generator.as_ref());
 
-criterion_group!(benches, criterion_benchmark);
+    c.bench_function("culling_mesher", |b| b.iter( || chunk.generate_mesh::<CullingMesher>()));
+}
+
+criterion_group!(benches, benchmark_culling_mesher, benchmark_greedy_mesher);
 criterion_main!(benches);

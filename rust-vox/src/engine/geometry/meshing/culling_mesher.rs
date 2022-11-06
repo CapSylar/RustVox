@@ -1,8 +1,8 @@
-use glam::{Vec3, Vec2, IVec3};
+use glam::{Vec3, IVec3};
 
 use crate::engine::{geometry::{voxel::VoxelType, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z}};
 
-use super::chunk_mesher::{Normals, ChunkMesher, VOXEL_SIZE, VOXEL_FACE_VALUES, UVs};
+use super::chunk_mesher::{Direction, ChunkMesher, VOXEL_SIZE, VOXEL_FACE_VALUES};
 
 pub struct CullingMesher;
 
@@ -23,16 +23,14 @@ impl CullingMesher
         let p7 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
         let p8 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + 0.0);
 
-        //TODO: could refactor by defining the vertices for each face, and then iterate
-
        if faces[0] 
         {
             // add the 2 top triangles
             mesh.add_quad(
-                VoxelVertex::new( p5, Normals::Posy as u8,(0,0), voxel_type as u8),
-                VoxelVertex::new( p6, Normals::Posy as u8, (0,1), voxel_type as u8),
-                VoxelVertex::new( p7, Normals::Posy as u8, (1,1), voxel_type as u8),
-                VoxelVertex::new( p8, Normals::Posy as u8, (1,0), voxel_type as u8)
+                VoxelVertex::new( p5, Direction::Posy,(0,0), voxel_type),
+                VoxelVertex::new( p6, Direction::Posy, (0,1), voxel_type),
+                VoxelVertex::new( p7, Direction::Posy, (1,1), voxel_type),
+                VoxelVertex::new( p8, Direction::Posy, (1,0), voxel_type)
             );
         }
 
@@ -40,10 +38,10 @@ impl CullingMesher
         {
             // add the 2 bottom triangles
             mesh.add_quad(
-                VoxelVertex::new( p3, Normals::Negy as u8, (0,0), voxel_type as u8),
-                VoxelVertex::new( p2, Normals::Negy as u8, (0,1), voxel_type as u8),
-                VoxelVertex::new( p1, Normals::Negy as u8, (1,1), voxel_type as u8),
-                VoxelVertex::new( p4, Normals::Negy as u8, (1,0), voxel_type as u8)
+                VoxelVertex::new( p3, Direction::Negy, (0,0), voxel_type),
+                VoxelVertex::new( p2, Direction::Negy, (0,1), voxel_type),
+                VoxelVertex::new( p1, Direction::Negy, (1,1), voxel_type),
+                VoxelVertex::new( p4, Direction::Negy, (1,0), voxel_type)
             );
         }
         
@@ -51,10 +49,10 @@ impl CullingMesher
         {
             // add the 2 front triangles
             mesh.add_quad(
-                VoxelVertex::new( p1, Normals::Posz as u8, (0,0), voxel_type as u8),
-                VoxelVertex::new( p5, Normals::Posz as u8, (0,1), voxel_type as u8),
-                VoxelVertex::new( p8, Normals::Posz as u8, (1,1), voxel_type as u8),
-                VoxelVertex::new( p4, Normals::Posz as u8, (1,0), voxel_type as u8)
+                VoxelVertex::new( p1, Direction::Posz, (0,0), voxel_type),
+                VoxelVertex::new( p5, Direction::Posz, (0,1), voxel_type),
+                VoxelVertex::new( p8, Direction::Posz, (1,1), voxel_type),
+                VoxelVertex::new( p4, Direction::Posz, (1,0), voxel_type)
             );
         }
 
@@ -62,10 +60,10 @@ impl CullingMesher
         {
             // add the 2 back triangles
             mesh.add_quad(
-                VoxelVertex::new( p7, Normals::Negz as u8, (0,0), voxel_type as u8),
-                VoxelVertex::new( p6, Normals::Negz as u8, (0,1), voxel_type as u8),
-                VoxelVertex::new( p2, Normals::Negz as u8, (1,1), voxel_type as u8),
-                VoxelVertex::new( p3, Normals::Negz as u8, (1,0), voxel_type as u8)
+                VoxelVertex::new( p7, Direction::Negz, (0,0), voxel_type),
+                VoxelVertex::new( p6, Direction::Negz, (0,1), voxel_type),
+                VoxelVertex::new( p2, Direction::Negz, (1,1), voxel_type),
+                VoxelVertex::new( p3, Direction::Negz, (1,0), voxel_type)
             );
         }
 
@@ -73,10 +71,10 @@ impl CullingMesher
         {
             // add the 2 right triangles
             mesh.add_quad(
-                VoxelVertex::new( p4, Normals::Posx as u8, (0,0), voxel_type as u8),
-                VoxelVertex::new( p8, Normals::Posx as u8, (0,1), voxel_type as u8),
-                VoxelVertex::new( p7, Normals::Posx as u8, (1,1), voxel_type as u8),
-                VoxelVertex::new( p3, Normals::Posx as u8, (1,0), voxel_type as u8)
+                VoxelVertex::new( p4, Direction::Posx, (0,0), voxel_type),
+                VoxelVertex::new( p8, Direction::Posx, (0,1), voxel_type),
+                VoxelVertex::new( p7, Direction::Posx, (1,1), voxel_type),
+                VoxelVertex::new( p3, Direction::Posx, (1,0), voxel_type)
             );
         }
 
@@ -84,10 +82,10 @@ impl CullingMesher
         {
             // add the 2 left triangles
             mesh.add_quad(
-                VoxelVertex::new( p6, Normals::Negx as u8, (0,0), voxel_type as u8),
-                VoxelVertex::new( p5, Normals::Negx as u8, (0,1), voxel_type as u8),
-                VoxelVertex::new( p1, Normals::Negx as u8, (1,1), voxel_type as u8),
-                VoxelVertex::new( p2, Normals::Negx as u8, (1,0), voxel_type as u8)
+                VoxelVertex::new( p6, Direction::Negx, (0,0), voxel_type),
+                VoxelVertex::new( p5, Direction::Negx, (0,1), voxel_type),
+                VoxelVertex::new( p1, Direction::Negx, (1,1), voxel_type),
+                VoxelVertex::new( p2, Direction::Negx, (1,0), voxel_type)
             );
         }
 
