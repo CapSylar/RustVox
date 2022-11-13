@@ -12,16 +12,16 @@ impl CullingMesher
     {
         // generate the 8 vertices to draw the voxel
         //bottom
-        let p1 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + 0.0);
-        let p2 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + -VOXEL_SIZE);
-        let p3 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + -VOXEL_SIZE);
-        let p4 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + 0.0);
+        let p1 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z + VOXEL_SIZE);
+        let p2 = Vec3::new(pos.x + 0.0,pos.y + 0.0,pos.z);
+        let p3 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z);
+        let p4 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + 0.0,pos.z + VOXEL_SIZE);
 
         //top
-        let p5 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + 0.0);
-        let p6 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
-        let p7 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + -VOXEL_SIZE);
-        let p8 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + 0.0);
+        let p5 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z + VOXEL_SIZE);
+        let p6 = Vec3::new(pos.x + 0.0,pos.y + VOXEL_SIZE,pos.z);
+        let p7 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z);
+        let p8 = Vec3::new(pos.x + VOXEL_SIZE,pos.y + VOXEL_SIZE,pos.z + VOXEL_SIZE);
 
        if faces[0] 
         {
