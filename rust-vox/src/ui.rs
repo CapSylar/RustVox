@@ -1,7 +1,12 @@
 use std::collections::VecDeque;
 
-use glam::Vec3;
-use imgui::{Condition, FontSource, Context, FontId, CollapsingHeader};
+use glam::{Vec3, Vec2};
+use imgui::{Condition, FontSource, Context, FontId, CollapsingHeader, Ui};
+use imgui_opengl_renderer::Renderer;
+use imgui_sdl2_support::SdlPlatform;
+use sdl2::{VideoSubsystem, video::Window, EventPump};
+
+use crate::engine::{renderer::opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}};
 
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates
@@ -32,24 +37,135 @@ impl DebugData
     }
 }
 
-pub struct Ui
+#[repr(C,packed)]
+#[derive(Clone,Copy,Debug)]
+struct UiVertex
 {
-    pub used_font: FontId,
+    position: Vec2,
+    uv: Vec2,
 }
 
-impl Ui
+impl OpenglVertex for UiVertex
 {
-    pub fn new(imgui: &mut Context) -> Ui
+    fn get_layout() -> VertexLayout
     {
-        let used_font = imgui.fonts().add_font(&[FontSource::TtfData{
+        let mut vertex_layout = VertexLayout::new();
+
+        vertex_layout.push_f32(2);
+        vertex_layout.push_f32(2);
+
+        vertex_layout
+    }
+}
+
+pub struct UiRenderer
+{
+    pub used_font: FontId,
+    imgui_renderer: Renderer,
+    ui_shader: Shader,
+    cross_hair: Mesh<UiVertex>
+}
+
+impl UiRenderer
+{
+    pub fn new(video_subsystem: &VideoSubsystem, imgui_context: &mut Context, window: &Window) -> UiRenderer
+    {
+        // load the ImGui Font
+        let used_font = imgui_context.fonts().add_font(&[FontSource::TtfData{
             data: include_bytes!("../resources/JetBrains.ttf"),
             size_pixels: 17.0 ,
             config: None,
         }]);
 
-        Ui{ used_font }
+        // Setup Imgui UI
+        let imgui_renderer = imgui_opengl_renderer::Renderer::new(imgui_context, |s| {
+            video_subsystem.gl_get_proc_address(s) as _
+        });
+
+        // setup our UI shader
+        let mut ui_shader = Shader::new_from_vs_fs("rust-vox/shaders/ui.vert", "rust-vox/shaders/ui.frag").expect("Error Creating UI Shader");
+
+        // load UI texture
+        let texture = image::open("rust-vox/textures/widgets.png").unwrap().flipv();
+        let width = texture.width() as i32;
+        let height = texture.height() as i32;
+        let mut ui_texture = 0;
+
+        unsafe
+        {
+            gl::GenTextures(1, &mut ui_texture);
+            gl::ActiveTexture(gl::TEXTURE5);
+            gl::BindTexture(gl::TEXTURE_2D,  ui_texture);
+
+            gl::TexStorage2D(gl::TEXTURE_2D, 1, gl::RGBA8, width, height);
+            gl::TexSubImage2D(gl::TEXTURE_2D, 0, 0,0, width, height, gl::RGBA, gl::UNSIGNED_BYTE, texture.as_bytes().as_ptr().cast());
+            
+            // gl::BindTexture(gl::TEXTURE_2D, 0); // Unbind
+        }
+
+        ui_shader.bind();
+        ui_shader.set_uniform1i("ui_texture", 5).expect("error setting the UI sampler uniform");
+        Shader::unbind();
+
+        let size = window.size();
+        let ratio = size.0 as f32 / size.1 as f32 ; // aspect ratio
+        
+        let mut cross_hair: Mesh<UiVertex> = Mesh::new();
+        let uv_lower_left = Vec2::new(0.0/16.0,0.0/16.0);
+        let offset = 1.0/16.0;
+
+        cross_hair.add_quad(
+        UiVertex{position:Vec2::new(-0.03,-0.03 * ratio), uv: uv_lower_left},
+        UiVertex{position:Vec2::new(-0.03,0.03 * ratio), uv:uv_lower_left + Vec2::new(0.0,offset)},
+        UiVertex{position:Vec2::new(0.03,0.03 * ratio), uv:uv_lower_left + Vec2::new(offset,offset)},
+        UiVertex{position:Vec2::new(0.03,-0.03 * ratio), uv:uv_lower_left + Vec2::new(offset,0.0)}
+        );
+
+        cross_hair.upload();
+
+        UiRenderer{ used_font, imgui_renderer, ui_shader, cross_hair }
+    }
+
+    /// Render the UI
+    pub fn render(&mut self, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump, debug_info: &mut DebugData)
+    {
+        // render the Imgui UI
+        platform.prepare_frame(imgui_context, window, event_pump);
+
+        self.imgui_renderer.render(imgui_context, |ui: &mut Ui| {
+            self.build_ui(ui, debug_info);
+        });
+
+        // render our own UI
+        self.ui_shader.bind();
+        
+        unsafe
+        {
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
+        }
+
+        Self::draw_mesh(&self.cross_hair);
+
+        unsafe
+        {
+            gl::Disable(gl::BLEND);
+        }
+        
+        Shader::unbind();
     }
     
+    //TODO: duplicate code
+    pub fn draw_mesh<T> (mesh: &Mesh<T>)
+    {
+        unsafe
+        {
+            mesh.vao.as_ref().unwrap().bind();
+            gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
+            VertexArray::<T>::unbind();
+        }
+    }
+
     pub fn build_ui(&self, ui: &imgui::Ui , state:&mut DebugData)
     {
         let font = ui.push_font(self.used_font);

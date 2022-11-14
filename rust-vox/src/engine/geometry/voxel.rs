@@ -1,4 +1,4 @@
-#[derive(Clone,Copy,PartialOrd, PartialEq)]
+#[derive(Clone,Copy,PartialOrd, PartialEq, Eq,Debug)]
 pub enum VoxelType
 {
     Dirt,
@@ -19,7 +19,7 @@ impl Voxel
         Voxel{voxel_type, is_filled}
     }
 
-    pub fn new_default() -> Voxel
+    pub fn default() -> Voxel
     {
         Voxel { voxel_type: VoxelType::Dirt, is_filled: true }
     }

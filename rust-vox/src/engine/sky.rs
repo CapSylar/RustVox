@@ -251,7 +251,7 @@ pub mod sky_renderer
     
     impl SkyRenderer
     {
-        pub fn new() -> Self
+        pub fn default() -> Self
         {
             // Initialise everything needed to render the sky + objects
             let celestial_shader = Shader::new_from_vs_fs("rust-vox/shaders/celestial.vert", "rust-vox/shaders/celestial.frag").expect("Shader Error");

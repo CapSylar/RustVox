@@ -26,7 +26,7 @@ impl Chunk
     /// Lazily create the Chunk, no mesh is created
     pub fn new(pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &dyn TerrainGenerator) -> Chunk
     {
-        let mut voxels = [[[Voxel::new_default() ; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X];
+        let mut voxels = [[[Voxel::default() ; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X];
 
         // chunk position offset in the world
         let x_offset = pos_x * CHUNK_SIZE_X as i32  ;

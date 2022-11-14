@@ -105,7 +105,7 @@ impl Renderer
             gl::ActiveTexture(gl::TEXTURE0);
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture_array);
 
-            let sky_rend = SkyRenderer::new();
+            let sky_rend = SkyRenderer::default();
             
             Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new()}
         }
@@ -152,7 +152,7 @@ impl Renderer
 
             self.default_shader.bind();
 
-            self.default_shader.set_uniform1i("render_csm", if sun_present {1} else {0}).expect("error setting the sun present uniform");
+            self.default_shader.set_uniform1i("render_csm", i32::from(sun_present)).expect("error setting the sun present uniform");
             self.default_shader.set_uniform3fv("light_dir", &self.sun_direction).expect("error setting the light direction uniform");
             self.default_shader.set_uniform1i("voxel_textures", 0).expect("error binding texture altlas");
             self.default_shader.set_uniform1i("shadow_map", 1).expect("error setting the shadow_map array textures");

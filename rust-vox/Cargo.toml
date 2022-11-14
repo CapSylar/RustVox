@@ -7,6 +7,10 @@ edition = "2021"
 name = "engine"
 path = "src/lib.rs"
 
+[[bin]]
+name = "rust-vox-main"
+path = "src/bin/main.rs"
+
 [dependencies]
 sdl2 = "*"
 image = "0.24.2"

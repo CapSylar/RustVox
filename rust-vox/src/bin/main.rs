@@ -1,15 +1,15 @@
 #![warn(clippy::all)]
 #![allow(clippy::too_many_arguments)]
 
-use __core::{f32::consts::PI, fmt::Debug};
-use engine::{DebugData, world::World, eye::Eye, Renderer};
+use __core::{f32::consts::PI};
+use engine::{DebugData, world::World, eye::Eye, Renderer, engine::{ray_cast::cast_ray, geometry::voxel}};
 use glam::Vec3;
 use imgui::*;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     event::Event,
     keyboard,
-    video::{GLProfile, SwapInterval},
+    video::{GLProfile, SwapInterval, self},
 };
 
 use std::time::Instant;
@@ -50,22 +50,20 @@ fn main() {
         println!("error occured:{}", s);
     }
 
-    let mut imgui = Context::create();
-    imgui.set_ini_filename(None);
-    imgui.set_log_filename(None);
+    let mut imgui_context = Context::create();
+    imgui_context.set_ini_filename(None);
+    imgui_context.set_log_filename(None);
 
     // setup platform and renderer, and fonts to imgui
-    let ui_renderer = engine::Ui::new(&mut imgui);
+    let mut platform = SdlPlatform::init(&mut imgui_context);
 
-    let mut platform = SdlPlatform::init(&mut imgui);
-    let renderer = imgui_opengl_renderer::Renderer::new(&mut imgui, |s| {
-        video_subsystem.gl_get_proc_address(s) as _
-    });
+    let mut ui_renderer = engine::UiRenderer::new(&video_subsystem, &mut imgui_context, &window);
+
     let mut event_pump = sdl.event_pump().unwrap();
 
     sdl.mouse().set_relative_mouse_mode(false);
 
-    let mut state = DebugData::default();
+    let mut debug_data = DebugData::default();
 
     let mut voxel_world = World::new(Eye::new(
         PI / 4.0,
@@ -91,7 +89,7 @@ fn main() {
         // handle events here !!!
         for event in event_pump.poll_iter() {
             /* pass all events to imgui platfrom */
-            platform.handle_event(&mut imgui, &event);
+            platform.handle_event(&mut imgui_context, &event);
 
             match event {
                 Event::Quit { .. } => break 'main,
@@ -133,10 +131,16 @@ fn main() {
                     xrel: x_rel,
                     yrel: y_rel,
                     ..
-                } => voxel_world.eye.change_front_rel(
-                    x_rel as f32 * MOUSE_SENSITIVITY,
-                    y_rel as f32 * MOUSE_SENSITIVITY,
-                ),
+                } => 
+                {
+                    // ignore mouse movement if we are not in relative mode
+                    if sdl.mouse().relative_mouse_mode()
+                    {
+                        voxel_world.eye.change_front_rel(
+                            x_rel as f32 * MOUSE_SENSITIVITY,
+                            y_rel as f32 * MOUSE_SENSITIVITY)
+                    }
+                },
                 _ => (),
             };
         }
@@ -145,19 +149,21 @@ fn main() {
         voxel_world.update();
         // render the world
         world_renderer.draw_world(&voxel_world);
+
+        // TESTING
+        // cast a ray into the world
+        cast_ray(voxel_world.eye.get_position(), voxel_world.eye.get_front(), &voxel_world.chunk_manager);
+
         let calculation_end = calculation_start.elapsed();
 
         let end = start.elapsed();
-        state.frame_time = end.as_micros();
-        state.add_calculation_time(calculation_end.as_secs_f32());
-        voxel_world.set_stat(& mut state);
+        debug_data.frame_time = end.as_micros();
+        debug_data.add_calculation_time(calculation_end.as_secs_f32());
+        voxel_world.set_stat(& mut debug_data);
 
         // render the UI
-        platform.prepare_frame(&mut imgui, &window, &event_pump);
+        ui_renderer.render(&mut platform, &mut imgui_context, &window, &event_pump, &mut debug_data);
 
-        renderer.render(&mut imgui, |ui: &mut Ui| {
-            ui_renderer.build_ui(ui, &mut state);
-        });
         window.gl_swap_window();
     }
 }
