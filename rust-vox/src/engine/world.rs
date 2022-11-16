@@ -1,6 +1,6 @@
 use crate::ui::DebugData;
 
-use super::{eye::Eye, chunk_manager::ChunkManager};
+use super::{eye::Eye, chunk_manager::ChunkManager, ray_cast::cast_ray};
 
 pub struct World
 {
@@ -22,6 +22,22 @@ impl World
     {
         // update the chunks if needed
         self.chunk_manager.update(self.eye.get_position());
+    }
+
+    pub fn place(&mut self)
+    {
+        if let Some((pos,face)) = cast_ray(self.eye.get_position(), self.eye.get_front(), &self.chunk_manager)
+        {
+            // self.chunk_manager.get_voxel(
+        }
+    }
+
+    pub fn destroy(&mut self)
+    {
+        if let Some((pos,face)) = cast_ray(self.eye.get_position(), self.eye.get_front(), &self.chunk_manager)
+        {
+            self.chunk_manager.remove_voxel(pos);
+        }
     }
 
     //TODO: does not belong here

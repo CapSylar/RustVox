@@ -1,7 +1,7 @@
-use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}, borrow::Borrow};
-use glam::Vec3;
-use crate::{threadpool::ThreadPool, ui::DebugData};
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}, voxel::Voxel}};
+use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use glam::{Vec3, IVec2, IVec3};
+use crate::{threadpool::ThreadPool, ui::DebugData, engine::chunk};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}}};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
@@ -62,24 +62,24 @@ impl ChunkManager
     fn load_visible(&mut self)
     {
         // load every chunk that falls within the NOT_VISIBLE square
-        // for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
-        // {
-        //     for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
-        //     {
-        //         // check if the chunks have already been created
-        //         match self.chunks.get(&(x,z))
-        //         {
-        //             Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
-        //             None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
-        //         };
-        //     }
-        // }
+        for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
+        {
+            for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
+            {
+                // check if the chunks have already been created
+                match self.chunks.get(&(x,z))
+                {
+                    Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
+                    None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
+                };
+            }
+        }
 
         // quick hax to only load the center chunk
-        let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
-        chunk.generate_mesh::<CullingMesher>();
-        chunk.mesh.as_mut().unwrap().upload();
-        self.register_chunk(chunk);
+        // let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
+        // chunk.generate_mesh::<CullingMesher>();
+        // chunk.mesh.as_mut().unwrap().upload();
+        // self.register_chunk(chunk);
     }
 
     /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
@@ -147,11 +147,14 @@ impl ChunkManager
     pub fn get_voxel(&self, pos: Vec3) -> Option<Voxel>
     {
         // in what chunk is this voxel ?
-        let pos_x = pos.x as i32 / CHUNK_SIZE_X as i32;
-        let pos_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
+        let mut pos_x = pos.x as i32 / CHUNK_SIZE_X as i32;
+        if pos.x < 0.0 {pos_x -= 1;} // if we are < 0 along this axis, the chunk coordinate is -= 1 what we have calculated
+        // since it takes +CHUNK_SIZE_X to be in chunk (1,0) whereas it takes just -1 to in chunk(-1,0) and -CHUNK_SIZE_X to be in chunk (-2,0)
+        let mut pos_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
+        if pos.z < 0.0 {pos_z -= 1;}
 
-        let pos_chunk_x = pos.x as i32 - pos_x * CHUNK_SIZE_X as i32;
-        let pos_chunk_z = pos.z as i32 - pos_z * CHUNK_SIZE_Z as i32;
+        let pos_chunk_x = pos.x as i32- pos_x as i32 * CHUNK_SIZE_X as i32;
+        let pos_chunk_z = pos.z as i32 - pos_z * CHUNK_SIZE_X as i32;
         let pos_chunk_y = pos.y as i32;
 
         // is this chunk loaded
@@ -162,6 +165,23 @@ impl ChunkManager
         else {
             None
         }
+    }
+
+    /// determines which chunk this voxel belongs to, and it's coordinates within that chunk
+    pub fn get_local_voxel_coord(&self, pos: Vec3) -> (IVec2,IVec3)
+    {
+        // in what chunk is this voxel ?
+        let mut pos_x = pos.x as i32 / CHUNK_SIZE_X as i32;
+        if pos.x < 0.0 {pos_x -= 1;} // if we are < 0 along this axis, the chunk coordinate is -= 1 what we have calculated
+        // since it takes +CHUNK_SIZE_X to be in chunk (1,0) whereas it takes just -1 to in chunk(-1,0) and -CHUNK_SIZE_X to be in chunk (-2,0)
+        let mut pos_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
+        if pos.z < 0.0 {pos_z -= 1;}
+
+        let pos_chunk_x = pos.x as i32- pos_x as i32 * CHUNK_SIZE_X as i32;
+        let pos_chunk_z = pos.z as i32 - pos_z * CHUNK_SIZE_X as i32;
+        let pos_chunk_y = pos.y as i32;
+
+        (IVec2::new(pos_x,pos_z),IVec3::new(pos_chunk_x,pos_chunk_y,pos_chunk_z))
     }
 
     fn register_chunk(&mut self , mut chunk : Chunk)
@@ -206,6 +226,32 @@ impl ChunkManager
             // append the mesh to the list of chunks to be loaded
             vec.lock().unwrap().push(chunk);
         });
+    }
+
+    pub fn place_voxel()
+    {
+        
+    }
+
+    pub fn remove_voxel(&mut self, pos: Vec3)
+    {
+        println!("Remove voxel on pos:{} called", pos);
+        let (chunk_pos,voxel_pos) = self.get_local_voxel_coord(pos);
+
+        println!("voxel pos: {} {}", chunk_pos, voxel_pos);
+
+        let new_voxel = Voxel::new(VoxelType::Air);
+
+        // is the chunk present ?
+        if let Some(chunk) = self.chunks.get(&(chunk_pos.x,chunk_pos.y)) // y is actually z
+        {
+            let mut chunk = chunk.as_ref().borrow_mut();
+            chunk.set_voxel(voxel_pos ,new_voxel);
+            chunk.generate_mesh::<GreedyMesher>();
+
+            // chunk needs to be rebuilt
+            chunk.mesh.as_mut().unwrap().upload();
+        }
     }
 
     //TODO: refactor

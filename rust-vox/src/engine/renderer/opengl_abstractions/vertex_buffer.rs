@@ -38,7 +38,7 @@ impl<T> VertexBuffer<T>
     {
         unsafe
         {
-            gl::DeleteBuffers(1, &self.renderer_id as _ );
+            gl::DeleteBuffers(1, &self.renderer_id);
         }
     }
 
@@ -55,6 +55,17 @@ impl<T> VertexBuffer<T>
         unsafe
         {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0); // 0 unbinds the currently bound buffer
+        }
+    }
+}
+
+impl<T> Drop for VertexBuffer<T>
+{
+    fn drop(&mut self)
+    {
+        unsafe
+        {
+            gl::DeleteBuffers(1, &self.renderer_id);
         }
     }
 }

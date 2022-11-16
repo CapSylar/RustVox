@@ -1,18 +1,17 @@
 #![warn(clippy::all)]
 #![allow(clippy::too_many_arguments)]
 
-use __core::{f32::consts::PI};
-use engine::{DebugData, world::World, eye::Eye, Renderer, engine::{ray_cast::cast_ray, geometry::voxel}};
+use engine::{DebugData, world::World, eye::Eye, Renderer, engine::{ray_cast::cast_ray}};
 use glam::Vec3;
-use imgui::*;
+use imgui::Context;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{
     event::Event,
     keyboard,
-    video::{GLProfile, SwapInterval, self},
+    video::{GLProfile, SwapInterval}, mouse::MouseButton,
 };
 
-use std::time::Instant;
+use std::{time::Instant, f32::consts::PI};
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
 //TODO: refactor main
@@ -127,6 +126,15 @@ fn main() {
                             _ => (),
                         };
                 }
+                Event::MouseButtonDown { mouse_btn, .. } =>
+                {
+                    match mouse_btn
+                    {
+                        MouseButton::Right => { println!("Right Mouse Button Clicked");
+                            voxel_world.destroy()},
+                        _ => (),
+                    }
+                },
                 Event::MouseMotion {
                     xrel: x_rel,
                     yrel: y_rel,
@@ -134,12 +142,12 @@ fn main() {
                 } => 
                 {
                     // ignore mouse movement if we are not in relative mode
-                    if sdl.mouse().relative_mouse_mode()
-                    {
+                    // if sdl.mouse().relative_mouse_mode()
+                    // {
                         voxel_world.eye.change_front_rel(
                             x_rel as f32 * MOUSE_SENSITIVITY,
                             y_rel as f32 * MOUSE_SENSITIVITY)
-                    }
+                    // }
                 },
                 _ => (),
             };
@@ -149,10 +157,6 @@ fn main() {
         voxel_world.update();
         // render the world
         world_renderer.draw_world(&voxel_world);
-
-        // TESTING
-        // cast a ray into the world
-        cast_ray(voxel_world.eye.get_position(), voxel_world.eye.get_front(), &voxel_world.chunk_manager);
 
         let calculation_end = calculation_start.elapsed();
 

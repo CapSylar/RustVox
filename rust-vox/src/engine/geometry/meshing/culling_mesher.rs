@@ -107,7 +107,7 @@ impl ChunkMesher for CullingMesher
             {
                 for z in 0..CHUNK_SIZE_Z
                 {
-                    if chunk.voxels[x][y][z].is_filled() // not an air block
+                    if chunk.voxels[x][y][z].voxel_type != VoxelType::Air // not an air block
                     {
                         let mut faces_to_render: [bool;6] = [false;6];
 

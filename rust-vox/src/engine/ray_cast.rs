@@ -8,19 +8,20 @@ use crate::engine::geometry::voxel::Voxel;
 use super::chunk_manager::ChunkManager;
 
 // uses get_closest_voxel
-pub fn cast_ray(position: Vec3, direction: Vec3, chunk_manager: &ChunkManager)
+pub fn cast_ray(position: Vec3, direction: Vec3, chunk_manager: &ChunkManager) -> Option<(Vec3,Vec3)>
 {
+    let mut found = false;
     let mut used_position = Vec3::ZERO;
     let mut used_face = Vec3::ZERO;
 
     let mut used_voxel = Voxel::default();
 
-    println!("***********");
+    // println!("***********");
 
     get_closest_voxel(position, direction, 20.0, // 10 voxels only 
         |pos,fa|
         {
-            println!("position: {}, face:{}", used_position, used_face);
+            // println!("position: {}, face:{}", used_position, used_face);
             used_position = pos;
             used_face = fa;
 
@@ -29,8 +30,10 @@ pub fn cast_ray(position: Vec3, direction: Vec3, chunk_manager: &ChunkManager)
                 if voxel.is_filled()
                 {
                     used_voxel = voxel;
-                    println!("Found filled voxel at pos: {}, entered from face: {}", pos, fa);
-                    println!("voxel: {:?}", voxel.voxel_type);
+                    // println!("Found filled voxel at pos: {}, entered from face: {}", pos, fa);
+                    // println!("voxel: {:?}", voxel.voxel_type);
+
+                    found = true;
                     true
                 }
                 else
@@ -44,6 +47,8 @@ pub fn cast_ray(position: Vec3, direction: Vec3, chunk_manager: &ChunkManager)
             }
         }
     );
+
+    if found {Some((used_position,used_face))} else {None}
 }
 
 pub fn get_closest_voxel<T> (origin: Vec3, direction: Vec3, max_radius: f32, mut callback: T)

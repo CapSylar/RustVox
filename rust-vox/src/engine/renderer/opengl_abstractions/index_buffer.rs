@@ -27,7 +27,7 @@ impl IndexBuffer
     {
         unsafe
         {
-            gl::DeleteBuffers(1, &self.renderer_id as _ );
+            gl::DeleteBuffers(1, &self.renderer_id);
         }
     }
 
@@ -44,6 +44,17 @@ impl IndexBuffer
         unsafe
         {
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, 0); // 0 unbinds the currently bound buffer
+        }
+    }
+}
+
+impl Drop for IndexBuffer
+{
+    fn drop(&mut self)
+    {
+        unsafe
+        {
+            gl::DeleteBuffers(1, &self.renderer_id);
         }
     }
 }

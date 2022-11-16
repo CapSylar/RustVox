@@ -109,28 +109,28 @@ impl ChunkMesher for GreedyMesher
                             if slice >=0
                             {
                                 let chunk = chunk.get_voxel(current_pos[0] as i32, current_pos[1] as i32, current_pos[2] as i32).unwrap();
-                                (chunk.is_filled(),chunk.voxel_type)
+                                chunk.voxel_type
                             }
-                            else {(false,VoxelType::Dirt)} ;
+                            else {VoxelType::Air} ;
                         
                         let next_opaque = if slice < (CHUNK_SIZE[current_dir] as i32 -1)
                         {
                             let chunk = chunk.get_voxel(current_pos[0] as i32 + offset[0], current_pos[1] as i32 + offset[1], current_pos[2] as i32 + offset[2]).unwrap();
-                            (chunk.is_filled(),chunk.voxel_type)
+                            chunk.voxel_type
                         }
-                        else {(false,VoxelType::Dirt)} ;
+                        else {VoxelType::Air} ;
                         
-                        if current_opaque.0 == next_opaque.0
+                        if current_opaque == VoxelType::Air && next_opaque == VoxelType::Air || current_opaque != VoxelType::Air && next_opaque != VoxelType::Air
                         {
                             mask[mask_index].face_state = FaceState::NotPresent;
                         }
-                        else if !current_opaque.0 && next_opaque.0
+                        else if current_opaque == VoxelType::Air && next_opaque != VoxelType::Air
                         {
-                            mask[mask_index] = SliceFace{face_state:FaceState::CurrentDirection, voxel_type:next_opaque.1}; // quad is facing us in the current direction
+                            mask[mask_index] = SliceFace{face_state:FaceState::CurrentDirection, voxel_type:next_opaque}; // quad is facing us in the current direction
                         }
                         else
                         {
-                            mask[mask_index] = SliceFace{face_state:FaceState::OppositeDirection,voxel_type:current_opaque.1}; // quad is facing the opposite direction
+                            mask[mask_index] = SliceFace{face_state:FaceState::OppositeDirection,voxel_type:current_opaque}; // quad is facing the opposite direction
                         }
 
                         mask_index += 1;

@@ -3,30 +3,31 @@ pub enum VoxelType
 {
     Dirt,
     Sand,
+    Air,
 }
 
 #[derive(Clone,Copy)]
 pub struct Voxel
 {
     pub voxel_type : VoxelType,
-    is_filled: bool,
 }
 
 impl Voxel
 {
-    pub fn _new(voxel_type: VoxelType, is_filled: bool) -> Voxel
+    pub fn new(voxel_type: VoxelType) -> Voxel
     {
-        Voxel{voxel_type, is_filled}
+        Voxel{voxel_type}
     }
 
     pub fn default() -> Voxel
     {
-        Voxel { voxel_type: VoxelType::Dirt, is_filled: true }
+        Voxel { voxel_type: VoxelType::Dirt}
     }
 
-    pub fn set_filled(&mut self, filled: bool) { self.is_filled = filled; }
-
-    pub fn is_filled(&self) -> bool { self.is_filled }
+    pub fn is_filled(&self) -> bool
+    {
+        !(self.voxel_type == VoxelType::Air)
+    }
 
     pub fn set_type(&mut self, voxel_type : VoxelType ) {self.voxel_type = voxel_type }
 }

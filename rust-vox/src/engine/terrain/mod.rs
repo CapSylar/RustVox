@@ -45,11 +45,9 @@ impl TerrainGenerator for PerlinGenerator
 
         if y >= max_height
         {
-            voxel.set_filled(false);
+            voxel.set_type(VoxelType::Air);
             return;
         }
-
-        voxel.set_filled(true);
 
         if y >= 15
         {

@@ -35,6 +35,12 @@ impl<T> Mesh<T>
         self.vao = Some(vao);
     }
 
+    /// Delete the Geometry from GPU memory
+    pub fn delete_gpu_storage(&mut self)
+    {
+        
+    }
+
     pub fn respecify_vertices<F>( &mut self,func: F )
         where F: FnOnce(&mut Vec<T>)
     {

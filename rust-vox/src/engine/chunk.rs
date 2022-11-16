@@ -1,7 +1,7 @@
 use std::mem::{size_of, self};
 
 use gl::VertexArrayElementBuffer;
-use glam::{Vec3};
+use glam::{Vec3, IVec3};
 
 use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher}};
 
@@ -55,7 +55,7 @@ impl Chunk
         self.mesh = Some(T::generate_mesh(self));
     }
 
-    pub fn get_voxel(&self, pos_x: i32 , pos_y:i32 , pos_z:i32) -> Option<Voxel>
+    pub fn get_voxel(&self, pos_x: i32, pos_y:i32, pos_z:i32) -> Option<Voxel>
     {
         // make sure the pos is within bounds
         if pos_x < 0 || pos_x >= CHUNK_SIZE_X as i32  ||
@@ -66,6 +66,20 @@ impl Chunk
         }
 
         Some(self.voxels[pos_x as usize][pos_y as usize][pos_z as usize])
+    }
+
+    //TODO: duplicate code, refactor
+    pub fn set_voxel(&mut self, pos: IVec3 ,voxel: Voxel)
+    {
+        // make sure the pos is within bounds
+        if pos.x < 0 || pos.x >= CHUNK_SIZE_X as i32  ||
+        pos.y < 0 || pos.y >= CHUNK_SIZE_Y as i32  ||
+        pos.z < 0 || pos.z >= CHUNK_SIZE_Z as i32
+        {
+            return; // out of bounds, don't do anything
+        }
+
+        self.voxels[pos.x as usize][pos.y as usize][pos.z as usize] = voxel;
     }
 
     pub fn add_animation(&mut self , animation: ChunkMeshAnimation)
