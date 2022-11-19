@@ -132,6 +132,8 @@ fn main() {
                     {
                         MouseButton::Right => { println!("Right Mouse Button Clicked");
                             voxel_world.destroy()},
+                        MouseButton::Left => { println!("Left Mouse Button Clicked");
+                            voxel_world.place()}
                         _ => (),
                     }
                 },

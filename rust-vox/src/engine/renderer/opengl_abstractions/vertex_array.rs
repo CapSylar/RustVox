@@ -81,7 +81,6 @@ impl<T> Drop for VertexArray<T>
 {
     fn drop(&mut self)
     {
-        println!("Vertex Array Dropped!");
         unsafe
         {
             gl::DeleteVertexArrays(1, &self.renderer_id);

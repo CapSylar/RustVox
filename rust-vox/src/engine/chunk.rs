@@ -1,6 +1,5 @@
-use std::mem::{size_of, self};
+use std::mem::{self};
 
-use gl::VertexArrayElementBuffer;
 use glam::{Vec3, IVec3};
 
 use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher}};

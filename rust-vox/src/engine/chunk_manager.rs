@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use glam::{Vec3, IVec2, IVec3};
-use crate::{threadpool::ThreadPool, ui::DebugData, engine::chunk};
+use crate::{threadpool::ThreadPool, ui::DebugData, engine::{chunk::{self, CHUNK_SIZE_Y}, geometry::voxel}};
 use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}}};
 
 // length are in chunks
@@ -228,8 +228,23 @@ impl ChunkManager
         });
     }
 
-    pub fn place_voxel()
+    /// Places the voxel adjacent to the <face> of the voxel at <pos>
+    pub fn place_voxel(&mut self, pos: Vec3, face: Vec3)
     {
+        // get the voxel adjacent ot the face
+        let voxel_pos = pos + face;
+        let (chunk_pos,voxel_pos) = self.get_local_voxel_coord(voxel_pos);
+
+        // is this chunk present
+        if let Some(chunk) = self.chunks.get(&(chunk_pos.x,chunk_pos.y)) // y is actually z
+        {
+            let mut chunk = chunk.as_ref().borrow_mut();
+            chunk.set_voxel(voxel_pos, Voxel::new(VoxelType::Sand));
+
+            chunk.generate_mesh::<GreedyMesher>();
+            chunk.mesh.as_mut().unwrap().upload();
+        }
+
         
     }
 
@@ -238,7 +253,7 @@ impl ChunkManager
         println!("Remove voxel on pos:{} called", pos);
         let (chunk_pos,voxel_pos) = self.get_local_voxel_coord(pos);
 
-        println!("voxel pos: {} {}", chunk_pos, voxel_pos);
+        println!("Voxel will be removed from chunk {} voxel pos: {}", chunk_pos, voxel_pos);
 
         let new_voxel = Voxel::new(VoxelType::Air);
 
@@ -251,6 +266,40 @@ impl ChunkManager
 
             // chunk needs to be rebuilt
             chunk.mesh.as_mut().unwrap().upload();
+        }
+
+        let mut chunk_dir = IVec2::ZERO;
+        // if the voxel is a the chunk-chunk boundary, the other chunk has to be rebuilt as well
+
+        if voxel_pos.x == 0 || voxel_pos.x == CHUNK_SIZE_X as i32 -1 || voxel_pos.z == 0 || voxel_pos.z == CHUNK_SIZE_Z as i32 -1
+        {
+            if voxel_pos.x == 0
+            {
+                chunk_dir.x = -1
+            }
+            else if voxel_pos.x == CHUNK_SIZE_X as i32 - 1
+            {
+                chunk_dir.x = 1
+            }
+            else if voxel_pos.y == 0
+            {
+                chunk_dir.y = -1;
+            }
+            else if voxel_pos.y == CHUNK_SIZE_Y as i32 - 1
+            {
+                chunk_dir.y = 1;
+            }
+    
+            let neighbor_pos = chunk_pos + chunk_dir;
+
+            println!("chunk as pos {} will be rebuilt as well", neighbor_pos);
+            // is the chunk present ?
+            if let Some(chunk) = self.chunks.get(&(neighbor_pos.x,neighbor_pos.y)) // y is actually z
+            {
+                let mut chunk = chunk.as_ref().borrow_mut();
+                chunk.generate_mesh::<GreedyMesher>();
+                chunk.mesh.as_mut().unwrap().upload();
+            }
         }
     }
 

@@ -10,7 +10,7 @@
 
 pub mod sky_state
 {
-    const TIME_MULTIPLIER: f32 = 3000.0;
+    const TIME_MULTIPLIER: f32 = 500.0;
 
     use std::time::Instant;
     use glam::{Vec3, const_vec3};

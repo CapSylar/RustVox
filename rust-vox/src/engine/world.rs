@@ -28,13 +28,13 @@ impl World
     {
         if let Some((pos,face)) = cast_ray(self.eye.get_position(), self.eye.get_front(), &self.chunk_manager)
         {
-            // self.chunk_manager.get_voxel(
+            self.chunk_manager.place_voxel(pos,face);
         }
     }
 
     pub fn destroy(&mut self)
     {
-        if let Some((pos,face)) = cast_ray(self.eye.get_position(), self.eye.get_front(), &self.chunk_manager)
+        if let Some((pos,_)) = cast_ray(self.eye.get_position(), self.eye.get_front(), &self.chunk_manager)
         {
             self.chunk_manager.remove_voxel(pos);
         }
