@@ -1,14 +1,17 @@
 // TOP LEVEL FEATURES
 - [X] In-chunk face optimization - remove faces that are all unseen
 - [X] Chunk-loading animation
-- [] Frustum culling for unseen chunks
 - [X] Multiple block types
 - [X] Chunk manager
 - [X] Stable Cascaded shadow maps
 - [X] Moving Clouds
 - [X] Celestial Bodies - Sun, Moon, Stars
 - [X] Dynamic "SkyBox" showing Day-Night cycle
-- [] YAML file for simple configs and data
+- [] Fancy Water
+- [] Better World generation
+- [] Ambient Occlusion -- Optional
+- [] Placing/Destroying blocks
+- [] Proper documentation in README.md
 
 // LOW LEVEL IMPROVEMENTS
 - [X] Move view and perspective transforms to a Uniform Buffer Object
@@ -17,6 +20,7 @@
 - [X] Optimize chunk meshing, implement greedy meshing
 - [] Optimize chunk generation speed
 - [] Optimize chunk storage space
+- [] Frustum culling for unseen chunks
 
 // ISSUES
 - [] Clouds too visible during the night, not affected by lighting
