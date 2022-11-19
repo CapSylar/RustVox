@@ -40,6 +40,11 @@ impl World
         }
     }
 
+    pub fn rebuild(&mut self)
+    {
+        self.chunk_manager.rebuild_chunk_meshes();
+    }
+
     //TODO: does not belong here
     pub fn set_stat(&self, telemetry: &mut DebugData)
     {

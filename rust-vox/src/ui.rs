@@ -6,7 +6,7 @@ use imgui_opengl_renderer::Renderer;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{VideoSubsystem, video::Window, EventPump};
 
-use crate::engine::{renderer::opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}};
+use crate::{engine::{renderer::opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager}, world::World};
 
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates
@@ -127,13 +127,13 @@ impl UiRenderer
     }
 
     /// Render the UI
-    pub fn render(&mut self, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump, debug_info: &mut DebugData)
+    pub fn render(&mut self, voxel_world: &mut World, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump, debug_info: &mut DebugData)
     {
         // render the Imgui UI
         platform.prepare_frame(imgui_context, window, event_pump);
 
         self.imgui_renderer.render(imgui_context, |ui: &mut Ui| {
-            self.build_ui(ui, debug_info);
+            self.build_ui(ui, debug_info, voxel_world);
         });
 
         // render our own UI
@@ -166,7 +166,7 @@ impl UiRenderer
         }
     }
 
-    pub fn build_ui(&self, ui: &imgui::Ui , state:&mut DebugData)
+    pub fn build_ui(&self, ui: &imgui::Ui , state:&mut DebugData, voxel_world: &mut World)
     {
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
@@ -189,8 +189,14 @@ impl UiRenderer
         .default_open(true)
         .build(ui)
         {
+            ui.text(format!("player in chunk: {}", ChunkManager::get_chunk_pos(state.player_pos)));
             ui.text(format!("player position: {}", state.player_pos));
             ui.text(format!("look_at vector: {}", state.front));
+
+            if ui.button("Rebuild World")
+            {
+                voxel_world.rebuild();
+            }
         }
 
         // Profiling Section

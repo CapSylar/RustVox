@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 #![allow(clippy::too_many_arguments)]
 
-use engine::{DebugData, world::World, eye::Eye, Renderer, engine::{ray_cast::cast_ray}};
+use engine::{DebugData, world::World, eye::Eye, Renderer};
 use glam::Vec3;
 use imgui::Context;
 use imgui_sdl2_support::SdlPlatform;
@@ -10,6 +10,7 @@ use sdl2::{
     keyboard,
     video::{GLProfile, SwapInterval}, mouse::MouseButton,
 };
+use sdl2::sys;
 
 use std::{time::Instant, f32::consts::PI};
 static MOUSE_SENSITIVITY: f32 = 0.05;
@@ -61,6 +62,7 @@ fn main() {
     let mut event_pump = sdl.event_pump().unwrap();
 
     sdl.mouse().set_relative_mouse_mode(false);
+    sdl.mouse().capture(false);
 
     let mut debug_data = DebugData::default();
 
@@ -144,12 +146,12 @@ fn main() {
                 } => 
                 {
                     // ignore mouse movement if we are not in relative mode
-                    // if sdl.mouse().relative_mouse_mode()
-                    // {
+                    if sdl.mouse().relative_mouse_mode()
+                    {
                         voxel_world.eye.change_front_rel(
                             x_rel as f32 * MOUSE_SENSITIVITY,
                             y_rel as f32 * MOUSE_SENSITIVITY)
-                    // }
+                    }
                 },
                 _ => (),
             };
@@ -168,7 +170,7 @@ fn main() {
         voxel_world.set_stat(& mut debug_data);
 
         // render the UI
-        ui_renderer.render(&mut platform, &mut imgui_context, &window, &event_pump, &mut debug_data);
+        ui_renderer.render(&mut voxel_world, &mut platform, &mut imgui_context, &window, &event_pump, &mut debug_data);
 
         window.gl_swap_window();
     }

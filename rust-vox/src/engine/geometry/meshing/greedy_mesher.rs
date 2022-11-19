@@ -83,12 +83,12 @@ impl ChunkMesher for GreedyMesher
 
         for current_dir in 0usize..3 // 0 is X, 1 is Y, 2 is Z
         {
-            let mut current_pos: [i32;3] = [0,0,0]; // X,Y,Z
+            let mut current_pos: IVec3 = IVec3::ZERO; // X,Y,Z
             
             let n_dir = (current_dir+1) % 3;
             let nn_dir = (current_dir+2) % 3;
             
-            let mut offset : [i32;3] = [0,0,0];
+            let mut offset : IVec3 = IVec3::ZERO;
             offset[current_dir] = 1;
 
             // check each slice of the chunk one at a time
@@ -108,14 +108,14 @@ impl ChunkMesher for GreedyMesher
                         let current_opaque = 
                             if slice >=0
                             {
-                                let chunk = chunk.get_voxel(current_pos[0] as i32, current_pos[1] as i32, current_pos[2] as i32).unwrap();
+                                let chunk = chunk.get_voxel(current_pos).unwrap();
                                 chunk.voxel_type
                             }
                             else {VoxelType::Air} ;
                         
                         let next_opaque = if slice < (CHUNK_SIZE[current_dir] as i32 -1)
                         {
-                            let chunk = chunk.get_voxel(current_pos[0] as i32 + offset[0], current_pos[1] as i32 + offset[1], current_pos[2] as i32 + offset[2]).unwrap();
+                            let chunk = chunk.get_voxel(current_pos + offset).unwrap();
                             chunk.voxel_type
                         }
                         else {VoxelType::Air} ;

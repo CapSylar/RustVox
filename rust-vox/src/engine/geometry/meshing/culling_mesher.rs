@@ -116,7 +116,7 @@ impl ChunkMesher for CullingMesher
                         {
                             // is the neighbor of the current voxel in the given direction filled ? 
                             let pos = IVec3::new(x as i32 + offset.0,y as i32 + offset.1,z as i32 + offset.2);
-                            if let Some(neighbor) = chunk.get_voxel(pos.x, pos.y, pos.z)
+                            if let Some(neighbor) = chunk.get_voxel(pos)
                             {
                                 if !neighbor.is_filled()
                                 {

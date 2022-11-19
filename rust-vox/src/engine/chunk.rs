@@ -54,17 +54,17 @@ impl Chunk
         self.mesh = Some(T::generate_mesh(self));
     }
 
-    pub fn get_voxel(&self, pos_x: i32, pos_y:i32, pos_z:i32) -> Option<Voxel>
+    pub fn get_voxel(&self, pos: IVec3) -> Option<Voxel>
     {
         // make sure the pos is within bounds
-        if pos_x < 0 || pos_x >= CHUNK_SIZE_X as i32  ||
-             pos_y < 0 || pos_y >= CHUNK_SIZE_Y as i32  ||
-             pos_z < 0 || pos_z >= CHUNK_SIZE_Z as i32
+        if pos.x < 0 || pos.x >= CHUNK_SIZE_X as i32  ||
+             pos.y < 0 || pos.y >= CHUNK_SIZE_Y as i32  ||
+             pos.z < 0 || pos.z >= CHUNK_SIZE_Z as i32
         {
             return None;
         }
 
-        Some(self.voxels[pos_x as usize][pos_y as usize][pos_z as usize])
+        Some(self.voxels[pos.x as usize][pos.y as usize][pos.z as usize])
     }
 
     //TODO: duplicate code, refactor

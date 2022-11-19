@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
+use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}, borrow::BorrowMut};
 use glam::{Vec3, IVec2, IVec3};
 use crate::{threadpool::ThreadPool, ui::DebugData, engine::{chunk::{self, CHUNK_SIZE_Y}, geometry::voxel}};
 use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}}};
@@ -144,23 +144,13 @@ impl ChunkManager
 
     }
 
-    pub fn get_voxel(&self, pos: Vec3) -> Option<Voxel>
+    pub fn get_voxel(&self, pos: IVec3) -> Option<Voxel>
     {
-        // in what chunk is this voxel ?
-        let mut pos_x = pos.x as i32 / CHUNK_SIZE_X as i32;
-        if pos.x < 0.0 {pos_x -= 1;} // if we are < 0 along this axis, the chunk coordinate is -= 1 what we have calculated
-        // since it takes +CHUNK_SIZE_X to be in chunk (1,0) whereas it takes just -1 to in chunk(-1,0) and -CHUNK_SIZE_X to be in chunk (-2,0)
-        let mut pos_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
-        if pos.z < 0.0 {pos_z -= 1;}
-
-        let pos_chunk_x = pos.x as i32- pos_x as i32 * CHUNK_SIZE_X as i32;
-        let pos_chunk_z = pos.z as i32 - pos_z * CHUNK_SIZE_X as i32;
-        let pos_chunk_y = pos.y as i32;
-
+        let (chunk_pos,voxel_pos) = ChunkManager::get_local_voxel_coord(pos);
         // is this chunk loaded
-        if let Some(chunk) = self.chunks.get(&(pos_x,pos_z))
+        if let Some(chunk) = self.chunks.get(&(chunk_pos.x,chunk_pos.y))
         {
-            chunk.as_ref().borrow().get_voxel(pos_chunk_x, pos_chunk_y, pos_chunk_z)
+            chunk.as_ref().borrow().get_voxel(voxel_pos)
         }
         else {
             None
@@ -168,7 +158,38 @@ impl ChunkManager
     }
 
     /// determines which chunk this voxel belongs to, and it's coordinates within that chunk
-    pub fn get_local_voxel_coord(&self, pos: Vec3) -> (IVec2,IVec3)
+    // TODO: rewrite this mess
+    pub fn get_local_voxel_coord(pos: IVec3) -> (IVec2,IVec3)
+    {
+        let (chunk_pos_x , voxel_pos_x) = Self::adjust_direction(pos.x, CHUNK_SIZE_X);
+        let (chunk_pos_z, voxel_pos_z) = Self::adjust_direction(pos.z, CHUNK_SIZE_Z);
+        let voxel_pos_y = pos.y as i32;
+
+        (IVec2::new(chunk_pos_x,chunk_pos_z),IVec3::new(voxel_pos_x,voxel_pos_y,voxel_pos_z))
+    }
+
+    pub fn adjust_direction(pos:i32, chunk_size: usize) -> (i32,i32)
+    {
+        let chunk_pos;
+        let voxel_pos;
+
+        if pos < 0
+        {
+            chunk_pos = ((pos+1) / chunk_size as i32) - 1;
+            voxel_pos = pos - chunk_pos * chunk_size as i32;
+        }
+        else
+        {
+            chunk_pos = pos / chunk_size as i32;
+            voxel_pos = pos - chunk_pos * chunk_size as i32;
+        }
+
+        (chunk_pos,voxel_pos)
+    }
+
+    // TODO: refactor
+    /// Transforms from world coordinates to chunk coordinates
+    pub fn get_chunk_pos(pos: Vec3) -> IVec2
     {
         // in what chunk is this voxel ?
         let mut pos_x = pos.x as i32 / CHUNK_SIZE_X as i32;
@@ -177,11 +198,27 @@ impl ChunkManager
         let mut pos_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
         if pos.z < 0.0 {pos_z -= 1;}
 
-        let pos_chunk_x = pos.x as i32- pos_x as i32 * CHUNK_SIZE_X as i32;
-        let pos_chunk_z = pos.z as i32 - pos_z * CHUNK_SIZE_X as i32;
-        let pos_chunk_y = pos.y as i32;
+        IVec2::new(pos_x,pos_z)
+    }
 
-        (IVec2::new(pos_x,pos_z),IVec3::new(pos_chunk_x,pos_chunk_y,pos_chunk_z))
+    // from a point in world coordinate to world voxel coordinates
+    pub fn get_voxel_pos(pos: Vec3) -> IVec3
+    {
+        let pos_x = if pos.x < 0.0 {pos.x.floor() -1.0} else {pos.x.floor()};
+        let pos_y = pos.y.floor();
+        let pos_z = if pos.z < 0.0 {pos.z.floor() -1.0} else {pos.z.floor()};
+
+        IVec3::new(pos_x as i32,pos_y as i32,pos_z as i32)
+    }
+
+    /// Re-mesh all the chunks in the world and upload them
+    pub fn rebuild_chunk_meshes(&mut self)
+    {
+        for mut chunk in self.chunks.values().map(|x| {x.as_ref().borrow_mut()})
+        {
+            chunk.generate_mesh::<GreedyMesher>();
+            chunk.mesh.as_mut().unwrap().upload();
+        }
     }
 
     fn register_chunk(&mut self , mut chunk : Chunk)
@@ -229,11 +266,11 @@ impl ChunkManager
     }
 
     /// Places the voxel adjacent to the <face> of the voxel at <pos>
-    pub fn place_voxel(&mut self, pos: Vec3, face: Vec3)
+    pub fn place_voxel(&mut self, pos: IVec3, face: IVec3)
     {
         // get the voxel adjacent ot the face
         let voxel_pos = pos + face;
-        let (chunk_pos,voxel_pos) = self.get_local_voxel_coord(voxel_pos);
+        let (chunk_pos,voxel_pos) = ChunkManager::get_local_voxel_coord(voxel_pos);
 
         // is this chunk present
         if let Some(chunk) = self.chunks.get(&(chunk_pos.x,chunk_pos.y)) // y is actually z
@@ -248,10 +285,10 @@ impl ChunkManager
         
     }
 
-    pub fn remove_voxel(&mut self, pos: Vec3)
+    pub fn remove_voxel(&mut self, pos: IVec3)
     {
         println!("Remove voxel on pos:{} called", pos);
-        let (chunk_pos,voxel_pos) = self.get_local_voxel_coord(pos);
+        let (chunk_pos,voxel_pos) = ChunkManager::get_local_voxel_coord(pos);
 
         println!("Voxel will be removed from chunk {} voxel pos: {}", chunk_pos, voxel_pos);
 
