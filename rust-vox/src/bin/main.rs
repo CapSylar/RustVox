@@ -11,7 +11,7 @@ use sdl2::{
     video::{GLProfile, SwapInterval}, mouse::MouseButton,
 };
 
-use std::{time::Instant, f32::consts::PI};
+use std::{time::Instant, f32::consts::PI, rc::Rc, cell::RefCell};
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
 //TODO: refactor main
@@ -56,14 +56,15 @@ fn main() {
     // setup platform and renderer, and fonts to imgui
     let mut platform = SdlPlatform::init(&mut imgui_context);
 
-    let mut ui_renderer = engine::UiRenderer::new(&video_subsystem, &mut imgui_context, &window);
+    // struct to be owned by all debugged components
+    let debug_data = Rc::new(RefCell::new(DebugData::default()));
+
+    let mut ui_renderer = engine::UiRenderer::new(&video_subsystem, &mut imgui_context, &window, &debug_data);
 
     let mut event_pump = sdl.event_pump().unwrap();
 
     sdl.mouse().set_relative_mouse_mode(false);
     sdl.mouse().capture(false);
-
-    let mut debug_data = DebugData::default();
 
     let mut voxel_world = World::new(Camera::new(
         PI / 4.0,
@@ -74,9 +75,12 @@ fn main() {
         Vec3::new(1.0, 0.3, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
         1.0,
-    ));
 
-    let mut world_renderer = Renderer::new(&video_subsystem, &voxel_world);
+        &debug_data
+    ),
+    &debug_data);
+
+    let mut world_renderer = Renderer::new(&video_subsystem, &voxel_world, &debug_data);
 
     // FIXME: remove this
     let mut is_filled_mode = true; // opengl rendering mode
@@ -131,10 +135,8 @@ fn main() {
                 {
                     match mouse_btn
                     {
-                        MouseButton::Right => { println!("Right Mouse Button Clicked");
-                            voxel_world.destroy()},
-                        MouseButton::Left => { println!("Left Mouse Button Clicked");
-                            voxel_world.place()}
+                        MouseButton::Right => {voxel_world.destroy()},
+                        MouseButton::Left => {voxel_world.place()}
                         _ => (),
                     }
                 },
@@ -156,20 +158,16 @@ fn main() {
             };
         }
 
-        let calculation_start = Instant::now();
         voxel_world.update();
         // render the world
         world_renderer.draw_world(&voxel_world);
 
-        let calculation_end = calculation_start.elapsed();
-
         let end = start.elapsed();
-        debug_data.frame_time = end.as_micros();
-        debug_data.add_calculation_time(calculation_end.as_secs_f32());
-        voxel_world.set_stat(& mut debug_data);
+        debug_data.borrow_mut().add_calculation_time(end.as_secs_f32());
+        debug_data.borrow_mut().frame_time = end.as_micros();
 
         // render the UI
-        ui_renderer.render(&mut voxel_world, &mut platform, &mut imgui_context, &window, &event_pump, &mut debug_data);
+        ui_renderer.render(&mut voxel_world, &mut platform, &mut imgui_context, &window, &event_pump);
 
         window.gl_swap_window();
     }

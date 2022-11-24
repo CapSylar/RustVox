@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, rc::Rc, cell::RefCell};
 
 use glam::{Vec3, Vec2};
 use imgui::{Condition, FontSource, Context, FontId, CollapsingHeader, Ui};
@@ -11,11 +11,15 @@ use crate::{engine::{renderer::opengl_abstractions::{shader::Shader, vertex_arra
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates
     pub front: Vec3,          // front vector
-    pub calculation_times: VecDeque<f32>, // same as frame_time, but without waiting for the framebuffer swap
+    calculation_times: VecDeque<f32>, // same as frame_time, but without waiting for the framebuffer swap
     pub frame_time: u128,       // should be 16ms on 60 Hz refresh rate
-    pub chunk_size_bytes: usize,       // bytes
-    pub num_triangles: usize,   // number of triangles on screen coming from chunks
-    pub num_vertices: usize,    // number of vertices on screen coming from chunks
+
+    pub chunk_size_bytes: usize, // bytes
+    pub num_triangles: usize,    // number of triangles on screen coming from chunks
+    pub num_vertices: usize,     // number of vertices on screen coming from chunks
+
+    pub loaded_chunks: usize,
+    pub culled_chunks: usize,
 }
 
 impl DebugData
@@ -25,7 +29,11 @@ impl DebugData
         let mut calculation_times = VecDeque::new();
         calculation_times.resize(500, 0.5);
 
-        DebugData { player_pos: Vec3::ZERO, front: Vec3::ZERO, frame_time: 0, num_triangles: 0, num_vertices: 0, calculation_times, chunk_size_bytes: 0 }
+        DebugData { player_pos: Vec3::ZERO, front: Vec3::ZERO,
+            frame_time: 0, num_triangles: 0,
+            num_vertices: 0, calculation_times,
+            chunk_size_bytes: 0, loaded_chunks: 0,
+            culled_chunks: 0 }
     }
 
     pub fn add_calculation_time(&mut self, value: f32)
@@ -63,12 +71,14 @@ pub struct UiRenderer
     pub used_font: FontId,
     imgui_renderer: Renderer,
     ui_shader: Shader,
-    cross_hair: Mesh<UiVertex>
+    cross_hair: Mesh<UiVertex>,
+
+    debug_data: Rc<RefCell<DebugData>>
 }
 
 impl UiRenderer
 {
-    pub fn new(video_subsystem: &VideoSubsystem, imgui_context: &mut Context, window: &Window) -> UiRenderer
+    pub fn new(video_subsystem: &VideoSubsystem, imgui_context: &mut Context, window: &Window, debug_info: &Rc<RefCell<DebugData>>) -> UiRenderer
     {
         // load the ImGui Font
         let used_font = imgui_context.fonts().add_font(&[FontSource::TtfData{
@@ -123,17 +133,17 @@ impl UiRenderer
 
         cross_hair.upload();
 
-        UiRenderer{ used_font, imgui_renderer, ui_shader, cross_hair }
+        UiRenderer{ used_font, imgui_renderer, ui_shader, cross_hair, debug_data: debug_info.clone() }
     }
 
     /// Render the UI
-    pub fn render(&mut self, voxel_world: &mut World, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump, debug_info: &mut DebugData)
+    pub fn render(&mut self, voxel_world: &mut World, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump)
     {
         // render the Imgui UI
         platform.prepare_frame(imgui_context, window, event_pump);
 
         self.imgui_renderer.render(imgui_context, |ui: &mut Ui| {
-            self.build_ui(ui, debug_info, voxel_world);
+            self.build_ui(ui, voxel_world);
         });
 
         // render our own UI
@@ -166,13 +176,15 @@ impl UiRenderer
         }
     }
 
-    pub fn build_ui(&self, ui: &imgui::Ui , state:&mut DebugData, voxel_world: &mut World)
+    pub fn build_ui(&self, ui: &imgui::Ui, voxel_world: &mut World)
     {
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
         .position([0.0,0.0], Condition::Always)
         .size([500.0, 500.0], Condition::FirstUseEver)
         .build(|| {
+
+        let debug_data = self.debug_data.borrow();
 
         // Controls Section
         if CollapsingHeader::new("Controls")
@@ -189,9 +201,9 @@ impl UiRenderer
         .default_open(true)
         .build(ui)
         {
-            ui.text(format!("player in chunk: {}", ChunkManager::get_chunk_pos(state.player_pos)));
-            ui.text(format!("player position: {}", state.player_pos));
-            ui.text(format!("look_at vector: {}", state.front));
+            ui.text(format!("player in chunk: {}", ChunkManager::get_chunk_pos(debug_data.player_pos)));
+            ui.text(format!("player position: {}", debug_data.player_pos));
+            ui.text(format!("look_at vector: {}", debug_data.front));
 
             if ui.button("Rebuild World")
             {
@@ -204,21 +216,23 @@ impl UiRenderer
         .default_open(true)
         .build(ui)
         {
-            let vec: Vec<f32> = state.calculation_times.iter().cloned().collect();
+            let vec: Vec<f32> = debug_data.calculation_times.iter().cloned().collect();
 
             // build plot
             ui.plot_lines("Frame Times", &vec)
                 .graph_size([0.0,60.0])
                 .scale_min(0.0)
                 .scale_max(60.0)
-                .overlay_text(format!("{:.3} ms", state.calculation_times.back().unwrap()))
+                .overlay_text(format!("{:.3} ms", debug_data.calculation_times.back().unwrap()))
                 .build();
 
-            ui.text(format!("frame time: {:.2} us" , state.frame_time));
-            ui.text(format!("FPS: {}", 1.0/(state.frame_time as f32 / 1000000.0) ));
-            ui.text(format!("Chunk Triangles: {}", state.num_triangles));
-            ui.text(format!("Chunk Vertices: {}", state.num_vertices));
-            ui.text(format!("Chunk Level Info Storage: {:.2} MiBs", state.chunk_size_bytes as f32 / (1024f32 * 1024f32)));
+            ui.text(format!("frame time: {:.2} us" , debug_data.frame_time));
+            ui.text(format!("FPS: {}", 1.0/(debug_data.frame_time as f32 / 1000000.0) ));
+            ui.text(format!("Chunk Triangles: {}", debug_data.num_triangles));
+            ui.text(format!("Chunk Vertices: {}", debug_data.num_vertices));
+            ui.text(format!("Chunk Level Info Storage: {:.2} MiBs", debug_data.chunk_size_bytes as f32 / (1024f32 * 1024f32)));
+            ui.text(format!("Loaded Chunks: {}", debug_data.loaded_chunks));
+            ui.text(format!("Culled Chunks: {}", debug_data.culled_chunks));
         }
 
         font.pop();});

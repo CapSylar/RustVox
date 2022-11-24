@@ -93,7 +93,6 @@ pub fn get_closest_voxel<T> (origin: Vec3, direction: Vec3, max_radius: f32, mut
 
         if tmax[dir] > max_radius
         {
-            println!("exceeded radius");
             break; // exceeded limits, exit
         }
         

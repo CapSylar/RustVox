@@ -1,3 +1,5 @@
+use std::{rc::Rc, cell::{Ref, RefCell}, fmt::Debug};
+
 use crate::ui::DebugData;
 
 use super::{camera::Camera, chunk_manager::ChunkManager, ray_cast::cast_ray};
@@ -10,10 +12,10 @@ pub struct World
 
 impl World
 {
-    pub fn new(eye: Camera) -> Self
+    pub fn new(eye: Camera, debug_data: &Rc<RefCell<DebugData>>) -> Self
     {
         // init the chunk manager
-        let chunk_manager = ChunkManager::new(4);
+        let chunk_manager = ChunkManager::new(4, debug_data);
 
         Self{camera: eye,chunk_manager}
     }
@@ -43,13 +45,5 @@ impl World
     pub fn rebuild(&mut self)
     {
         self.chunk_manager.rebuild_chunk_meshes();
-    }
-
-    //TODO: does not belong here
-    pub fn set_stat(&self, telemetry: &mut DebugData)
-    {
-        self.chunk_manager.set_stat(telemetry);
-        telemetry.player_pos = self.camera.get_position();
-        telemetry.front = self.camera.get_front();
     }
 }

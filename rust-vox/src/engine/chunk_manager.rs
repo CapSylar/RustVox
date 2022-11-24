@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}, borrow::BorrowMut};
+use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use glam::{Vec3, IVec2, IVec3};
 use crate::{threadpool::ThreadPool, ui::DebugData, engine::{chunk::{self, CHUNK_SIZE_Y}, geometry::voxel}};
 use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAnimation, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}}};
@@ -38,11 +38,14 @@ pub struct ChunkManager
     anchor_point: (i32,i32), // anchor chunk point
     to_upload: Vec<Chunk>, // same as fixme above
     last_upload: Instant,
+
+    // debug
+    debug_data: Rc<RefCell<DebugData>>
 }
 
 impl ChunkManager
 {
-    pub fn new( theadcount: usize ) -> Self
+    pub fn new( theadcount: usize, debug_data: &Rc<RefCell<DebugData>>) -> Self
     {
         // create the fields
         let chunks = HashMap::new();
@@ -53,7 +56,7 @@ impl ChunkManager
         // player position always starts at (0,0,0) for now
 
         let mut ret = Self{chunks , chunks_to_load: chunks_load , chunks_render , anchor_point: (0,0),
-           chunks_animation , threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now() };
+           chunks_animation , threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now(), debug_data:debug_data.clone() };
         ret.load_visible();
         ret
     }
@@ -94,8 +97,6 @@ impl ChunkManager
         if (new_pos.0 - self.anchor_point.0).abs() > NO_UPDATE/2 ||  // in x
                     (new_pos.1 - self.anchor_point.1).abs() > NO_UPDATE/2 // in z
         { 
-            println!("[DEBUG] currently in chunk x:{}, z:{}", new_pos.0, new_pos.1);
-
             // update new anchor point
             self.anchor_point = new_pos;
 
@@ -113,9 +114,11 @@ impl ChunkManager
             self.to_upload.append(&mut vec.drain(..).collect());
         }
 
+        let mut new_loads = false;
         // get x chunks from the to_load list and upload them
         if self.last_upload.elapsed().as_millis() > MIN_BETWEEN_LOADS.as_millis()
         {
+            new_loads = true;
             self.last_upload = Instant::now(); // reset counter
             for _ in 0..UPLOAD_LIMIT_FRAME
             {
@@ -142,6 +145,11 @@ impl ChunkManager
             }
         }
 
+        // update debug data
+        if new_loads
+        {
+            self.update_debug();
+        }
     }
 
     pub fn get_voxel(&self, pos: IVec3) -> Option<Voxel>
@@ -229,6 +237,8 @@ impl ChunkManager
         self.chunks_animation.push(Rc::clone(&c));
         self.chunks_render.push(Rc::clone(&c));
         self.chunks.insert( ( pos.x as i32 , pos.z as i32 ) , c );
+
+        self.debug_data.borrow_mut().loaded_chunks = self.chunks_render.len();
     }
 
     // fn deregister_chunk(&mut self)
@@ -241,11 +251,6 @@ impl ChunkManager
     {
         &self.chunks_render // return all for now
     }
-
-    // pub fn load_chunks()
-    // {
-
-    // }
 
     /// Constructs the mesh for loaded chunks, and then appends them to the general list of chunks
     /// 
@@ -281,8 +286,6 @@ impl ChunkManager
             chunk.generate_mesh::<GreedyMesher>();
             chunk.mesh.as_mut().unwrap().upload();
         }
-
-        
     }
 
     pub fn remove_voxel(&mut self, pos: IVec3)
@@ -342,7 +345,7 @@ impl ChunkManager
 
     //TODO: refactor
     /// Gets the number of triangles of the current displayed chunks
-    pub fn set_stat(&self, diagnostic: &mut DebugData)
+    pub fn update_debug(&mut self)
     {
         let mut num_trigs = 0;
         let mut num_vertices = 0;
@@ -360,9 +363,10 @@ impl ChunkManager
             chunk_sizes += x.get_size_bytes();
         }
 
-        diagnostic.num_triangles = num_trigs;
-        diagnostic.num_vertices = num_vertices;
-        diagnostic.chunk_size_bytes = chunk_sizes;
+        let mut debug_data = self.debug_data.borrow_mut();
+        debug_data.num_triangles = num_trigs;
+        debug_data.num_vertices = num_vertices;
+        debug_data.chunk_size_bytes = chunk_sizes;
     }
 
 }

@@ -1,8 +1,10 @@
-use std::{ffi::{c_void, CStr}, mem::size_of};
+use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell, Ref}, fmt::Debug};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
+use crate::DebugData;
+
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
 use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}, chunk::Chunk};
 
@@ -18,11 +20,14 @@ pub struct Renderer
     sun_direction: Vec3,
     sky: Sky,
     sky_rend : SkyRenderer,
+
+    // debug info
+    debug_data: Rc<RefCell<DebugData>>
 }
 
 impl Renderer
 {
-    pub fn new(video_subsystem: &VideoSubsystem, world: &World) -> Self
+    pub fn new(video_subsystem: &VideoSubsystem, world: &World, debug_info: &Rc<RefCell<DebugData>>) -> Self
     {
         // Setup
         // load up every opengl function, is this good ?
@@ -107,7 +112,7 @@ impl Renderer
 
             let sky_rend = SkyRenderer::default();
             
-            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new()}
+            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new(), debug_data: debug_info.clone()}
         }
     }
 
@@ -163,12 +168,13 @@ impl Renderer
             self.default_shader.set_uniform1i("cascade_count", cascades.len() as i32 ).expect("error setting the cascade count");
             self.default_shader.set_uniform_1fv("cascades", cascades).expect("error setting the cascades");
 
-            Self::draw_geometry(world, &mut self.default_shader);
+            let mut debug_data = self.debug_data.borrow_mut();
+            debug_data.culled_chunks = Self::draw_geometry(world, &mut self.default_shader);
             Shader::unbind();
         }
     }
 
-    fn draw_geometry(world: &World, shader: &mut Shader)
+    fn draw_geometry(world: &World, shader: &mut Shader) -> usize
     {
         // draw each chunk's mesh
         let mut i = 0;
@@ -197,7 +203,7 @@ impl Renderer
             }
         }
 
-        println!("{} Chunks Culled!", i);
+        i
     }
 
     /// Depth Only Render Pass

@@ -1,4 +1,8 @@
+use std::{cell::RefCell, rc::Rc};
+
 use glam::{Vec3, Mat4};
+
+use crate::DebugData;
 
 pub struct Camera
 {
@@ -21,15 +25,23 @@ pub struct Camera
     pitch: f32,
 
     // Frustum
-    frustum: Frustum
+    frustum: Frustum,
+
+    // debug data
+    debug_data: Rc<RefCell<DebugData>>
 }
 
 impl Camera
 {
-    pub fn new(fov_y: f32, aspect_ratio: f32, near_plane: f32, far_plane: f32, position: Vec3 , front: Vec3 , up: Vec3 , speed: f32) -> Self
+    pub fn new(fov_y: f32, aspect_ratio: f32, near_plane: f32, far_plane: f32, position: Vec3 , front: Vec3 , up: Vec3 , speed: f32, debug_data: &Rc<RefCell<DebugData>>) -> Self
     {
         let frustum =  Frustum::new(position, front, up, near_plane, far_plane, fov_y, aspect_ratio);
-        Self { fov_y, aspect_ratio, near_plane, far_plane, position, front , up, speed , pitch: 0.0, yaw: -89.9, frustum}
+
+        let debug_data = debug_data.clone();
+        debug_data.borrow_mut().player_pos = position;
+        debug_data.borrow_mut().front = front;
+
+        Self { fov_y, aspect_ratio, near_plane, far_plane, position, front , up, speed , pitch: 0.0, yaw: -89.9, frustum, debug_data}
     }
 
     pub fn get_position(&self) -> Vec3
@@ -37,35 +49,45 @@ impl Camera
         self.position
     }
 
+    pub fn set_position(&mut self, pos: Vec3 )
+    {
+        self.position = pos;
+        self.rebuild_frustum();
+        // update the debug data
+        self.debug_data.borrow_mut().player_pos = self.position;
+    }
+
     pub fn get_front(&self) -> Vec3
     {
         self.front
     }
 
+    pub fn set_front(&mut self, front: Vec3)
+    {
+        self.front = front;
+        self.rebuild_frustum();
+        // update the debug data
+        self.debug_data.borrow_mut().front = self.front;
+    }
+
     pub fn move_forward(&mut self)
     {
-        self.position += self.front * self.speed;
-        self.rebuild_frustum();
+        self.set_position(self.position + self.front * self.speed);
     }
 
     pub fn move_backward(&mut self)
     {
-        self.position -= self.front * self.speed;
-        self.rebuild_frustum();
+        self.set_position(self.position - self.front * self.speed);
     }
 
-    //FIXME: recalculating the cross every time ? 
     pub fn strafe_left(&mut self)
     {
-        self.position -= Vec3::cross(self.front, self.up).normalize() * self.speed;
-        self.rebuild_frustum();
+        self.set_position(self.position - Vec3::cross(self.front, self.up).normalize() * self.speed);
     }
 
-    //FIXME: recalculating the cross every time ? 
     pub fn strafe_right(&mut self)
     {
-        self.position += Vec3::cross(self.front, self.up).normalize() * self.speed;
-        self.rebuild_frustum();
+        self.set_position(self.position + Vec3::cross(self.front, self.up).normalize() * self.speed);
     }
 
     /// Change the Camera's direction 
@@ -78,11 +100,13 @@ impl Camera
         self.pitch = self.pitch.clamp(-89.9, 89.9);
 
         // recalculate front vector
-        self.front.x = f32::cos(self.yaw.to_radians()) * f32::cos(self.pitch.to_radians());
-        self.front.y = f32::sin(self.pitch.to_radians());
-        self.front.z = f32::sin(self.yaw.to_radians()) * f32::cos(self.pitch.to_radians());
+        let front = Vec3::new(
+            f32::cos(self.yaw.to_radians()) * f32::cos(self.pitch.to_radians()),
+            f32::sin(self.pitch.to_radians()),
+            f32::sin(self.yaw.to_radians()) * f32::cos(self.pitch.to_radians())
+        );
 
-        self.rebuild_frustum();
+        self.set_front(front);
     }
 
     pub fn get_look_at(&self) -> Mat4
