@@ -5,11 +5,11 @@ use super::{terrain::{PerlinGenerator, TerrainGenerator}, animation::ChunkMeshAn
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
-const VISIBLE: i32 = 12; // engulfes NO_UPDATE_SQUARE
+const VISIBLE: i32 = 10; // engulfes NO_UPDATE_SQUARE
 // const NO_VISIBLE_STILL_LOADED: i32 = 10;
 
 const MIN_BETWEEN_LOADS: Duration = Duration::from_millis(50);
-const UPLOAD_LIMIT_FRAME: usize = 1; // maximum number of chunks that can be uploaded per frame
+const UPLOAD_LIMIT_FRAME: usize = 10; // maximum number of chunks that can be uploaded per frame
 
 // Needed to be able to pass the generator as a &'static to the spawned threads
 lazy_static! 

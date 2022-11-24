@@ -1,7 +1,7 @@
 #![warn(clippy::all)]
 #![allow(clippy::too_many_arguments)]
 
-use engine::{DebugData, world::World, eye::Eye, Renderer};
+use engine::{DebugData, world::World, camera::Camera, Renderer};
 use glam::Vec3;
 use imgui::Context;
 use imgui_sdl2_support::SdlPlatform;
@@ -10,7 +10,6 @@ use sdl2::{
     keyboard,
     video::{GLProfile, SwapInterval}, mouse::MouseButton,
 };
-use sdl2::sys;
 
 use std::{time::Instant, f32::consts::PI};
 static MOUSE_SENSITIVITY: f32 = 0.05;
@@ -66,7 +65,7 @@ fn main() {
 
     let mut debug_data = DebugData::default();
 
-    let mut voxel_world = World::new(Eye::new(
+    let mut voxel_world = World::new(Camera::new(
         PI / 4.0,
         1920.0 / 1080.0,
         0.1,
@@ -121,10 +120,10 @@ fn main() {
                             keyboard::Keycode::Escape => {
                                 break 'main;
                             }
-                            keyboard::Keycode::W => voxel_world.eye.move_forward(),
-                            keyboard::Keycode::S => voxel_world.eye.move_backward(),
-                            keyboard::Keycode::A => voxel_world.eye.strafe_left(),
-                            keyboard::Keycode::D => voxel_world.eye.strafe_right(),
+                            keyboard::Keycode::W => voxel_world.camera.move_forward(),
+                            keyboard::Keycode::S => voxel_world.camera.move_backward(),
+                            keyboard::Keycode::A => voxel_world.camera.strafe_left(),
+                            keyboard::Keycode::D => voxel_world.camera.strafe_right(),
                             _ => (),
                         };
                 }
@@ -148,7 +147,7 @@ fn main() {
                     // ignore mouse movement if we are not in relative mode
                     if sdl.mouse().relative_mouse_mode()
                     {
-                        voxel_world.eye.change_front_rel(
+                        voxel_world.camera.change_front_rel(
                             x_rel as f32 * MOUSE_SENSITIVITY,
                             y_rel as f32 * MOUSE_SENSITIVITY)
                     }

@@ -1,4 +1,4 @@
-pub mod eye;
+pub mod camera;
 pub mod renderer;
 pub mod terrain;
 pub mod world;

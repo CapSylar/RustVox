@@ -2,7 +2,9 @@ use std::mem::{self};
 
 use glam::{Vec3, IVec3};
 
-use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher}};
+use crate::camera::{BoundingBox, AABB};
+
+use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::{ChunkMesher, VOXEL_SIZE}}};
 
 pub const CHUNK_SIZE_X : usize = 20; // Should be equal to Z
 pub const CHUNK_SIZE_Y : usize = 100;
@@ -107,8 +109,8 @@ impl Chunk
     pub fn pos_chunk_space(&self) -> Vec3 { self.pos }
 
     pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_SIZE_X as i32 ) as f32 ,
-             (self.pos.y as i32 *CHUNK_SIZE_Y as i32 ) as f32 ,
-                 (self.pos.z as i32 * CHUNK_SIZE_Z as i32 ) as f32 ) }
+             (self.pos.y as i32 * CHUNK_SIZE_Y as i32 ) as f32 ,
+                 (self.pos.z as i32 * CHUNK_SIZE_Z as i32 ) as f32 ) } 
 
     /// Returns the size in bytes on the chunk, the size of the mesh is excluded
     pub fn get_size_bytes(&self) -> usize
@@ -116,4 +118,19 @@ impl Chunk
         CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z * mem::size_of::<Voxel>()
     }
 
+}
+
+impl BoundingBox for Chunk
+{
+    fn get_aabb(&self) -> AABB
+    {
+        // Calculate the AABB for the chunk
+        let size = Vec3::new(CHUNK_SIZE_X as f32, CHUNK_SIZE_Y as f32, CHUNK_SIZE_Z as f32) * VOXEL_SIZE;
+        let world_pos = self.pos * size;
+        let ret = AABB::new(world_pos, world_pos + size);
+
+        // println!("AAAB min {} max {}", ret.min, ret.max);
+
+        ret
+    }
 }

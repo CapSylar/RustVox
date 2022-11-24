@@ -2,7 +2,7 @@
 
 use std::{ffi::c_void, mem::size_of};
 use glam::{Mat4, Vec3, Vec4, Vec4Swizzles};
-use crate::engine::eye::{Eye};
+use crate::engine::camera::{Camera};
 
 pub struct Csm
 {
@@ -29,7 +29,7 @@ impl Csm
 {
     // TODO: create a new() where the partitions are passed in
 
-    pub fn new( width: i32, height: i32, eye: &Eye ) -> Self
+    pub fn new( width: i32, height: i32, eye: &Camera ) -> Self
     {
         let near_plane = eye.near_plane;
         let far_plane = eye.far_plane;
@@ -80,7 +80,7 @@ impl Csm
         Self{ cascades, prev_view_trans, depth_texture_array, matrices_ubo, light_space_matrices, cascade_bounds, width, height }
     }
 
-    pub fn update(&mut self , eye: &Eye, light_direction: Vec3)
+    pub fn update(&mut self , eye: &Camera, light_direction: Vec3)
     {
         // calculate the updated light-space matrices for each cascasde
         self.get_cascaded_lightspace_matrices(eye,light_direction);
@@ -118,7 +118,7 @@ impl Csm
 
     /// Generated matrices go into the passed in "matrices_out" slice
     /// Assumes cascades.len > 2
-    fn get_cascaded_lightspace_matrices(&mut self, eye: &Eye, light_direction: Vec3)
+    fn get_cascaded_lightspace_matrices(&mut self, eye: &Camera, light_direction: Vec3)
     {
         // first cascade starts from the near plane
         let mut i : usize = 0;
@@ -132,7 +132,7 @@ impl Csm
 
     /// Get the transformation matrix that transforms the world to "light space"
     /// The directional light looks at the center of the frustum
-    fn get_lightspace_transformation( bound_sphere: &(Vec3,f32) , eye: &Eye, texture_texel_size: i32, light_direction: Vec3, prev_view_trans_out: &mut Mat4) -> Mat4
+    fn get_lightspace_transformation( bound_sphere: &(Vec3,f32) , eye: &Camera, texture_texel_size: i32, light_direction: Vec3, prev_view_trans_out: &mut Mat4) -> Mat4
     {
         let center = bound_sphere.0;
         let radius = bound_sphere.1;

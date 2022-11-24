@@ -4,7 +4,7 @@ use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
-use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
+use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}, chunk::Chunk};
 
 pub mod opengl_abstractions;
 pub mod csm;
@@ -89,7 +89,7 @@ impl Renderer
             gl::GenFramebuffers(1, &mut shadow_fb);
 
             // initialise the Shadows
-            let csm = Csm::new(2048,2048, &world.eye);
+            let csm = Csm::new(2048,2048, &world.camera);
 
             gl::BindFramebuffer(gl::FRAMEBUFFER, shadow_fb);
             gl::FramebufferTexture(gl::FRAMEBUFFER, gl::DEPTH_ATTACHMENT, csm.get_depth_texture_id(), 0);
@@ -113,8 +113,8 @@ impl Renderer
 
     pub fn draw_world(&mut self, world: &World)
     {   
-        let perspective = world.eye.get_persp_trans();
-        let view = world.eye.get_look_at();
+        let perspective = world.camera.get_persp_trans();
+        let view = world.camera.get_look_at();
         let view_no_trans = Mat4::from_mat3(Mat3::from_mat4(view));
 
         let transforms: [Mat4;3] = [perspective,view,view_no_trans];
@@ -171,9 +171,12 @@ impl Renderer
     fn draw_geometry(world: &World, shader: &mut Shader)
     {
         // draw each chunk's mesh
+        let mut i = 0;
+
         for chunk in world.chunk_manager.get_chunks_to_render().iter()
         {
-            let chunk = chunk.borrow_mut();
+            let chunk = chunk.borrow();
+
             if let Some(ref offset) = chunk.animation
             {
                 shader.set_uniform3fv("animation_offset", &offset.current ).expect("error setting animation offset!");
@@ -183,15 +186,25 @@ impl Renderer
                 shader.set_uniform3fv("animation_offset", &Vec3::ZERO).expect("error setting animation offset!");
             }
 
-            Renderer::draw_mesh(chunk.mesh.as_ref().expect("mesh was not initialized!"));
+            // check if the chunk is visible from the camera's perspective
+
+            if world.camera.is_visible::<Chunk>(&chunk)
+            {
+                Renderer::draw_mesh(chunk.mesh.as_ref().expect("mesh was not initialized!"));
+            }
+            else {
+                i += 1;
+            }
         }
+
+        println!("{} Chunks Culled!", i);
     }
 
     /// Depth Only Render Pass
     /// Implements Cascaded Shadow Maps (CSM)
     fn render_shadow(&mut self, world: &World)
     {
-        self.csm.update(&world.eye,self.sun_direction);
+        self.csm.update(&world.camera,self.sun_direction);
 
         self.shadow_shader.bind();
 

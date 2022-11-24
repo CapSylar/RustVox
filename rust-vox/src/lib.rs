@@ -8,5 +8,5 @@ mod ui;
 pub use ui::UiRenderer;
 pub use ui::DebugData;
 pub use engine::world;
-pub use engine::eye;
+pub use engine::camera;
 pub use engine::renderer::Renderer;
