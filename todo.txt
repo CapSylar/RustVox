@@ -1,6 +1,6 @@
 // TOP LEVEL FEATURES
 - [X] In-chunk face optimization - remove faces that are all unseen
-- [X] Chunk-loading animation
+- [X] Chunk-loading animation -- later removed for performance
 - [X] Multiple block types
 - [X] Chunk manager
 - [X] Stable Cascaded shadow maps

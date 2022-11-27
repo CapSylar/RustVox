@@ -10,7 +10,7 @@ pub struct ChunkMeshAnimation
 
 impl ChunkMeshAnimation
 {
-    pub fn new() -> Self // sensible defaults for now
+    pub fn _new() -> Self // sensible defaults for now
     {
         Self
         {
@@ -31,10 +31,6 @@ impl ChunkMeshAnimation
         let origin = Vec3::ZERO;
         // interpolate between current and end positions
         self.current = self.current + (origin - self.current) * self.interpolation;
-
-        // debug 
-        // println!("[DEBUG] new position of chunk animation: x:{},y:{},z:{}",
-        //     self.current.x , self.current.y , self.current.z );
     
         (self.current - origin).length() <= 0.01 // close to endpoint, exit
     }

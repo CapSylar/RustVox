@@ -177,20 +177,11 @@ impl Renderer
     fn draw_geometry(world: &World, shader: &mut Shader) -> usize
     {
         // draw each chunk's mesh
-        let mut i = 0;
+        let i = 0;
 
         for chunk in world.chunk_manager.get_chunks_to_render().iter()
         {
             let chunk = chunk.borrow();
-
-            if let Some(ref offset) = chunk.animation
-            {
-                shader.set_uniform3fv("animation_offset", &offset.current ).expect("error setting animation offset!");
-            }
-            else
-            {
-                shader.set_uniform3fv("animation_offset", &Vec3::ZERO).expect("error setting animation offset!");
-            }
 
             // check if the chunk is visible from the camera's perspective
 

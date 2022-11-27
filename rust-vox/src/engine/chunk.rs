@@ -4,7 +4,7 @@ use glam::{Vec3, IVec3};
 
 use crate::camera::{BoundingBox, AABB};
 
-use super::{terrain::TerrainGenerator, animation::ChunkMeshAnimation, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::{ChunkMesher, VOXEL_SIZE}}};
+use super::{terrain::TerrainGenerator, geometry::{mesh::{Mesh}, voxel::{Voxel}, voxel_vertex::VoxelVertex, meshing::chunk_mesher::{ChunkMesher, VOXEL_SIZE}}};
 
 pub const CHUNK_SIZE_X : usize = 20; // Should be equal to Z
 pub const CHUNK_SIZE_Y : usize = 100;
@@ -17,9 +17,6 @@ pub struct Chunk
     pub voxels: [[[Voxel; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X],
     pos: Vec3, // position in chunk space
     pub mesh: Option<Mesh<VoxelVertex>>,
-
-    // animation
-    pub animation: Option<ChunkMeshAnimation>
 }
 
 impl Chunk
@@ -46,7 +43,7 @@ impl Chunk
             }
         }
 
-        Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None::<Mesh<VoxelVertex>> , animation: None}
+        Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None::<Mesh<VoxelVertex>>}
     }
 
     /// Generate the chunk mesh
@@ -81,29 +78,6 @@ impl Chunk
         }
 
         self.voxels[pos.x as usize][pos.y as usize][pos.z as usize] = voxel;
-    }
-
-    pub fn add_animation(&mut self , animation: ChunkMeshAnimation)
-    {
-        //fixme: what if we already have an animation ?
-        self.animation = Some(animation);
-    }
-
-    // TODO: refactor
-    pub fn update_animation(&mut self) -> bool 
-    {
-        let mut end = false;
-        if let Some(animation) = self.animation.as_mut()
-        {
-            end = animation.update();
-        }
-
-        if end
-        {
-            self.animation = None; // remove animation
-        }
-
-        end 
     }
 
     pub fn pos_chunk_space(&self) -> Vec3 { self.pos }

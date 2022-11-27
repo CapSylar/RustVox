@@ -12,7 +12,7 @@ const MIN_BETWEEN_LOADS: Duration = Duration::from_millis(50);
 const UPLOAD_LIMIT_FRAME: usize = 10; // maximum number of chunks that can be uploaded per frame
 
 // Needed to be able to pass the generator as a &'static to the spawned threads
-lazy_static! 
+lazy_static!
 {
     static ref GENERATOR: Box<dyn TerrainGenerator> = Box::new(PerlinGenerator::new());
 }
@@ -24,7 +24,6 @@ pub struct ChunkManager
 
     chunks: HashMap<(i32,i32), Rc<RefCell<Chunk>>>,
     chunks_render: Vec<Rc<RefCell<Chunk>>>,
-    chunks_animation: Vec<Rc<RefCell<Chunk>>>,
 
     // FIXME: vec of chunk structs, isnt't that too much ? Should consider storing pointers to boxes
     chunks_to_load: Arc<Mutex<Vec<Chunk>>>, // chunks that exist here are not necessarily in the chunks list
@@ -51,12 +50,11 @@ impl ChunkManager
         let chunks = HashMap::new();
         let chunks_load = Arc::new(Mutex::new(Vec::new()));
         let chunks_render = Vec::new();
-        let chunks_animation = Vec::new();
 
         // player position always starts at (0,0,0) for now
 
         let mut ret = Self{chunks , chunks_to_load: chunks_load , chunks_render , anchor_point: (0,0),
-           chunks_animation , threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now(), debug_data:debug_data.clone() };
+           threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now(), debug_data:debug_data.clone() };
         ret.load_visible();
         ret
     }
@@ -128,20 +126,6 @@ impl ChunkManager
                     chunk.mesh.as_mut().unwrap().upload();
                     self.register_chunk(chunk);
                 }
-            }
-        }
-
-        // animation updates
-        let mut i = 0;
-        while i < self.chunks_animation.len()
-        {
-            if self.chunks_animation[i].as_ref().borrow_mut().update_animation()
-            {
-                self.chunks_animation.remove(i);
-            }
-            else
-            {
-                i += 1;    
             }
         }
 
@@ -232,9 +216,7 @@ impl ChunkManager
     fn register_chunk(&mut self , mut chunk : Chunk)
     {
         let pos = chunk.pos_chunk_space();
-        chunk.add_animation(ChunkMeshAnimation::new());
         let c = Rc::new(RefCell::new(chunk));
-        self.chunks_animation.push(Rc::clone(&c));
         self.chunks_render.push(Rc::clone(&c));
         self.chunks.insert( ( pos.x as i32 , pos.z as i32 ) , c );
 
