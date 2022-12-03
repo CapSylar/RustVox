@@ -1,15 +1,17 @@
-use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell, Ref}, fmt::Debug};
+use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use crate::DebugData;
 
-use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
-use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}, chunk::Chunk};
+use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm, allocators::default_allocator::DefaultAllocator};
+use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
 pub mod csm;
+pub mod allocators;
+
 pub struct Renderer
 {
     trans_ubo: u32,
@@ -112,7 +114,7 @@ impl Renderer
 
             let sky_rend = SkyRenderer::default();
             
-            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new(), debug_data: debug_info.clone()}
+            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::default(), debug_data: debug_info.clone()}
         }
     }
 
@@ -185,13 +187,13 @@ impl Renderer
 
             // check if the chunk is visible from the camera's perspective
 
-            if world.camera.is_visible::<Chunk>(&chunk)
-            {
-                Renderer::draw_mesh(chunk.mesh.as_ref().expect("mesh was not initialized!"));
-            }
-            else {
-                i += 1;
-            }
+            // if world.camera.is_visible::<Chunk>(&chunk)
+            // {
+                Renderer::draw_mesh(&world.chunk_manager.allocator, chunk.mesh.as_ref().expect("mesh was not initialized!"));
+            // }
+            // else {
+                // i += 1;
+            // }
         }
 
         i
@@ -221,22 +223,24 @@ impl Renderer
         }
     }
 
-    pub fn draw_mesh<T> (mesh: &Mesh<T>)
+    pub fn draw_mesh<T: OpenglVertex> (allocator: &DefaultAllocator<T>, mesh: &Mesh<T>)
     {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
         unsafe
         {
-            mesh.vao.as_ref().unwrap().bind();
+            vao.bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
             VertexArray::<T>::unbind();
         }
     }
 
     // FIXME: duplicate code with function above, refactor
-    pub fn draw_mesh_with_mode<T> (mesh: &Mesh<T>, mode: types::GLenum )
+    pub fn draw_mesh_with_mode<T: OpenglVertex> (allocator: &DefaultAllocator<T>, mesh: &Mesh<T>, mode: types::GLenum )
     {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
         unsafe
         {
-            mesh.vao.as_ref().unwrap().bind();
+            vao.bind();
             gl::DrawElements(mode, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
             VertexArray::<T>::unbind();
         }

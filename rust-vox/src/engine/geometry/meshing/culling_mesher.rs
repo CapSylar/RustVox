@@ -97,7 +97,7 @@ impl ChunkMesher for CullingMesher
     fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>
     {        
         // Generate the mesh
-        let mut mesh: Mesh<VoxelVertex> = Mesh::new();
+        let mut mesh: Mesh<VoxelVertex> = Mesh::default();
         
         //Generate the directly in here, good enough for now
         // for now render the mesh of all the voxels as is

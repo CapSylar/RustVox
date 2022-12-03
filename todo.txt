@@ -24,3 +24,4 @@
 
 // ISSUES
 - [] Clouds too visible during the night, not affected by lighting
+- [] Pressing X while chunks are being loaded takes too long to exit

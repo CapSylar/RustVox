@@ -4,9 +4,9 @@ use glam::{Vec3, Vec2};
 use imgui::{Condition, FontSource, Context, FontId, CollapsingHeader, Ui};
 use imgui_opengl_renderer::Renderer;
 use imgui_sdl2_support::SdlPlatform;
-use sdl2::{VideoSubsystem, video::Window, EventPump};
+use sdl2::{VideoSubsystem, video::Window, EventPump, sys::alloca};
 
-use crate::{engine::{renderer::opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager}, world::World};
+use crate::{engine::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, allocators::default_allocator::DefaultAllocator}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager}, world::World};
 
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates
@@ -68,6 +68,7 @@ impl OpenglVertex for UiVertex
 
 pub struct UiRenderer
 {
+    allocator: DefaultAllocator<UiVertex>,
     pub used_font: FontId,
     imgui_renderer: Renderer,
     ui_shader: Shader,
@@ -120,7 +121,7 @@ impl UiRenderer
         let size = window.size();
         let ratio = size.0 as f32 / size.1 as f32 ; // aspect ratio
         
-        let mut cross_hair: Mesh<UiVertex> = Mesh::new();
+        let mut cross_hair: Mesh<UiVertex> = Mesh::default();
         let uv_lower_left = Vec2::new(0.0/16.0,0.0/16.0);
         let offset = 1.0/16.0;
 
@@ -131,9 +132,10 @@ impl UiRenderer
         UiVertex{position:Vec2::new(0.03,-0.03 * ratio), uv:uv_lower_left + Vec2::new(offset,0.0)}
         );
 
-        cross_hair.upload();
+        let mut allocator = DefaultAllocator::new();
+        allocator.alloc(&mut cross_hair);
 
-        UiRenderer{ used_font, imgui_renderer, ui_shader, cross_hair, debug_data: debug_info.clone() }
+        UiRenderer{ allocator, used_font, imgui_renderer, ui_shader, cross_hair, debug_data: debug_info.clone() }
     }
 
     /// Render the UI
@@ -155,7 +157,7 @@ impl UiRenderer
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
         }
 
-        Self::draw_mesh(&self.cross_hair);
+        Self::draw_mesh(&self.allocator, &self.cross_hair);
 
         unsafe
         {
@@ -166,11 +168,12 @@ impl UiRenderer
     }
     
     //TODO: duplicate code
-    pub fn draw_mesh<T> (mesh: &Mesh<T>)
+    pub fn draw_mesh<T: OpenglVertex> (allocator: &DefaultAllocator<T> ,mesh: &Mesh<T>)
     {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
         unsafe
         {
-            mesh.vao.as_ref().unwrap().bind();
+            vao.bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
             VertexArray::<T>::unbind();
         }

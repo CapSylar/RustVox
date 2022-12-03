@@ -74,6 +74,11 @@ impl<T> VertexArray<T>
         }
     }
 
+    pub fn get_id(&self) -> u32
+    {
+        self.renderer_id
+    }
+
 
 }
 
