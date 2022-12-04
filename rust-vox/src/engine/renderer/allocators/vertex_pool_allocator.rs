@@ -1,6 +1,9 @@
 // Manages the Opengl allocations related to chunks
 
-use std::{collections::VecDeque, ffi::c_void, mem::{self}, marker::PhantomData};
+use core::panic;
+use std::{collections::VecDeque, ffi::c_void, mem::{self}, marker::PhantomData, ptr::null, time::Instant};
+
+use gl::types::__GLsync;
 
 use crate::engine::{geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, renderer::opengl_abstractions::{vertex_array::VertexArray, index_buffer::IndexBuffer, vertex_buffer::VertexBuffer}};
 pub struct VertexPoolAllocator<T>
@@ -27,7 +30,8 @@ pub struct VertexPoolAllocator<T>
     vao: VertexArray<T>,
     draw_ind_buffer: u32, // indirect draw command buffer object
 
-    _phantom: PhantomData<T>,
+    // OpenGL Sync object
+    sync_obj: *const __GLsync,
 }
 
 impl<T> VertexPoolAllocator<T>
@@ -55,9 +59,6 @@ impl<T> VertexPoolAllocator<T>
 
         unsafe
         {
-            // gl::GenVertexArrays(1, &mut vao);
-            // gl::BindVertexArray(vao);
-
             // Setup Persistent VBO for Vertex Data
             gl::GenBuffers(1, &mut pers_vbo);
             gl::BindBuffer(gl::ARRAY_BUFFER, pers_vbo);
@@ -74,36 +75,32 @@ impl<T> VertexPoolAllocator<T>
 
             println!("vbo start pointer is {:?}", vbo_start);
             println!("ebo start pointer is {:?}", ebo_start);
+        }
 
-            // init the buckets
-            for i in 0..max_num_buckets
-            {
-                free_pool.push_back(i as u32);
-            }
+        // init the buckets
+        for i in 0..max_num_buckets
+        {
+            free_pool.push_back(i as u32);
         }
 
         // create the VAO
         let vao = VertexArray::new(VertexBuffer::from_id(pers_vbo),&T::get_layout(), IndexBuffer::from_id(ebo));
 
-        vao.bind();
-
+        vao.bind(); // add draw_ind_buffer to the current vao
         unsafe
         {
             gl::GenBuffers(1, &mut draw_ind_buffer);
             gl::BindBuffer(gl::DRAW_INDIRECT_BUFFER, draw_ind_buffer);
         }
-
         vao.unbind();
         
         Self{max_num_buckets, max_num_indices, max_num_vertices, vao, draw_ind_buffer, free_pool,draw_calls: Vec::new(), indices: Vec::new(),
-                allocation_index: vec![-1;max_num_buckets], vbo_start, ebo_start, vbo_bucket_size, ebo_bucket_size, _phantom: PhantomData}
+                allocation_index: vec![-1;max_num_buckets], vbo_start, ebo_start, vbo_bucket_size, ebo_bucket_size, sync_obj: unsafe {gl::FenceSync(gl::SYNC_GPU_COMMANDS_COMPLETE, 0)}}
     }
 
     /// Add the mesh to the pool
     pub fn alloc(&mut self, mesh: &mut Mesh<T>) -> Option<AllocToken>
     {
-        // println!("Vertex pool alloc was called, {} bucket were free before alloc", self.free_pool.len());
-
         if self.free_pool.is_empty() || mesh.indices.len() > self.max_num_indices || mesh.vertices.len() > self.max_num_vertices
         {
             return None;
@@ -112,9 +109,16 @@ impl<T> VertexPoolAllocator<T>
         // allocate a bucket and return a reference to it
 
         let index = self.free_pool.pop_front().unwrap(); // Guaranteed to not panic since we already checked that free_pool is not empty
-        // get the start to out bucket
+        
         unsafe
         {
+            let wait = gl::ClientWaitSync(self.sync_obj, gl::SYNC_FLUSH_COMMANDS_BIT, 0); // wait for previous operation on buffer to complete
+
+            if wait == gl::WAIT_FAILED
+            {
+                panic!("Some error occured while waiting for Buffer to Sync");
+            }
+
             let vertex_start = self.vbo_start.add(index as usize * self.vbo_bucket_size);
             let index_start = self.ebo_start.add(index as usize * self.ebo_bucket_size);
 
@@ -122,6 +126,7 @@ impl<T> VertexPoolAllocator<T>
             vertex_start.copy_from(mesh.vertices.as_ptr() as _, mesh.get_vertices_size_bytes());
             // place the index data
             index_start.copy_from(mesh.indices.as_ptr() as _, mesh.get_indices_size_bytes());
+            self.sync_obj = gl::FenceSync(gl::SYNC_GPU_COMMANDS_COMPLETE, 0);
         }
 
         self.draw_calls.push(Daic::new(mesh.indices.len() as u32, 1, index * self.max_num_indices as u32, index * self.max_num_vertices as u32));
@@ -152,11 +157,6 @@ impl<T> VertexPoolAllocator<T>
          self.vao.bind();
          unsafe
          {
-            // gl::BindVertexArray(self.vao);
-            // gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-            // gl::BindBuffer(gl::DRAW_INDIRECT_BUFFER, self.draw_ind_buffer); // same buffer used for index data
-
-            // TODO: Sync Checking required ?
             gl::MultiDrawElementsIndirect(gl::TRIANGLES, gl::UNSIGNED_INT, std::ptr::null::<c_void>(), draw_count as i32, mem::size_of::<Daic>() as i32);
          }
     }
@@ -169,15 +169,6 @@ impl<T> VertexPoolAllocator<T>
             gl::BufferData(gl::DRAW_INDIRECT_BUFFER, (self.draw_calls.len() * mem::size_of::<Daic>()) as isize, self.draw_calls.as_ptr() as _, gl::DYNAMIC_DRAW);
         }
     }
-
-    // fn upload_index_data(&self)
-    // {
-    //     unsafe
-    //     {
-    //         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
-    //         gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (self.indices.len() * mem::size_of::<u32>()) as isize, self.indices.as_ptr() as _, gl::DYNAMIC_DRAW);
-    //     }
-    // }
 
 }
 
