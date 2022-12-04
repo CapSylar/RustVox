@@ -171,12 +171,12 @@ impl UiRenderer
     pub fn draw_mesh<T: OpenglVertex> (allocator: &DefaultAllocator<T> ,mesh: &Mesh<T>)
     {
         let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+        vao.bind();
         unsafe
         {
-            vao.bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::<T>::unbind();
         }
+        vao.unbind();
     }
 
     pub fn build_ui(&self, ui: &imgui::Ui, voxel_world: &mut World)

@@ -66,7 +66,7 @@ impl<T> VertexArray<T>
         }
     }
 
-    pub fn unbind()
+    pub fn unbind(&self)
     {
         unsafe
         {

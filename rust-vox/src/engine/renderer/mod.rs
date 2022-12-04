@@ -181,20 +181,22 @@ impl Renderer
         // draw each chunk's mesh
         let i = 0;
 
-        for chunk in world.chunk_manager.get_chunks_to_render().iter()
-        {
-            let chunk = chunk.borrow();
+        world.chunk_manager.allocator.render(world.chunk_manager.get_num_chunks_to_render());
 
-            // check if the chunk is visible from the camera's perspective
+        // for chunk in world.chunk_manager.get_chunks_to_render().iter()
+        // {
+        //     let chunk = chunk.borrow();
 
-            // if world.camera.is_visible::<Chunk>(&chunk)
-            // {
-                Renderer::draw_mesh(&world.chunk_manager.allocator, chunk.mesh.as_ref().expect("mesh was not initialized!"));
-            // }
-            // else {
-                // i += 1;
-            // }
-        }
+        //     // check if the chunk is visible from the camera's perspective
+
+        //     // if world.camera.is_visible::<Chunk>(&chunk)
+        //     // {
+        //         // Renderer::draw_mesh(&world.chunk_manager.allocator, chunk.mesh.as_ref().expect("mesh was not initialized!"));
+        //     // }
+        //     // else {
+        //         // i += 1;
+        //     // }
+        // }
 
         i
     }
@@ -230,7 +232,7 @@ impl Renderer
         {
             vao.bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::<T>::unbind();
+            vao.unbind();
         }
     }
 
@@ -242,7 +244,7 @@ impl Renderer
         {
             vao.bind();
             gl::DrawElements(mode, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::<T>::unbind();
+            vao.unbind();
         }
     }
 

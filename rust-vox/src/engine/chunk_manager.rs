@@ -1,11 +1,11 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Duration, Instant}};
 use glam::{Vec3, IVec2, IVec3};
-use crate::{threadpool::ThreadPool, ui::DebugData, engine::{chunk::{self, CHUNK_SIZE_Y}, geometry::voxel}};
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex}, renderer::allocators::default_allocator::DefaultAllocator};
+use crate::{threadpool::ThreadPool, ui::DebugData, engine::{chunk::{CHUNK_SIZE_Y}}};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex}, renderer::allocators::{default_allocator::DefaultAllocator, vertex_pool_allocator::VertexPoolAllocator}};
 
 // length are in chunks
 const NO_UPDATE: i32 = 4;
-const VISIBLE: i32 = 20; // engulfes NO_UPDATE_SQUARE
+const VISIBLE: i32 = 10; // engulfes NO_UPDATE_SQUARE
 // const NO_VISIBLE_STILL_LOADED: i32 = 10;
 
 const MIN_BETWEEN_LOADS: Duration = Duration::from_millis(16);
@@ -19,7 +19,7 @@ lazy_static!
 
 pub struct ChunkManager
 {
-    pub allocator: DefaultAllocator<VoxelVertex>,
+    pub allocator: VertexPoolAllocator<VoxelVertex>,
     threadpool: ThreadPool,
 
     chunks: HashMap<(i32,i32), Rc<RefCell<Chunk>>>,
@@ -45,6 +45,7 @@ impl ChunkManager
 {
     pub fn new( theadcount: usize, debug_data: &Rc<RefCell<DebugData>>) -> Self
     {
+        let allocator = VertexPoolAllocator::new(80*80*3, 25000, 25000); // TODO: needs adjustment
         // create the fields
         let chunks = HashMap::new();
         let chunks_load = Arc::new(Mutex::new(Vec::new()));
@@ -52,7 +53,7 @@ impl ChunkManager
 
         // player position always starts at (0,0,0) for now
 
-        let mut ret = Self{allocator: DefaultAllocator::new(),chunks , chunks_to_load: chunks_load , chunks_render , anchor_point: (0,0),
+        let mut ret = Self{allocator,chunks , chunks_to_load: chunks_load , chunks_render , anchor_point: (0,0),
            threadpool: ThreadPool::new(theadcount) , to_upload: Vec::new() , last_upload: Instant::now(), debug_data:debug_data.clone() };
         ret.load_visible();
         ret
@@ -62,25 +63,25 @@ impl ChunkManager
     fn load_visible(&mut self)
     {
         // load every chunk that falls within the NOT_VISIBLE square
-        // for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
-        // {
-        //     for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
-        //     {
-        //         // check if the chunks have already been created
-        //         match self.chunks.get(&(x,z))
-        //         {
-        //             Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
-        //             None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
-        //         };
-        //     }
-        // }
+        for x in (self.anchor_point.0 -VISIBLE/2) .. (self.anchor_point.0 + VISIBLE/2 + 1)
+        {
+            for z in (self.anchor_point.1 -VISIBLE/2) .. (self.anchor_point.1 + VISIBLE/2 + 1)
+            {
+                // check if the chunks have already been created
+                match self.chunks.get(&(x,z))
+                {
+                    Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
+                    None => {self.create_chunk(x,0,z,GENERATOR.as_ref()); } // Needs to be created
+                };
+            }
+        }
 
         // quick hax to only load the center chunk
-        let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
-        chunk.generate_mesh::<CullingMesher>();
-        self.allocator.alloc(chunk.mesh.as_mut().unwrap());
-        // chunk.mesh.as_mut().unwrap().upload();
-        self.register_chunk(chunk);
+        // let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
+        // chunk.generate_mesh::<CullingMesher>();
+        // self.allocator.alloc(chunk.mesh.as_mut().unwrap());
+        // // chunk.mesh.as_mut().unwrap().upload();
+        // self.register_chunk(chunk);
     }
 
     /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
@@ -232,6 +233,12 @@ impl ChunkManager
     pub fn get_chunks_to_render(&self) -> &Vec<Rc<RefCell<Chunk>>>
     {
         &self.chunks_render // return all for now
+    }
+
+    /// Get the number of chunks that are currently rendered
+    pub fn get_num_chunks_to_render(&self) -> usize
+    {
+        self.chunks_render.len()
     }
 
     /// Constructs the mesh for loaded chunks, and then appends them to the general list of chunks

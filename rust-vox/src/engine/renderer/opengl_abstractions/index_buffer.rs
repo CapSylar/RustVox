@@ -4,7 +4,6 @@ use std::mem::size_of;
 pub struct IndexBuffer
 {
     renderer_id : u32,
-    _count: usize,
 }
 
 impl IndexBuffer
@@ -20,7 +19,15 @@ impl IndexBuffer
             gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (index_data.len() * size_of::<u32>()) as isize , index_data.as_ptr().cast() , gl::STATIC_DRAW);
         }
 
-        Self{ renderer_id: buffer_id, _count: index_data.len() }
+        Self{ renderer_id: buffer_id}
+    }
+
+    /// get the handle to an IndexBuffer and manage it
+    /// 
+    /// In this case the index buffer has already been created and filled externally
+    pub fn from_id(renderer_id: u32) -> Self
+    {
+        Self{ renderer_id}
     }
 
     pub fn _delete(&self)
