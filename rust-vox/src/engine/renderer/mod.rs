@@ -24,7 +24,7 @@ pub struct Renderer
     sky_rend : SkyRenderer,
 
     // debug info
-    debug_data: Rc<RefCell<DebugData>>
+    debug_data: Rc<RefCell<DebugData>>,
 }
 
 impl Renderer
@@ -181,7 +181,7 @@ impl Renderer
         // draw each chunk's mesh
         let i = 0;
 
-        world.chunk_manager.allocator.render(world.chunk_manager.get_num_chunks_to_render());
+        world.chunk_manager.allocator.render();
 
         // for chunk in world.chunk_manager.get_chunks_to_render().iter()
         // {

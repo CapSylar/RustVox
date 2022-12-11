@@ -1,5 +1,6 @@
 use std::mem::size_of;
-use crate::engine::renderer::{allocators::default_allocator::AllocToken};
+use crate::engine::renderer::allocators::default_allocator::AllocToken;
+
 use super::opengl_vertex::OpenglVertex;
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which

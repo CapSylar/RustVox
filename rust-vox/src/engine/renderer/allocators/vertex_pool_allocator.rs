@@ -1,11 +1,13 @@
 // Manages the Opengl allocations related to chunks
 
 use core::panic;
-use std::{collections::VecDeque, ffi::c_void, mem::{self}, marker::PhantomData, ptr::null, time::Instant};
+use std::{collections::VecDeque, ffi::c_void, mem::{self}};
 
 use gl::types::__GLsync;
 
 use crate::engine::{geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, renderer::opengl_abstractions::{vertex_array::VertexArray, index_buffer::IndexBuffer, vertex_buffer::VertexBuffer}};
+
+use super::default_allocator::AllocToken;
 pub struct VertexPoolAllocator<T>
 {
     max_num_buckets: usize, // maximum number of buckets the pool can hold
@@ -41,10 +43,8 @@ impl<T> VertexPoolAllocator<T>
     pub fn new(max_num_buckets: usize, max_num_indices: usize, max_num_vertices: usize) -> Self
     {
         let mut free_pool = VecDeque::new();
-        let vbo = 0;
         let flags = gl::MAP_WRITE_BIT | gl::MAP_PERSISTENT_BIT | gl::MAP_COHERENT_BIT ;//| gl::DYNAMIC_STORAGE_BIT;
 
-        let mut vao = 0;
         let mut pers_vbo = 0;
         let mut ebo = 0;
         let mut draw_ind_buffer = 0;
@@ -103,6 +103,7 @@ impl<T> VertexPoolAllocator<T>
     {
         if self.free_pool.is_empty() || mesh.indices.len() > self.max_num_indices || mesh.vertices.len() > self.max_num_vertices
         {
+            println!("None returned");
             return None;
         }
 
@@ -149,7 +150,7 @@ impl<T> VertexPoolAllocator<T>
         self.allocation_index[index] = -1;
     }
 
-    pub fn render(&self, draw_count: usize)
+    pub fn render(&self)
     {
         self.upload_draw_commands(); // FIXME: not good, make sure draw commands are updated
          // use indirect draw mode
@@ -157,7 +158,7 @@ impl<T> VertexPoolAllocator<T>
          self.vao.bind();
          unsafe
          {
-            gl::MultiDrawElementsIndirect(gl::TRIANGLES, gl::UNSIGNED_INT, std::ptr::null::<c_void>(), draw_count as i32, mem::size_of::<Daic>() as i32);
+            gl::MultiDrawElementsIndirect(gl::TRIANGLES, gl::UNSIGNED_INT, std::ptr::null::<c_void>(), self.draw_calls.len() as i32, mem::size_of::<Daic>() as i32);
          }
     }
 
@@ -191,18 +192,5 @@ impl Daic
     pub fn new(num_indices: u32, num_instances: u32, start_index: u32, start_vertex: u32) -> Self
     {
         Self{num_indices, num_instances, start_index, start_vertex, base_inst: 0, index: 0}
-    }
-}
-
-pub struct AllocToken
-{
-    index: u32,
-}
-
-impl AllocToken
-{
-    fn new(index: u32) -> Self
-    {
-        Self{index}
     }
 }

@@ -15,7 +15,7 @@ impl World
     pub fn new(eye: Camera, debug_data: &Rc<RefCell<DebugData>>) -> Self
     {
         // init the chunk manager
-        let chunk_manager = ChunkManager::new(4, debug_data);
+        let chunk_manager = ChunkManager::new(2, debug_data);
 
         Self{camera: eye,chunk_manager}
     }

@@ -1,6 +1,6 @@
 use std::mem::{self};
 
-use glam::{Vec3, IVec3};
+use glam::{Vec3, IVec3, IVec2};
 
 use crate::camera::{BoundingBox, AABB};
 
@@ -80,7 +80,11 @@ impl Chunk
         self.voxels[pos.x as usize][pos.y as usize][pos.z as usize] = voxel;
     }
 
-    pub fn pos_chunk_space(&self) -> Vec3 { self.pos }
+    // FIXME: refactor
+    pub fn pos_chunk_space(&self) -> IVec2
+    {
+        IVec2::new( self.pos.x as i32, self.pos.z as i32)
+    }
 
     pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_SIZE_X as i32 ) as f32 ,
              (self.pos.y as i32 * CHUNK_SIZE_Y as i32 ) as f32 ,

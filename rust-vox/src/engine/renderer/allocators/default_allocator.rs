@@ -44,16 +44,30 @@ impl<T> DefaultAllocator<T>
     {
         self.allocations.get(&allocation.index).unwrap()
     }
+
+    pub fn render(&self)
+    {
+        for (_, vao) in self.allocations.iter()
+        {
+            vao.bind();
+            unsafe
+            {
+                gl::DrawElements(gl::TRIANGLES, vao.ebo.count as _  , gl::UNSIGNED_INT, 0 as _ );
+            }
+            vao.unbind();
+        }
+    }
 }
 
 pub struct AllocToken
 {
-    index: u32,
+    pub index: u32,
 }
 
 impl AllocToken
 {
-    fn new(index: u32) -> Self
+    // FIXME: should not be pub
+    pub fn new(index: u32) -> Self
     {
         Self{index}
     }
