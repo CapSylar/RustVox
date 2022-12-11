@@ -80,6 +80,20 @@ impl Chunk
         self.voxels[pos.x as usize][pos.y as usize][pos.z as usize] = voxel;
     }
 
+    pub fn get_mesh(&self) -> Option<&Mesh<VoxelVertex>>
+    {
+        self.mesh.as_ref()
+    }
+
+    pub fn is_mesh_alloc(&self) -> bool
+    {
+        match self.mesh.as_ref()
+        {
+            Some(mesh) => mesh.is_alloc(),
+            None => false,
+        }
+    }
+
     // FIXME: refactor
     pub fn pos_chunk_space(&self) -> IVec2
     {

@@ -22,6 +22,11 @@ impl<T> Mesh<T>
         Self{vertices:Vec::new(),indices:Vec::new(),alloc_token:None,num_triangles:0}
     }
 
+    pub fn is_alloc(&self) -> bool
+    {
+        self.alloc_token.is_some()
+    }
+
 
     // pub fn upload(&mut self)
     // {
