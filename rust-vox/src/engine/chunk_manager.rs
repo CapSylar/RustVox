@@ -224,7 +224,7 @@ impl ChunkManager
         if new_loads { self.update_debug(); }
     }
 
-    /// Checks if the chunk as position "checked_pos" is outside the square of center "center" and side length "length", if yes, the action() is applied
+    /// Checks if the chunk at position "checked_pos" is outside the square of center "center" and side length "length", if yes, the action() is applied
     fn chunk_outside (center: IVec2, length: i32, checked_pos: IVec2) -> bool
     {
         (checked_pos.x - center.x).abs() > length/2 ||  // in x
@@ -363,13 +363,18 @@ impl ChunkManager
         if let Some(chunk) = self.chunks.get(&chunk_pos) // y is actually z
         {
             let mut chunk = chunk.as_ref().borrow_mut();
-            chunk.set_voxel(voxel_pos, Voxel::new(VoxelType::Sand));
 
+            // first dealloc old mesh
+            self.allocator.dealloc(chunk.mesh.as_mut().unwrap().release_token().unwrap());
+
+            chunk.set_voxel(voxel_pos, Voxel::new(VoxelType::Sand));
             chunk.generate_mesh::<GreedyMesher>();
+            // alloc new mesh
             self.allocator.alloc(chunk.mesh.as_mut().unwrap());
         }
     }
 
+    // TODO: refactor this shit
     pub fn remove_voxel(&mut self, pos: IVec3)
     {
         println!("Remove voxel on pos:{} called", pos);
@@ -383,17 +388,19 @@ impl ChunkManager
         if let Some(chunk) = self.chunks.get(&chunk_pos) // y is actually z
         {
             let mut chunk = chunk.as_ref().borrow_mut();
+
+            // first dealloc old mesh
+            self.allocator.dealloc(chunk.mesh.as_mut().unwrap().release_token().unwrap());
+
             chunk.set_voxel(voxel_pos ,new_voxel);
             chunk.generate_mesh::<GreedyMesher>();
-
-            // chunk needs to be rebuilt
-            // self.allocator.dealloc(chunk.mesh.as_ref().unwrap().alloc_token.unwrap());
+            // alloc new mesh
             self.allocator.alloc(chunk.mesh.as_mut().unwrap());
         }
 
         let mut chunk_dir = IVec2::ZERO;
-        // if the voxel is a the chunk-chunk boundary, the other chunk has to be rebuilt as well
 
+        // if the voxel is a the chunk-chunk boundary, the other chunk has to be rebuilt as well
         if voxel_pos.x == 0 || voxel_pos.x == CHUNK_SIZE_X as i32 -1 || voxel_pos.z == 0 || voxel_pos.z == CHUNK_SIZE_Z as i32 -1
         {
             if voxel_pos.x == 0
@@ -420,11 +427,15 @@ impl ChunkManager
             if let Some(chunk) = self.chunks.get(&neighbor_pos) // y is actually z
             {
                 let mut chunk = chunk.as_ref().borrow_mut();
+
+                // first dealloc old mesh
+                self.allocator.dealloc(chunk.mesh.as_mut().unwrap().release_token().unwrap());
+
                 chunk.generate_mesh::<GreedyMesher>();
                 self.allocator.alloc(chunk.mesh.as_mut().unwrap());
             }
         }
-    }
+        }
 
     //TODO: refactor
     /// Gets the number of triangles of the current displayed chunks
@@ -451,5 +462,4 @@ impl ChunkManager
         debug_data.num_vertices = num_vertices;
         debug_data.chunk_size_bytes = chunk_sizes;
     }
-
 }

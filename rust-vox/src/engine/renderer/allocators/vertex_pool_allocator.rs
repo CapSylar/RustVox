@@ -1,7 +1,7 @@
 // Manages the Opengl allocations related to chunks
 
 use core::panic;
-use std::{collections::VecDeque, ffi::c_void, mem::{self}};
+use std::{collections::VecDeque, ffi::c_void, mem::{self}, cell::Cell};
 
 use gl::types::__GLsync;
 
@@ -34,6 +34,9 @@ pub struct VertexPoolAllocator<T>
 
     // OpenGL Sync object
     sync_obj: *const __GLsync,
+
+    // state
+    dirty: Cell<bool>, // commands have been changed and beed to be reuploaded
 }
 
 impl<T> VertexPoolAllocator<T>
@@ -95,7 +98,7 @@ impl<T> VertexPoolAllocator<T>
         vao.unbind();
         
         Self{max_num_buckets, max_num_indices, max_num_vertices, vao, draw_ind_buffer, free_pool,draw_calls: Vec::new(), indices: Vec::new(),
-                allocation_index: vec![-1;max_num_buckets], vbo_start, ebo_start, vbo_bucket_size, ebo_bucket_size, sync_obj: unsafe {gl::FenceSync(gl::SYNC_GPU_COMMANDS_COMPLETE, 0)}}
+                allocation_index: vec![-1;max_num_buckets], vbo_start, ebo_start, vbo_bucket_size, ebo_bucket_size, sync_obj: unsafe {gl::FenceSync(gl::SYNC_GPU_COMMANDS_COMPLETE, 0)}, dirty:Cell::new(false)}
     }
 
     /// Add the mesh to the pool
@@ -131,6 +134,7 @@ impl<T> VertexPoolAllocator<T>
         }
 
         self.draw_calls.push(Daic::new(mesh.indices.len() as u32, 1, index * self.max_num_indices as u32, index * self.max_num_vertices as u32));
+        self.dirty.set(true);
 
         Some(AllocToken::new(index)) // TODO: document why we can return index, very important !!!!
     }
@@ -144,6 +148,7 @@ impl<T> VertexPoolAllocator<T>
         self.draw_calls.swap(index, last); // swap and delete last so we don't delete from the middle of a Vec,
         // possibly causing an expensive move to keep the vec continous
         self.draw_calls.remove(last);
+        self.dirty.set(true);
 
         // update allocation index array
         self.allocation_index[last] = index as i32;
@@ -152,9 +157,13 @@ impl<T> VertexPoolAllocator<T>
 
     pub fn render(&self)
     {
-        self.upload_draw_commands(); // FIXME: not good, make sure draw commands are updated
+        if self.dirty.get() // commands are dirty ?
+        {
+            self.upload_draw_commands();
+            self.dirty.set(false);
+        }
+        
          // use indirect draw mode
-
          self.vao.bind();
          unsafe
          {

@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use engine::engine::{terrain::PerlinGenerator, chunk::Chunk, geometry::meshing::{culling_mesher::CullingMesher, greedy_mesher::GreedyMesher}};
 
 fn benchmark_greedy_mesher(c: &mut Criterion)

@@ -1,4 +1,4 @@
-use std::mem::size_of;
+use std::{mem::size_of, cell::RefCell};
 use crate::engine::renderer::allocators::default_allocator::AllocToken;
 
 use super::opengl_vertex::OpenglVertex;
@@ -27,17 +27,10 @@ impl<T> Mesh<T>
         self.alloc_token.is_some()
     }
 
-
-    // pub fn upload(&mut self)
-    // {
-    //     // create the vertex buffer
-    //     let vertex_buffer = VertexBuffer::new(&self.vertices);
-    //     // create the index buffer
-    //     let index_buffer = IndexBuffer::new(&self.indices);
-
-    //     let vao = VertexArray::new(vertex_buffer,&T::get_layout(), index_buffer);
-    //     self.vao = Some(vao);
-    // }
+    pub fn release_token(&mut self) -> Option<AllocToken>
+    {   
+        std::mem::replace(&mut self.alloc_token, None)
+    }
 
     /// Delete the Geometry from GPU memory
     pub fn delete_gpu_storage(&mut self)

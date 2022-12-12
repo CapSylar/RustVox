@@ -74,7 +74,7 @@ fn main() {
         Vec3::new(0.0, 60.0, 0.0),
         Vec3::new(1.0, 0.3, 0.0),
         Vec3::new(0.0, 1.0, 0.0),
-        1.0,
+        2.0,
 
         &debug_data
     ),
@@ -162,13 +162,12 @@ fn main() {
         // render the world
         world_renderer.draw_world(&voxel_world);
 
-        let end = start.elapsed();
-        debug_data.borrow_mut().add_calculation_time(end.as_secs_f32());
-        debug_data.borrow_mut().frame_time = end.as_micros();
-
         // render the UI
         ui_renderer.render(&mut voxel_world, &mut platform, &mut imgui_context, &window, &event_pump);
 
         window.gl_swap_window();
+        let end = start.elapsed();
+        debug_data.borrow_mut().add_calculation_time(end.as_secs_f32());
+        debug_data.borrow_mut().frame_time = end.as_micros();
     }
 }
