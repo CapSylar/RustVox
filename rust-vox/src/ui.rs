@@ -14,6 +14,8 @@ pub struct DebugData {
     calculation_times: VecDeque<f32>, // same as frame_time, but without waiting for the framebuffer swap
     pub frame_time: u128,       // should be 16ms on 60 Hz refresh rate
 
+    pub draw_world_time: f64,
+
     pub chunk_size_bytes: usize, // bytes
     pub num_triangles: usize,    // number of triangles on screen coming from chunks
     pub num_vertices: usize,     // number of vertices on screen coming from chunks
@@ -33,7 +35,7 @@ impl DebugData
             frame_time: 0, num_triangles: 0,
             num_vertices: 0, calculation_times,
             chunk_size_bytes: 0, loaded_chunks: 0,
-            culled_chunks: 0 }
+            culled_chunks: 0, draw_world_time: 0.0 }
     }
 
     pub fn add_calculation_time(&mut self, value: f32)
@@ -230,6 +232,7 @@ impl UiRenderer
                 .build();
 
             ui.text(format!("frame time: {:.2} us" , debug_data.frame_time));
+            ui.text(format!("draw world: {:.2}ms", debug_data.draw_world_time));
             ui.text(format!("FPS: {}", 1.0/(debug_data.frame_time as f32 / 1000000.0) ));
             ui.text(format!("Chunk Triangles: {}", debug_data.num_triangles));
             ui.text(format!("Chunk Vertices: {}", debug_data.num_vertices));

@@ -1,4 +1,4 @@
-use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}};
+use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}, time::Instant};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
@@ -25,6 +25,10 @@ pub struct Renderer
 
     // debug info
     debug_data: Rc<RefCell<DebugData>>,
+
+    // timing info
+    timers: [u32;3],
+    timer_index: usize,
 }
 
 impl Renderer
@@ -40,6 +44,16 @@ impl Renderer
             gl::Enable(gl::DEBUG_OUTPUT);
             gl::DebugMessageCallback( Some(error_callback) , std::ptr::null::<c_void>());
         }
+
+        // setup the Opengl timers
+        let timers: [u32;3] = [0;3];
+        let timer_index = 0;
+        unsafe
+        {
+            gl::GenQueries(timers.len() as i32, timers.as_ptr() as _);
+        }
+
+        // TODO: query dummy
 
         unsafe
         {
@@ -114,12 +128,19 @@ impl Renderer
 
             let sky_rend = SkyRenderer::default();
             
-            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::default(), debug_data: debug_info.clone()}
+            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::default(), debug_data: debug_info.clone(),
+                        timer_index, timers}
         }
     }
 
     pub fn draw_world(&mut self, world: &World)
     {   
+        // run the start timer
+        unsafe
+        {
+            gl::BeginQuery(gl::TIME_ELAPSED, self.timers[self.timer_index]);
+        }
+
         let perspective = world.camera.get_persp_trans();
         let view = world.camera.get_look_at();
         let view_no_trans = Mat4::from_mat3(Mat3::from_mat4(view));
@@ -133,19 +154,21 @@ impl Renderer
             gl::BindBuffer(gl::UNIFORM_BUFFER, 0); // unbind
         }
 
-        unsafe
-        {
-            self.sky.update();
-            self.sun_direction = self.sky.get_sun_direction();
-            
-            let sun_present = self.sky.is_sun_present();
+        self.sky.update();
+        self.sun_direction = self.sky.get_sun_direction();
+        
+        let sun_present = self.sky.is_sun_present();
 
-            if sun_present // do not render shadows is the sun is not present
-            {
-                // PASS 1: render to the shadow map
-                self.render_shadow(world);
-            }
-            
+        if sun_present // do not render shadows is the sun is not present
+        {
+            // PASS 1: render to the shadow map
+            self.render_shadow(world);
+        }
+
+        let mut debug_data = self.debug_data.borrow_mut();
+
+        unsafe
+        {            
             // PASS 2: render the scene normally
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0); // bind default framebuffer
             gl::Viewport(0, 0, 1700 ,900);
@@ -170,10 +193,22 @@ impl Renderer
             self.default_shader.set_uniform1i("cascade_count", cascades.len() as i32 ).expect("error setting the cascade count");
             self.default_shader.set_uniform_1fv("cascades", cascades).expect("error setting the cascades");
 
-            let mut debug_data = self.debug_data.borrow_mut();
             debug_data.culled_chunks = Self::draw_geometry(world, &mut self.default_shader);
             Shader::unbind();
         }
+
+        let mut timer: u64 = 0;
+        unsafe
+        {
+            // run the end query
+            gl::EndQuery(gl::TIME_ELAPSED);
+
+            self.timer_index = (self.timer_index+1) % self.timers.len(); // advance timer index
+            gl::GetQueryObjectui64v(self.timers[self.timer_index], gl::QUERY_RESULT, &mut timer as *mut u64);
+        }
+
+        // update debug data
+        debug_data.draw_world_time = timer as f64 / 1000000.0; // in ms
     }
 
     fn draw_geometry(world: &World, shader: &mut Shader) -> usize
