@@ -163,7 +163,7 @@ fn main() {
         world_renderer.draw_world(&voxel_world);
 
         // render the UI
-        ui_renderer.render(&mut voxel_world, &mut platform, &mut imgui_context, &window, &event_pump);
+        ui_renderer.render(&mut voxel_world, &mut world_renderer, &mut platform, &mut imgui_context, &window, &event_pump);
 
         window.gl_swap_window();
         let end = start.elapsed();

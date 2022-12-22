@@ -8,6 +8,8 @@
 // The Moon rises from the east and sets west
 // No particular motion or position will be set for stars
 
+const MAX_SECONDS_DAY : f32 = 24.0 * 3600.0 ; // 24 hours * 3600 second per hour
+
 pub mod sky_state
 {
     const TIME_MULTIPLIER: f32 = 500.0;
@@ -15,6 +17,8 @@ pub mod sky_state
     use std::time::Instant;
     use glam::{Vec3, const_vec3};
     use core::f32::consts::PI;
+
+    use super::MAX_SECONDS_DAY;
 
     const PHASE_CONFIG : [SkyState;4] =
     [
@@ -98,14 +102,15 @@ pub mod sky_state
             SkyState { start_time: self.start_time, sun_present: self.sun_present, moon_present: self.moon_present, pos_sun, pos_moon, sky_box_color }
         }
 
-        // get a unit vector pointing to the sun (starting at the origin)
+        /// get a unit vector pointing to the sun (starting at the origin)
+        // we are assuming that teta is defined between the X axis and the -Z axis
         pub fn get_sun_direction(&self) -> Vec3
         {
-            let y_coord = self.pos_sun.0.sin();
-            let xz_projection = self.pos_sun.0.cos();
+            let y_coord = self.pos_sun.0.sin().abs();
+            let xz_projection = self.pos_sun.0.cos().abs();
             // project the bisector onto X and Z
             let x_coord = xz_projection * self.pos_sun.1.cos();
-            let z_coord = xz_projection * self.pos_sun.1.sin();
+            let z_coord = -xz_projection * self.pos_sun.1.sin();
 
             Vec3::new(x_coord,y_coord,z_coord).normalize()
         }
@@ -116,26 +121,38 @@ pub mod sky_state
         current_phase: DayNightPhase,
         pub current_sky_state: SkyState,
 
-        time: Instant // time of day in seconds
+        timer: Instant, // time of day in seconds
+        time: f32, // used as the current time if the timer is not running
+        is_halted: bool,
     }
 
-    impl Sky
+    impl Default for Sky
     {
-        pub fn default() -> Self
+        fn default() -> Self
         {
             let current_phase = DayNightPhase::SunRise;
             let current_sky_state = PHASE_CONFIG[0].clone(); // start off in first phase of list
 
-            let time = Instant::now();
-            Self{current_phase,current_sky_state,time}
+            let timer = Instant::now();
+            Self{current_phase,current_sky_state,timer, time: 5.0 * 3600.0 , is_halted: true}
         }
+    }
 
+    impl Sky
+    {
         pub fn update(&mut self)
         {
-            // make sure to reset the timer accordingly
-            if self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER >= 24.0*3600.0
+            if !self.is_halted
             {
-                self.time = Instant::now(); // restart timer
+                self.time += self.timer.elapsed().as_secs_f32() * TIME_MULTIPLIER;
+                self.timer = Instant::now(); // restart timer between function calls
+            }
+
+            // make sure to reset the timer accordingly
+            if self.time >= MAX_SECONDS_DAY
+            {
+                println!("has been reset by limit");
+                self.time = 0.0;
             }
     
             let mut current_phase = &PHASE_CONFIG[self.current_phase as usize];
@@ -144,8 +161,8 @@ pub mod sky_state
             let mut denom = next_phase.start_time - current_phase.start_time;
             if denom < 0.0 {denom += 24.0;} // happens only in the case where the clock is wrapping around. ex: current start 13:00h, next phase start 2:00h
     
-            let mut nume = self.time.elapsed().as_secs_f32() * TIME_MULTIPLIER - current_phase.start_time * 3600.0;
-            if nume < 0.0 {nume += 24.0 * 3600.0;}
+            let mut nume = self.time - current_phase.start_time * 3600.0;
+            if nume < 0.0 {nume += MAX_SECONDS_DAY;}
     
             let mut progress = nume / (denom * 3600.0);
             
@@ -170,6 +187,46 @@ pub mod sky_state
         pub fn is_sun_present(&self) -> bool
         {
             self.current_sky_state.sun_present
+        }
+
+        /// Dictates whether the Day-Night Sky cycle is running
+        pub fn set_halted(&mut self, is_halted: bool)
+        {
+            self.is_halted = is_halted;
+
+            if !self.is_halted
+            {
+                self.timer = Instant::now(); // reset the timer value on re-enable
+            }
+        }
+
+        pub fn is_halted(&self) -> bool
+        {
+            self.is_halted
+        }
+
+        /// Sets the current time in the Day-Night Sky cycle
+        pub fn set_time_hours(&mut self, time_hours: f32)
+        {
+            if time_hours.is_sign_negative()
+            {
+                return;
+            }
+
+            self.time = time_hours * 3600.0;
+
+            // run one update
+            self.update();
+        }
+
+        pub fn get_time_secs(&self) -> f32
+        {
+            self.time
+        }
+
+        pub fn get_time_hours(&self) -> f32
+        {
+            self.time / 3600.0
         }
 
     }
@@ -254,10 +311,10 @@ pub mod sky_renderer
         sky_box_allocator: DefaultAllocator<SkyBoxVertex>,
         indbo: u32,
     }
-    
-    impl SkyRenderer
+
+    impl Default for SkyRenderer
     {
-        pub fn default() -> Self
+        fn default() -> Self
         {
             // create the allocators
             let mut sky_quad_allocator = DefaultAllocator::new();
@@ -342,11 +399,18 @@ pub mod sky_renderer
             // the sun is just a textured quad
             let mut sun_quad = Mesh::default();
 
+            // sun_quad.add_quad(
+            //     SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)),
+            //     SkyQuadVertex::new(Vec3::new(-1.0,1.0,-5.0),Vec2::new(0.0,1.0)),
+            //     SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)),
+            //     SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0))
+            //     );
+
             sun_quad.add_quad(
-                SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)),
-                SkyQuadVertex::new(Vec3::new(-1.0,1.0,-5.0),Vec2::new(0.0,1.0)),
-                SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)),
-                SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0))
+                SkyQuadVertex::new(Vec3::new(5.0,-1.0,-1.0),Vec2::new(0.0,0.0)),
+                SkyQuadVertex::new(Vec3::new(5.0,1.0,-1.0),Vec2::new(0.0,1.0)),
+                SkyQuadVertex::new(Vec3::new(5.0,1.0,1.0),Vec2::new(1.0,1.0)),
+                SkyQuadVertex::new(Vec3::new(5.0,-1.0,1.0),Vec2::new(1.0,0.0))
                 );
 
             sky_quad_allocator.alloc(&mut sun_quad);
@@ -426,7 +490,11 @@ pub mod sky_renderer
     
             Self{sky_box_allocator, sky_quad_allocator ,tick:0.0, celestial_shader,skybox_shader,sky_box,sky_quad,sun_quad,moon_quad, indbo}
         }
+    }
     
+    impl SkyRenderer
+    {
+        
         pub fn render(&mut self, sky: &Sky)
         {
             let sky_state = &sky.current_sky_state;
@@ -484,7 +552,7 @@ pub mod sky_renderer
             {
                 self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
                 self.celestial_shader.set_uniform1i("text", 3).expect("error setting the sun texture");
-                let sun_quad_trans = Mat4::from_rotation_x(sky_state.pos_sun.0) * Mat4::from_rotation_y(sky_state.pos_sun.1);
+                let sun_quad_trans = Mat4::from_rotation_z(sky_state.pos_sun.0) * Mat4::from_rotation_y(sky_state.pos_sun.1);
                 self.celestial_shader.set_uniform_matrix4fv("model", &sun_quad_trans).expect("error setting the model transformation for the sun_quad");
                 Renderer::draw_mesh(&self.sky_quad_allocator, &self.sun_quad);
             }

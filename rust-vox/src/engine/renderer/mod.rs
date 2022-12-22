@@ -1,11 +1,11 @@
-use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}, time::Instant};
+use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use crate::DebugData;
 
-use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm, allocators::default_allocator::DefaultAllocator};
+use self::{opengl_abstractions::{shader::Shader}, csm::Csm, allocators::default_allocator::DefaultAllocator};
 use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
@@ -20,7 +20,7 @@ pub struct Renderer
     default_shader : Shader,
     shadow_shader : Shader,
     sun_direction: Vec3,
-    sky: Sky,
+    pub sky: Sky,
     sky_rend : SkyRenderer,
 
     // debug info
