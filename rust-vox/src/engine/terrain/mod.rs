@@ -18,9 +18,9 @@ pub struct PerlinGenerator
     layer1: Perlin,
 }
 
-impl PerlinGenerator
+impl Default for PerlinGenerator
 {
-    pub fn new() -> Self
+    fn default() -> Self
     {
         //TODO: use PlaneMapBuilder instead
         let layer0 = Perlin::new(2345345);
@@ -45,11 +45,19 @@ impl TerrainGenerator for PerlinGenerator
 
         if y >= max_height
         {
-            voxel.set_type(VoxelType::Air);
+            if y <= 19
+            {
+                voxel.set_type(VoxelType::Water);
+            }
+            else
+            {
+                voxel.set_type(VoxelType::Air);
+            }
+
             return;
         }
 
-        if y >= 15
+        if y >= 17
         {
             voxel.set_type(VoxelType::Dirt);
         }
