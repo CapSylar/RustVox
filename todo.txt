@@ -20,7 +20,12 @@
 - [X] Optimize chunk meshing, implement greedy meshing
 - [] Optimize chunk generation speed
 - [] Optimize chunk storage space
-- [] Frustum culling for unseen chunks
+- [] Gpu frustum culling
+- [] Try timing pers mapping vs mapping a single section each time
+- [] Try writing the chunks's Meshes into the persistent buffer directly, not storing a copy first in RAM
 
 // ISSUES
 - [] Clouds too visible during the night, not affected by lighting
+- [] Pressing X while chunks are being loaded takes too long to exit
+- [] Fix alloc - dealloc
+- [] Fix loaded no visible

@@ -1,15 +1,17 @@
-use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell, Ref}, fmt::Debug};
+use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}, time::Instant};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use crate::DebugData;
 
-use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm};
-use super::{world::{World}, geometry::mesh::Mesh, sky::{sky_state::Sky, sky_renderer::SkyRenderer}, chunk::Chunk};
+use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm, allocators::default_allocator::DefaultAllocator};
+use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
 pub mod csm;
+pub mod allocators;
+
 pub struct Renderer
 {
     trans_ubo: u32,
@@ -22,7 +24,11 @@ pub struct Renderer
     sky_rend : SkyRenderer,
 
     // debug info
-    debug_data: Rc<RefCell<DebugData>>
+    debug_data: Rc<RefCell<DebugData>>,
+
+    // timing info
+    timers: [u32;3],
+    timer_index: usize,
 }
 
 impl Renderer
@@ -37,6 +43,22 @@ impl Renderer
         {
             gl::Enable(gl::DEBUG_OUTPUT);
             gl::DebugMessageCallback( Some(error_callback) , std::ptr::null::<c_void>());
+        }
+
+        // setup the Opengl timers
+        let timers: [u32;3] = [0;3];
+        let timer_index = 0;
+        unsafe
+        {
+            gl::GenQueries(timers.len() as i32, timers.as_ptr() as _);
+            
+            // fill them with dummy queries so they start with know values
+            // because we do "triple buffering", if we set timer 0 initially, we would expect timer (0-1) % 3 to have it's value ready
+            for index in timers
+            {
+                gl::BeginQuery(gl::TIME_ELAPSED, index);
+                gl::EndQuery(gl::TIME_ELAPSED);
+            }
         }
 
         unsafe
@@ -112,12 +134,19 @@ impl Renderer
 
             let sky_rend = SkyRenderer::default();
             
-            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::new(), debug_data: debug_info.clone()}
+            Self { trans_ubo, default_shader , shadow_shader , shadow_fb , csm, sun_direction: Vec3::ZERO, sky_rend,sky:Sky::default(), debug_data: debug_info.clone(),
+                        timer_index, timers}
         }
     }
 
     pub fn draw_world(&mut self, world: &World)
     {   
+        // run the start timer
+        unsafe
+        {
+            gl::BeginQuery(gl::TIME_ELAPSED, self.timers[self.timer_index]);
+        }
+
         let perspective = world.camera.get_persp_trans();
         let view = world.camera.get_look_at();
         let view_no_trans = Mat4::from_mat3(Mat3::from_mat4(view));
@@ -131,19 +160,21 @@ impl Renderer
             gl::BindBuffer(gl::UNIFORM_BUFFER, 0); // unbind
         }
 
-        unsafe
-        {
-            self.sky.update();
-            self.sun_direction = self.sky.get_sun_direction();
-            
-            let sun_present = self.sky.is_sun_present();
+        self.sky.update();
+        self.sun_direction = self.sky.get_sun_direction();
+        
+        let sun_present = self.sky.is_sun_present();
 
-            if sun_present // do not render shadows is the sun is not present
-            {
-                // PASS 1: render to the shadow map
-                self.render_shadow(world);
-            }
-            
+        if sun_present // do not render shadows is the sun is not present
+        {
+            // PASS 1: render to the shadow map
+            self.render_shadow(world);
+        }
+
+        let mut debug_data = self.debug_data.borrow_mut();
+
+        unsafe
+        {            
             // PASS 2: render the scene normally
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0); // bind default framebuffer
             gl::Viewport(0, 0, 1700 ,900);
@@ -168,10 +199,22 @@ impl Renderer
             self.default_shader.set_uniform1i("cascade_count", cascades.len() as i32 ).expect("error setting the cascade count");
             self.default_shader.set_uniform_1fv("cascades", cascades).expect("error setting the cascades");
 
-            let mut debug_data = self.debug_data.borrow_mut();
             debug_data.culled_chunks = Self::draw_geometry(world, &mut self.default_shader);
             Shader::unbind();
         }
+
+        let mut timer: u64 = 0;
+        unsafe
+        {
+            // run the end query
+            gl::EndQuery(gl::TIME_ELAPSED);
+
+            self.timer_index = (self.timer_index+1) % self.timers.len(); // advance timer index
+            gl::GetQueryObjectui64v(self.timers[self.timer_index], gl::QUERY_RESULT, &mut timer as *mut u64);
+        }
+
+        // update debug data
+        debug_data.draw_world_time = timer as f64 / 1000000.0; // in ms
     }
 
     fn draw_geometry(world: &World, shader: &mut Shader) -> usize
@@ -179,20 +222,22 @@ impl Renderer
         // draw each chunk's mesh
         let i = 0;
 
-        for chunk in world.chunk_manager.get_chunks_to_render().iter()
-        {
-            let chunk = chunk.borrow();
+        world.chunk_manager.allocator.render();
 
-            // check if the chunk is visible from the camera's perspective
+        // for chunk in world.chunk_manager.get_chunks_to_render().iter()
+        // {
+        //     let chunk = chunk.borrow();
 
-            if world.camera.is_visible::<Chunk>(&chunk)
-            {
-                Renderer::draw_mesh(chunk.mesh.as_ref().expect("mesh was not initialized!"));
-            }
-            else {
-                i += 1;
-            }
-        }
+        //     // check if the chunk is visible from the camera's perspective
+
+        //     // if world.camera.is_visible::<Chunk>(&chunk)
+        //     // {
+        //         // Renderer::draw_mesh(&world.chunk_manager.allocator, chunk.mesh.as_ref().expect("mesh was not initialized!"));
+        //     // }
+        //     // else {
+        //         // i += 1;
+        //     // }
+        // }
 
         i
     }
@@ -221,24 +266,26 @@ impl Renderer
         }
     }
 
-    pub fn draw_mesh<T> (mesh: &Mesh<T>)
+    pub fn draw_mesh<T: OpenglVertex> (allocator: &DefaultAllocator<T>, mesh: &Mesh<T>)
     {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
         unsafe
         {
-            mesh.vao.as_ref().unwrap().bind();
+            vao.bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::<T>::unbind();
+            vao.unbind();
         }
     }
 
     // FIXME: duplicate code with function above, refactor
-    pub fn draw_mesh_with_mode<T> (mesh: &Mesh<T>, mode: types::GLenum )
+    pub fn draw_mesh_with_mode<T: OpenglVertex> (allocator: &DefaultAllocator<T>, mesh: &Mesh<T>, mode: types::GLenum )
     {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
         unsafe
         {
-            mesh.vao.as_ref().unwrap().bind();
+            vao.bind();
             gl::DrawElements(mode, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::<T>::unbind();
+            vao.unbind();
         }
     }
 

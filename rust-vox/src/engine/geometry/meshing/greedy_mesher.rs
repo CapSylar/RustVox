@@ -71,7 +71,7 @@ impl ChunkMesher for GreedyMesher
 {
     fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>
     {
-        let mut mesh = Mesh::new();
+        let mut mesh = Mesh::default();
         // sweep over each axis separately (X,Y,Z)
 
         //TODO: better documentation

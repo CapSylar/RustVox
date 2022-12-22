@@ -23,6 +23,14 @@ impl<T> VertexBuffer<T>
         Self{ _phantom: PhantomData, renderer_id: buffer_id }
     }
 
+    /// get the handle to an VertexBuffer and manage it
+    /// 
+    /// In this case the vertex buffer has already been created and filled externally
+    pub fn from_id(renderer_id: u32) -> Self
+    {
+        Self{_phantom: PhantomData, renderer_id}
+    }
+
     pub fn respecify(&self,vertex_data: &[T])
     {
         // Buffer Respecification (Orphaning)

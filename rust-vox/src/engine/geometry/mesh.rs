@@ -1,5 +1,6 @@
-use std::mem::size_of;
-use crate::engine::renderer::opengl_abstractions::{vertex_array::VertexArray, vertex_buffer::VertexBuffer, index_buffer::IndexBuffer};
+use std::{mem::size_of, cell::RefCell};
+use crate::engine::renderer::allocators::default_allocator::AllocToken;
+
 use super::opengl_vertex::OpenglVertex;
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
@@ -8,7 +9,7 @@ pub struct Mesh<T>
 {
     pub vertices: Vec<T>,
     pub indices: Vec<u32>,
-    pub vao: Option<VertexArray<T>>,
+    pub alloc_token: Option<AllocToken>,
 
     num_triangles: usize
 }
@@ -16,23 +17,19 @@ pub struct Mesh<T>
 impl<T> Mesh<T>
     where T: OpenglVertex
 {
-    pub fn new() -> Self
+    pub fn default() -> Self
     {
-        Self{vertices:Vec::new(),indices:Vec::new(),vao:None,num_triangles:0}
+        Self{vertices:Vec::new(),indices:Vec::new(),alloc_token:None,num_triangles:0}
     }
 
-    /// `Upload Mesh to the GPU`
-    /// 
-    /// Creates the VAO,VBO and EBO needed render this chunk
-    pub fn upload(&mut self)
+    pub fn is_alloc(&self) -> bool
     {
-        // create the vertex buffer
-        let vertex_buffer = VertexBuffer::new(&self.vertices);
-        // create the index buffer
-        let index_buffer = IndexBuffer::new(&self.indices);
+        self.alloc_token.is_some()
+    }
 
-        let vao = VertexArray::new(vertex_buffer,&T::get_layout(), index_buffer);
-        self.vao = Some(vao);
+    pub fn release_token(&mut self) -> Option<AllocToken>
+    {   
+        std::mem::replace(&mut self.alloc_token, None)
     }
 
     /// Delete the Geometry from GPU memory
@@ -41,16 +38,16 @@ impl<T> Mesh<T>
         
     }
 
-    pub fn respecify_vertices<F>( &mut self,func: F )
-        where F: FnOnce(&mut Vec<T>)
-    {
-        func(&mut self.vertices); // change the vertices
+    // pub fn respecify_vertices<F>( &mut self,func: F )
+    //     where F: FnOnce(&mut Vec<T>)
+    // {
+    //     func(&mut self.vertices); // change the vertices
         
-        if let Some(vao) = &self.vao
-        {
-            vao.vbo.respecify(&self.vertices);
-        }
-    }
+    //     if let Some(vao) = &self.
+    //     {
+    //         vao.vbo.respecify(&self.vertices);
+    //     }
+    // }
 
     /// add a vertex to the mesh
     /// 
@@ -111,9 +108,14 @@ impl<T> Mesh<T>
         self.add_triangle_indices(first, first+2, first+3);
     }
 
-    pub fn _size_bytes(&self) -> usize
+    pub fn get_vertices_size_bytes(&self) -> usize
     {
         self.vertices.len() * size_of::<T>()
+    }
+
+    pub fn get_indices_size_bytes(&self) -> usize
+    {
+        self.indices.len() * size_of::<u32>()
     }
 
     pub fn get_num_triangles(&self) -> usize

@@ -121,7 +121,7 @@ pub mod sky_state
 
     impl Sky
     {
-        pub fn new() -> Self
+        pub fn default() -> Self
         {
             let current_phase = DayNightPhase::SunRise;
             let current_sky_state = PHASE_CONFIG[0].clone(); // start off in first phase of list
@@ -178,8 +178,10 @@ pub mod sky_state
 
 pub mod sky_renderer
 {
+    use std::{mem};
+
     use glam::{Vec3, Vec2, Mat4};
-    use crate::engine::{geometry::{opengl_vertex::OpenglVertex, mesh::Mesh}, renderer::{opengl_abstractions::{vertex_array::VertexLayout, shader::Shader}, Renderer}};
+    use crate::engine::{geometry::{opengl_vertex::OpenglVertex, mesh::Mesh}, renderer::{opengl_abstractions::{vertex_array::{VertexLayout, VertexArray}, shader::Shader}, Renderer, allocators::{vertex_pool_allocator::Daic, default_allocator::DefaultAllocator}}};
     use super::sky_state::Sky;
 
     struct SkyBoxVertex
@@ -247,16 +249,24 @@ pub mod sky_renderer
         moon_quad: Mesh<SkyQuadVertex>,
         sky_box: Mesh<SkyBoxVertex>,
         tick: f32,
+
+        sky_quad_allocator: DefaultAllocator<SkyQuadVertex>,
+        sky_box_allocator: DefaultAllocator<SkyBoxVertex>,
+        indbo: u32,
     }
     
     impl SkyRenderer
     {
         pub fn default() -> Self
         {
+            // create the allocators
+            let mut sky_quad_allocator = DefaultAllocator::new();
+            let mut sky_box_allocator = DefaultAllocator::new();
+
             // Initialise everything needed to render the sky + objects
             let celestial_shader = Shader::new_from_vs_fs("rust-vox/shaders/celestial.vert", "rust-vox/shaders/celestial.frag").expect("Shader Error");
             // create sky plane
-            let mut sky_quad = Mesh::new();
+            let mut sky_quad = Mesh::default();
             //TODO: refactor needed, we should be able to customize the Attributes for according to each Shader
             // define it anti-clockwise, no need to rotate it in this case
             let i1 = sky_quad.add_vertex(SkyQuadVertex::new(Vec3::new(-1.0,0.2,1.0),Vec2::new(0.0,0.0)));
@@ -267,7 +277,7 @@ pub mod sky_renderer
             sky_quad.add_triangle_indices(i4, i2, i1);
             sky_quad.add_triangle_indices(i2, i4, i3);
     
-            sky_quad.upload();
+            sky_quad_allocator.alloc(&mut sky_quad);
     
             let mut cloud_texture = 0;        
             // load texture atlas
@@ -294,7 +304,7 @@ pub mod sky_renderer
             }
     
             // generate the background, renderer as a unit cube around the player        
-            let mut sky_box = Mesh::new();
+            let mut sky_box = Mesh::default();
     
             // bottom 4
             let i1 = sky_box.add_vertex(SkyBoxVertex::new(Vec3::new(-1.0,-0.2,1.0),Vec3::ZERO));
@@ -323,14 +333,14 @@ pub mod sky_renderer
             // back plane
             sky_box.add_quad_indices(i4,i8,i5,i1);
     
-            sky_box.upload();
+            sky_box_allocator.alloc(&mut sky_box);
     
             let skybox_shader = Shader::new_from_vs_gs_fs("rust-vox/shaders/skybox.vert",
             "rust-vox/shaders/skybox.geom", "rust-vox/shaders/skybox.frag").expect("Shader Error");
     
             // generate the sun
             // the sun is just a textured quad
-            let mut sun_quad = Mesh::new();
+            let mut sun_quad = Mesh::default();
 
             sun_quad.add_quad(
                 SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)),
@@ -339,7 +349,7 @@ pub mod sky_renderer
                 SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0))
                 );
 
-            sun_quad.upload();
+            sky_quad_allocator.alloc(&mut sun_quad);
     
             let mut sun_texture = 0;        
             // load texture atlas
@@ -366,7 +376,7 @@ pub mod sky_renderer
             }
     
             // setup the moon texture
-            let mut moon_quad = Mesh::new();
+            let mut moon_quad = Mesh::default();
 
             moon_quad.add_quad(
                 SkyQuadVertex::new(Vec3::new(-1.0,-1.0,-5.0),Vec2::new(0.0,0.0)),
@@ -374,7 +384,7 @@ pub mod sky_renderer
                 SkyQuadVertex::new(Vec3::new(1.0,1.0,-5.0),Vec2::new(1.0,1.0)),
                 SkyQuadVertex::new(Vec3::new(1.0,-1.0,-5.0),Vec2::new(1.0,0.0)));
     
-            moon_quad.upload();
+            sky_quad_allocator.alloc(&mut moon_quad);
     
             let mut moon_texture = 0;        
             // load texture atlas
@@ -399,8 +409,22 @@ pub mod sky_renderer
                     0, gl::RGBA as _ , gl::UNSIGNED_BYTE , data.as_ptr().cast() );
                 gl::GenerateMipmap(gl::TEXTURE_2D);
             }
+
+            // TESTING 
+            let commands: [Daic;1] = [Daic::new(sky_quad.indices.len() as u32,1, 0, 0)];
+            let mut indbo = 0;
+
+            unsafe
+            {
+                gl::GenBuffers(1, &mut indbo);
+                gl::BindBuffer(gl::DRAW_INDIRECT_BUFFER, indbo);
+
+                gl::BufferData(gl::DRAW_INDIRECT_BUFFER, mem::size_of::<Daic>() as isize, commands.as_ptr() as _, gl::STATIC_DRAW);
+            }
+
+            // END TEST
     
-            Self{tick:0.0, celestial_shader,skybox_shader,sky_box,sky_quad,sun_quad,moon_quad}
+            Self{sky_box_allocator, sky_quad_allocator ,tick:0.0, celestial_shader,skybox_shader,sky_box,sky_quad,sun_quad,moon_quad, indbo}
         }
     
         pub fn render(&mut self, sky: &Sky)
@@ -408,12 +432,12 @@ pub mod sky_renderer
             let sky_state = &sky.current_sky_state;
     
             // update the sky mesh
-            self.sky_box.respecify_vertices(|vertices| {
-                for (index, vert) in vertices.iter_mut().enumerate()
-                {
-                    vert.color = sky_state.sky_box_color[index];
-                }
-            });
+            // self.sky_box.respecify_vertices(|vertices| {
+            //     for (index, vert) in vertices.iter_mut().enumerate()
+            //     {
+            //         vert.color = sky_state.sky_box_color[index];
+            //     }
+            // });
             
             // setting the depth func to always will make every fragment pass the depth test
             // we need this since we set all sky geometry to have a depth = 1 such that it is always drawn behind foreground objects
@@ -425,7 +449,7 @@ pub mod sky_renderer
             }
     
             self.skybox_shader.bind();
-            Renderer::draw_mesh_with_mode(&self.sky_box, gl::LINES_ADJACENCY);
+            Renderer::draw_mesh_with_mode(&self.sky_box_allocator, &self.sky_box, gl::LINES_ADJACENCY);
             Shader::unbind();
     
             // PASS 3: draw celestial bodies
@@ -444,15 +468,25 @@ pub mod sky_renderer
             self.celestial_shader.set_uniform_1f("sub", self.tick).expect("error setting sub float uniform");
             self.celestial_shader.set_uniform1i("text", 2).expect("error setting the sky texture");
             self.celestial_shader.set_uniform_matrix4fv("model", &Mat4::IDENTITY).expect("error setting the view uniform");
-            Renderer::draw_mesh(&self.sky_quad);
-    
+
+
+            // // testing, draw the sky_quad
+            // unsafe
+            // {
+            //     self.sky_quad.vao.as_ref().unwrap().bind();
+            //     gl::BindBuffer(gl::DRAW_INDIRECT_BUFFER, self.indbo);
+            //     gl::MultiDrawElementsIndirect(gl::TRIANGLES, gl::UNSIGNED_INT, 0 as _, 1, mem::size_of::<Daic>() as i32);
+            //     VertexArray::<SkyQuadVertex>::unbind();
+            // }
+            // Renderer::draw_mesh(&self.sky_quad);
+            
             if sky_state.sun_present
             {
                 self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
                 self.celestial_shader.set_uniform1i("text", 3).expect("error setting the sun texture");
                 let sun_quad_trans = Mat4::from_rotation_x(sky_state.pos_sun.0) * Mat4::from_rotation_y(sky_state.pos_sun.1);
                 self.celestial_shader.set_uniform_matrix4fv("model", &sun_quad_trans).expect("error setting the model transformation for the sun_quad");
-                Renderer::draw_mesh(&self.sun_quad);
+                Renderer::draw_mesh(&self.sky_quad_allocator, &self.sun_quad);
             }
     
             if sky_state.moon_present
@@ -461,7 +495,7 @@ pub mod sky_renderer
                 self.celestial_shader.set_uniform1i("text", 4).expect("error setting the sun texture");
                 let moon_quad_trans = Mat4::from_rotation_x(sky_state.pos_moon.0) * Mat4::from_rotation_y(sky_state.pos_moon.1);
                 self.celestial_shader.set_uniform_matrix4fv("model", &moon_quad_trans).expect("error setting the model transformation for the sun_quad");
-                Renderer::draw_mesh(&self.moon_quad);
+                Renderer::draw_mesh(&self.sky_quad_allocator, &self.moon_quad);
             }
     
             unsafe

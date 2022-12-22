@@ -5,7 +5,7 @@ pub struct VertexArray<T>
 {
     renderer_id : u32, // vao ID
     pub vbo : VertexBuffer<T>,
-    _ebo: IndexBuffer,
+    pub ebo: IndexBuffer,
     _phantom: PhantomData<T>
 }
 
@@ -27,7 +27,7 @@ impl<T> VertexArray<T>
         // unbind the vao
         unsafe { gl::BindVertexArray(0); } 
         
-        Self{ _phantom: PhantomData, renderer_id:vao, vbo:vertex_buffer, _ebo:index_buffer}
+        Self{ _phantom: PhantomData, renderer_id:vao, vbo:vertex_buffer, ebo:index_buffer}
     }
 
     //TODO: Document
@@ -66,12 +66,17 @@ impl<T> VertexArray<T>
         }
     }
 
-    pub fn unbind()
+    pub fn unbind(&self)
     {
         unsafe
         {
             gl::BindVertexArray(0);
         }
+    }
+
+    pub fn get_id(&self) -> u32
+    {
+        self.renderer_id
     }
 
 

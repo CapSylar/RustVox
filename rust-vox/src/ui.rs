@@ -4,15 +4,17 @@ use glam::{Vec3, Vec2};
 use imgui::{Condition, FontSource, Context, FontId, CollapsingHeader, Ui};
 use imgui_opengl_renderer::Renderer;
 use imgui_sdl2_support::SdlPlatform;
-use sdl2::{VideoSubsystem, video::Window, EventPump};
+use sdl2::{VideoSubsystem, video::Window, EventPump, sys::alloca};
 
-use crate::{engine::{renderer::opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager}, world::World};
+use crate::{engine::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, allocators::default_allocator::DefaultAllocator}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager}, world::World};
 
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates
     pub front: Vec3,          // front vector
     calculation_times: VecDeque<f32>, // same as frame_time, but without waiting for the framebuffer swap
     pub frame_time: u128,       // should be 16ms on 60 Hz refresh rate
+
+    pub draw_world_time: f64,
 
     pub chunk_size_bytes: usize, // bytes
     pub num_triangles: usize,    // number of triangles on screen coming from chunks
@@ -33,7 +35,7 @@ impl DebugData
             frame_time: 0, num_triangles: 0,
             num_vertices: 0, calculation_times,
             chunk_size_bytes: 0, loaded_chunks: 0,
-            culled_chunks: 0 }
+            culled_chunks: 0, draw_world_time: 0.0 }
     }
 
     pub fn add_calculation_time(&mut self, value: f32)
@@ -68,6 +70,7 @@ impl OpenglVertex for UiVertex
 
 pub struct UiRenderer
 {
+    allocator: DefaultAllocator<UiVertex>,
     pub used_font: FontId,
     imgui_renderer: Renderer,
     ui_shader: Shader,
@@ -120,7 +123,7 @@ impl UiRenderer
         let size = window.size();
         let ratio = size.0 as f32 / size.1 as f32 ; // aspect ratio
         
-        let mut cross_hair: Mesh<UiVertex> = Mesh::new();
+        let mut cross_hair: Mesh<UiVertex> = Mesh::default();
         let uv_lower_left = Vec2::new(0.0/16.0,0.0/16.0);
         let offset = 1.0/16.0;
 
@@ -131,9 +134,10 @@ impl UiRenderer
         UiVertex{position:Vec2::new(0.03,-0.03 * ratio), uv:uv_lower_left + Vec2::new(offset,0.0)}
         );
 
-        cross_hair.upload();
+        let mut allocator = DefaultAllocator::new();
+        allocator.alloc(&mut cross_hair);
 
-        UiRenderer{ used_font, imgui_renderer, ui_shader, cross_hair, debug_data: debug_info.clone() }
+        UiRenderer{ allocator, used_font, imgui_renderer, ui_shader, cross_hair, debug_data: debug_info.clone() }
     }
 
     /// Render the UI
@@ -155,7 +159,7 @@ impl UiRenderer
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
         }
 
-        Self::draw_mesh(&self.cross_hair);
+        Self::draw_mesh(&self.allocator, &self.cross_hair);
 
         unsafe
         {
@@ -166,14 +170,15 @@ impl UiRenderer
     }
     
     //TODO: duplicate code
-    pub fn draw_mesh<T> (mesh: &Mesh<T>)
+    pub fn draw_mesh<T: OpenglVertex> (allocator: &DefaultAllocator<T> ,mesh: &Mesh<T>)
     {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+        vao.bind();
         unsafe
         {
-            mesh.vao.as_ref().unwrap().bind();
             gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
-            VertexArray::<T>::unbind();
         }
+        vao.unbind();
     }
 
     pub fn build_ui(&self, ui: &imgui::Ui, voxel_world: &mut World)
@@ -227,6 +232,7 @@ impl UiRenderer
                 .build();
 
             ui.text(format!("frame time: {:.2} us" , debug_data.frame_time));
+            ui.text(format!("draw world: {:.2}ms", debug_data.draw_world_time));
             ui.text(format!("FPS: {}", 1.0/(debug_data.frame_time as f32 / 1000000.0) ));
             ui.text(format!("Chunk Triangles: {}", debug_data.num_triangles));
             ui.text(format!("Chunk Vertices: {}", debug_data.num_vertices));
