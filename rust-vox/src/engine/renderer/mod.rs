@@ -51,9 +51,15 @@ impl Renderer
         unsafe
         {
             gl::GenQueries(timers.len() as i32, timers.as_ptr() as _);
+            
+            // fill them with dummy queries so they start with know values
+            // because we do "triple buffering", if we set timer 0 initially, we would expect timer (0-1) % 3 to have it's value ready
+            for index in timers
+            {
+                gl::BeginQuery(gl::TIME_ELAPSED, index);
+                gl::EndQuery(gl::TIME_ELAPSED);
+            }
         }
-
-        // TODO: query dummy
 
         unsafe
         {
