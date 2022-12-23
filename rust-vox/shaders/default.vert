@@ -1,12 +1,12 @@
 #version 460 core
 
 const vec3 normal_lut[6] = vec3[6](
-    vec3(0.0,1.0,0.0), // POSY
-    vec3(0.0,-1.0,0.0), // NEGY
-    vec3(0.0,0.0,1.0), // POSZ
-    vec3(0.0,0.0,-1.0), // NEGZ
     vec3(1.0,0.0,0.0), // POSX
-    vec3(-1.0,0.0,0.0) // NEGX
+    vec3(0.0,1.0,0.0), // POSY
+    vec3(0.0,0.0,1.0), // POSZ
+    vec3(-1.0,0.0,0.0), // NEGX
+    vec3(0.0,-1.0,0.0), // NEGY
+    vec3(0.0,0.0,-1.0) // NEGZ
 );
 
 // transforms ubo

@@ -190,7 +190,7 @@ impl UiRenderer
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
         .position([0.0,0.0], Condition::Always)
-        .size([500.0, 500.0], Condition::FirstUseEver)
+        .size([500.0, 600.0], Condition::FirstUseEver)
         .build(|| {
 
         let mut debug_data = self.debug_data.borrow_mut();
@@ -249,6 +249,8 @@ impl UiRenderer
         .default_open(true)
         .build(ui)
         {
+            ui.text(format!("Current Day-Night Phase: {}" , renderer.sky.curent_cycle_phase()));
+
             let mut halted = renderer.sky.is_halted();
             if ui.checkbox("Sky halted", &mut halted)
             {

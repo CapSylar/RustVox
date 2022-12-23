@@ -24,6 +24,7 @@ layout (std140, binding = 2) uniform light_space_transforms
 float near = 0.1; 
 float far  = 500.0; 
 
+const float DIFFUSE_MULTIPLIER = 0.82;
 const vec4 clear_color = vec4(0.25,0.5,0.88,1.0);
 const float fog_density = 7.0;
 vec2 texel_size = 1.0 / textureSize(shadow_map,0).xy; // don'get the z component
@@ -127,7 +128,7 @@ void main()
         shadow = is_in_shadow(frag_light_space_pos , layer);
     }
     
-    float diffuse = max(dot(normal,light_dir),0.0);
+    float diffuse = max(dot(normal,light_dir),0.0) * DIFFUSE_MULTIPLIER;
     // for now, being in shadow just means the texture's albedo colors get a bit darker
 
     float ambient = 0.5;

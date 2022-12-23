@@ -14,9 +14,9 @@ pub mod sky_state
 {
     const TIME_MULTIPLIER: f32 = 500.0;
 
-    use std::time::Instant;
+    use std::{time::Instant, fmt::{Display, Formatter}};
     use glam::{Vec3, const_vec3};
-    use core::f32::consts::PI;
+    use core::{f32::consts::PI, fmt};
 
     use super::MAX_SECONDS_DAY;
 
@@ -40,12 +40,23 @@ pub mod sky_state
     ];
 
     #[derive(Copy,Clone)]
-    enum DayNightPhase
+    pub enum DayNightPhase
     {
         SunRise,
         Noon,
         Sunset,
         Night,
+    }
+
+    impl Display for DayNightPhase {
+        fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+           match *self {
+               DayNightPhase::SunRise => write!(f, "SunRise"),
+               DayNightPhase::Noon => write!(f, "Noon"),
+               DayNightPhase::Sunset => write!(f, "Sunset"),
+               DayNightPhase::Night => write!(f, "Night"),
+           }
+        }
     }
 
     impl TryFrom<i32> for DayNightPhase
@@ -227,6 +238,11 @@ pub mod sky_state
         pub fn get_time_hours(&self) -> f32
         {
             self.time / 3600.0
+        }
+
+        pub fn curent_cycle_phase(&self) -> DayNightPhase
+        {
+            self.current_phase
         }
 
     }
@@ -561,7 +577,7 @@ pub mod sky_renderer
             {
                 self.celestial_shader.set_uniform_1f("sub", 0.0).expect("error setting sub float uniform");
                 self.celestial_shader.set_uniform1i("text", 4).expect("error setting the sun texture");
-                let moon_quad_trans = Mat4::from_rotation_x(sky_state.pos_moon.0) * Mat4::from_rotation_y(sky_state.pos_moon.1);
+                let moon_quad_trans = Mat4::from_rotation_z(sky_state.pos_moon.0) * Mat4::from_rotation_y(sky_state.pos_moon.1);
                 self.celestial_shader.set_uniform_matrix4fv("model", &moon_quad_trans).expect("error setting the model transformation for the sun_quad");
                 Renderer::draw_mesh(&self.sky_quad_allocator, &self.moon_quad);
             }

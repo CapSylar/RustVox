@@ -7,10 +7,10 @@ pub struct GreedyMesher;
 impl GreedyMesher
 {
     //TODO: this is a mess
-    fn add_quad(mesh: &mut Mesh<VoxelVertex>, face: SliceFace, current_dir: usize, x_dir: usize , y_dir: usize, lower_left:Vec3, upper_left: Vec3, upper_right:Vec3, lower_right:Vec3)
+    fn add_quad(mesh: &mut Mesh<VoxelVertex>, face: SliceFace, current_pass_dir: usize, x_dir: usize , y_dir: usize, lower_left:Vec3, upper_left: Vec3, upper_right:Vec3, lower_right:Vec3)
     {
-        let mut current_dir = Direction::from_index(current_dir);
-        if face.face_state == FaceState::OppositeDirection {current_dir = current_dir.opposite();} // reverse direction if face is actually facing the opposite direction
+        let mut normal_dir = Direction::from_index(current_pass_dir);
+        if face.face_state == FaceState::CurrentDirection {normal_dir = normal_dir.opposite();} // reverse direction if face is actually facing the opposite direction
 
         let lower_left_uv: (u8,u8);
         let upper_left_uv: (u8,u8);
@@ -36,10 +36,10 @@ impl GreedyMesher
             upper_right_uv = (x,y);
         }
 
-        let lower_left = VoxelVertex::new(lower_left * VOXEL_SIZE,current_dir,lower_left_uv, face.voxel_type);
-        let upper_left =  VoxelVertex::new(upper_left * VOXEL_SIZE,current_dir,upper_left_uv, face.voxel_type);
-        let upper_right = VoxelVertex::new(upper_right * VOXEL_SIZE,current_dir,upper_right_uv, face.voxel_type);
-        let lower_right = VoxelVertex::new(lower_right * VOXEL_SIZE,current_dir,lower_right_uv, face.voxel_type);
+        let lower_left = VoxelVertex::new(lower_left * VOXEL_SIZE,normal_dir,lower_left_uv, face.voxel_type);
+        let upper_left =  VoxelVertex::new(upper_left * VOXEL_SIZE,normal_dir,upper_left_uv, face.voxel_type);
+        let upper_right = VoxelVertex::new(upper_right * VOXEL_SIZE,normal_dir,upper_right_uv, face.voxel_type);
+        let lower_right = VoxelVertex::new(lower_right * VOXEL_SIZE,normal_dir,lower_right_uv, face.voxel_type);
 
         if face.face_state == FaceState::CurrentDirection
         {
