@@ -15,6 +15,21 @@ lazy_static!
 {
     static ref GENERATOR: Box<dyn TerrainGenerator> = Box::new(PerlinGenerator::default());
 }
+
+pub struct ChunkManageUnit
+{
+    distance: f32, // used for sorting
+    pub chunk: Rc<RefCell<Chunk>>,
+}
+
+impl ChunkManageUnit
+{
+    fn new(chunk: Rc<RefCell<Chunk>>) -> Self
+    {
+        Self{distance:0.0, chunk}
+    }
+}
+
 pub struct ChunkManager
 {
     pub allocator: DefaultAllocator<VoxelVertex>,
@@ -25,18 +40,19 @@ pub struct ChunkManager
     chunks: HashMap<IVec2, Rc<RefCell<Chunk>>>, // holds all chunks, regardless of state
 
     // Holds the chunks that are currently visible and rendered
-    pub chunks_rendered: Vec<Rc<RefCell<Chunk>>>,
+    pub chunks_rendered: Vec<ChunkManageUnit>,
 
     chunks_to_upload: Vec<Rc<RefCell<Chunk>>>,
 
     // Holds chunks that are not rendered, but are still present in GPU and CPU memory
-    // chunks_not_visible: Vec<Rc<RefCell<Chunk>>>,
+    // chunks_not_visible: Vec<Rc<RefCell<ChunkManageUnit>>>,
 
     // Holds chunks to be unloaded from GPU and CPU memory
     chunks_to_unload: Vec<Rc<RefCell<Chunk>>>,
 
     // update state
     anchor_point: IVec2, // anchor chunk point
+    last_chunk_pos: IVec2, // chunks position in last update
     last_upload: Instant,
 
     // debug
@@ -58,7 +74,7 @@ impl ChunkManager
 
         // player position always starts at (0,0,0) for now
 
-        let mut ret = Self{allocator, chunks, chunks_finished_meshing: chunks_to_load, chunks_rendered: chunks_render, chunks_to_upload, chunks_to_unload, anchor_point: IVec2::ZERO,
+        let mut ret = Self{allocator, chunks, chunks_finished_meshing: chunks_to_load, chunks_rendered: chunks_render, chunks_to_upload, chunks_to_unload, anchor_point: IVec2::ZERO, last_chunk_pos: IVec2::ZERO,
            threadpool: ThreadPool::new(theadcount), last_upload: Instant::now(), debug_data:debug_data.clone() };
         ret.load_chunks();
         ret
@@ -103,10 +119,8 @@ impl ChunkManager
         chunk.generate_mesh::<GreedyMesher>();
         chunk.sort_transparent(Vec3::new(0.0,20.0,0.0));
         self.allocator.alloc(chunk.mesh.as_mut().unwrap());
-        // chunk.mesh.as_mut().unwrap().upload();
-        // self.register_chunk(chunk);
 
-        self.chunks_rendered.push(Rc::new(RefCell::new(chunk)));
+        Self::add_rendered_chunk(&mut self.chunks_rendered, &Rc::new(RefCell::new(chunk)), Vec3::ZERO);
     }
 
     fn handle_deallocs(&mut self)
@@ -152,7 +166,7 @@ impl ChunkManager
         }
     }
 
-    fn update_chunks_rendered(&mut self)
+    fn update_chunks_rendered(&mut self, player_pos: Vec3)
     {
         self.chunks_rendered.clear();
 
@@ -170,7 +184,7 @@ impl ChunkManager
                     // check that the chunk's mesh is uploaded
                     if chunk.as_ref().borrow().is_mesh_alloc()
                     {
-                        self.chunks_rendered.push(chunk.clone())
+                        Self::add_rendered_chunk(&mut self.chunks_rendered, chunk, player_pos);
                     }
                     else
                     {
@@ -182,17 +196,82 @@ impl ChunkManager
         }
     }
 
+    /// Add the chunks to the list of rendered chunks
+    fn add_rendered_chunk(rendered_list: &mut Vec<ChunkManageUnit>, chunk: &Rc<RefCell<Chunk>>, center: Vec3)
+    {
+        // the chunks must be added in order into the rendered list
+        // rendered from back to front
+
+        let mut unit = ChunkManageUnit::new(chunk.clone());
+
+        // calculate the distance from the camera
+        unit.distance = center.distance(chunk.borrow().pos_world_space()); // TODO: consider using taxi cab distance with x y only
+
+        // find the index at which we must insert = index of the first chunks that has a smaller distance
+        let mut index = 0;
+        for chunk in rendered_list.iter()
+        {
+            if chunk.distance < unit.distance
+            {
+                break;
+            }
+            index += 1;
+        }
+
+        rendered_list.insert(index, unit);
+
+        // debug output
+        println!("after rendered list sort");
+        for chunk in rendered_list.iter()
+        {
+            println!("distance: {}", chunk.distance);
+        }
+    }
+
+    pub fn sort_back_front_rendered(rendered_list: &mut [ChunkManageUnit], center: Vec3)
+    {
+        // re-calculate all the chunk distances from the center's POV
+        for chunk in rendered_list.iter_mut()
+        {
+            chunk.distance = center.distance(chunk.chunk.borrow().pos_world_space());
+        }
+
+        // back to front
+        rendered_list.sort_by(|a,b| b.distance.total_cmp(&a.distance));
+
+        // debug output
+        println!("after total rendered list sort");
+        for chunk in rendered_list.iter()
+        {
+            println!("distance: {}", chunk.distance);
+        }
+    }
+
+    /// Transforms from world coordinates to Chunk coordinates
+    pub fn world_to_chunk_coord(pos: Vec3) -> IVec2
+    {
+        let chunk_x = pos.x as i32 / CHUNK_SIZE_X as i32;
+        let chunk_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
+        IVec2::new(chunk_x,chunk_z)
+    }
+
+    pub fn voxel_to_chunk_coord(pos: IVec3) -> IVec2
+    {
+        let chunk_x = pos.x / CHUNK_SIZE_X as i32;
+        let chunk_z = pos.z / CHUNK_SIZE_Z as i32;
+        IVec2::new(chunk_x, chunk_z)
+    }
+
     /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
     /// 
     /// Called every frame
     pub fn update(&mut self , player_pos: Vec3)
     {
-        // in which chunk are we ? 
-        let chunk_x = player_pos.x as i32 / CHUNK_SIZE_X as i32;
-        let chunk_z = player_pos.z as i32 / CHUNK_SIZE_Z as i32;
-        let new_pos = IVec2::new(chunk_x,chunk_z);
+        // in which chunk are we ?
+        let new_pos = Self::world_to_chunk_coord(player_pos);
 
         // did we change chunks and are now outside the no-update zone ?
+
         if (new_pos.x - self.anchor_point.x).abs() > NO_UPDATE/2 ||  // in x
                     (new_pos.y - self.anchor_point.y).abs() > NO_UPDATE/2 // in z
         {
@@ -202,7 +281,7 @@ impl ChunkManager
 
             self.load_chunks(); // setup new region
 
-            self.update_chunks_rendered();
+            self.update_chunks_rendered(player_pos);
 
             self.handle_deallocs();
         }
@@ -225,7 +304,7 @@ impl ChunkManager
             }
         }
 
-        let new_loads = self.handle_chunk_loads();
+        let new_loads = self.handle_chunk_loads(player_pos);
         if new_loads { self.update_debug(); }
     }
 
@@ -237,7 +316,7 @@ impl ChunkManager
     }
 
     /// Checks the to load list for any chunks to be loaded and loads them
-    fn handle_chunk_loads(&mut self) -> bool
+    fn handle_chunk_loads(&mut self, player_pos: Vec3) -> bool
     {
         let mut new_loads = false;
         // get x chunks from the to_load list and upload them
@@ -249,7 +328,7 @@ impl ChunkManager
             {
                 let chunk = self.chunks_to_upload.remove(0);
                 self.allocator.alloc(chunk.as_ref().borrow_mut().mesh.as_mut().unwrap());
-                self.chunks_rendered.push(chunk);
+                Self::add_rendered_chunk(&mut self.chunks_rendered ,&chunk, player_pos);
             }
         }
 
@@ -275,7 +354,7 @@ impl ChunkManager
     {
         let (chunk_pos_x , voxel_pos_x) = Self::adjust_direction(pos.x, CHUNK_SIZE_X);
         let (chunk_pos_z, voxel_pos_z) = Self::adjust_direction(pos.z, CHUNK_SIZE_Z);
-        let voxel_pos_y = pos.y as i32;
+        let voxel_pos_y = pos.y;
 
         (IVec2::new(chunk_pos_x,chunk_pos_z),IVec3::new(voxel_pos_x,voxel_pos_y,voxel_pos_z))
     }
@@ -440,7 +519,7 @@ impl ChunkManager
                 self.allocator.alloc(chunk.mesh.as_mut().unwrap());
             }
         }
-        }
+    }
 
     //TODO: refactor
     /// Gets the number of triangles of the current displayed chunks
@@ -450,9 +529,9 @@ impl ChunkManager
         let mut num_vertices = 0;
         let mut chunk_sizes = 0;
 
-        for chunk in &self.chunks_rendered
+        for unit in &self.chunks_rendered
         {
-            let x = chunk.as_ref().borrow();
+            let x = unit.chunk.borrow();
             if let Some(mesh) = x.mesh.as_ref()
             {
                 num_trigs += mesh.get_num_triangles();

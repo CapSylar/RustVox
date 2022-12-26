@@ -228,9 +228,9 @@ impl Renderer
         // world.chunk_manager.allocator.render();
 
         // first draw all opaque meshes
-        for chunk in world.chunk_manager.chunks_rendered.iter()
+        for unit in world.chunk_manager.chunks_rendered.iter()
         {
-            let chunk = chunk.borrow();
+            let chunk = unit.chunk.borrow();
 
             let mesh = chunk.mesh.as_ref().unwrap();
             let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
@@ -246,9 +246,9 @@ impl Renderer
         }
 
         // then draw all transparent meshes
-        for chunk in world.chunk_manager.chunks_rendered.iter()
+        for unit in world.chunk_manager.chunks_rendered.iter()
         {
-            let chunk = chunk.borrow();
+            let chunk = unit.chunk.borrow();
             
             let mesh = chunk.mesh.as_ref().unwrap();
             let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
