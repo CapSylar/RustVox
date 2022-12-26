@@ -1,4 +1,4 @@
-use std::{mem::size_of, cell::RefCell};
+use std::{mem::size_of};
 use crate::engine::renderer::allocators::default_allocator::AllocToken;
 
 use super::opengl_vertex::OpenglVertex;
@@ -14,14 +14,18 @@ pub struct Mesh<T>
     num_triangles: usize
 }
 
-impl<T> Mesh<T>
+impl<T> Default for Mesh<T>
     where T: OpenglVertex
 {
-    pub fn default() -> Self
+    fn default() -> Self
     {
         Self{vertices:Vec::new(),indices:Vec::new(),alloc_token:None,num_triangles:0}
     }
+}
 
+impl<T> Mesh<T>
+    where T: OpenglVertex
+{
     pub fn is_alloc(&self) -> bool
     {
         self.alloc_token.is_some()
@@ -30,12 +34,6 @@ impl<T> Mesh<T>
     pub fn release_token(&mut self) -> Option<AllocToken>
     {   
         std::mem::replace(&mut self.alloc_token, None)
-    }
-
-    /// Delete the Geometry from GPU memory
-    pub fn delete_gpu_storage(&mut self)
-    {
-        
     }
 
     // pub fn respecify_vertices<F>( &mut self,func: F )
@@ -116,6 +114,11 @@ impl<T> Mesh<T>
     pub fn get_indices_size_bytes(&self) -> usize
     {
         self.indices.len() * size_of::<u32>()
+    }
+
+    pub fn get_indices_len(&self) -> usize
+    {
+        self.indices.len()
     }
 
     pub fn get_num_triangles(&self) -> usize

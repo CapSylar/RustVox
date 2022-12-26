@@ -1,4 +1,4 @@
-use std::mem::{self};
+use std::{mem::{self}};
 
 use glam::{Vec3, IVec3, IVec2};
 
@@ -12,11 +12,29 @@ pub const CHUNK_SIZE_Z : usize = 20;
 
 pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_X];
 
+#[derive(Debug)]
+pub struct Face
+{
+    pos: Vec3, // position in world space
+    base_index: usize, // index in to the indices list in meshes
+    distance: f32 // used for sorting
+}
+
+impl Face
+{
+    pub fn new(pos: Vec3, indices: usize) -> Self
+    {
+        Self{pos,base_index: indices,distance:0.0}
+    }
+}
+
 pub struct Chunk
 {
     pub voxels: [[[Voxel; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X],
     pos: Vec3, // position in chunk space
-    pub mesh: Option<Mesh<VoxelVertex>>,
+
+    pub mesh: Option<Mesh<VoxelVertex>>, // holds all geometry
+    pub trans_faces: Option<Vec<Face>>, // holds references into the transparent faces stored in the mesh, used for transparency sorting
 }
 
 impl Chunk
@@ -43,14 +61,65 @@ impl Chunk
             }
         }
 
-        Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None::<Mesh<VoxelVertex>>}
+        Chunk{ pos: Vec3::new(pos_x as f32,pos_y as f32,pos_z as f32) , voxels , mesh: None, trans_faces: None}
     }
 
     /// Generate the chunk mesh
     pub fn generate_mesh<T> (&mut self)
         where T: ChunkMesher
     {
-        self.mesh = Some(T::generate_mesh(self));
+        let mut mesh = Mesh::<VoxelVertex>::default();
+        let mut faces = Vec::new();
+
+        // mesh opaque geometry
+        T::generate_mesh(self, &mut mesh, &mut faces);
+        // mesh transparent geometry
+        
+        self.mesh = Some(mesh);
+        self.trans_faces = Some(faces);
+    }
+
+    /// Sort the transparent Faces with w.r.t their distances from pos
+    pub fn sort_transparent(&mut self, center: Vec3)
+    {
+        let mesh = self.mesh.as_mut().unwrap();
+        // calculate the distance from pos for each face
+        if self.trans_faces.is_none() // should not happen
+        {
+            panic!("Called sort_transparent() on a mesh that doesn't have transparent faces");
+        }
+
+        let faces = self.trans_faces.as_mut().unwrap();
+
+        // for face in faces
+        // {
+        //     println!("face is {:?}", face);
+        // }
+
+        // println!("Indices count: {}", mesh.get_indices_len());
+
+        for face in faces.iter_mut()
+        {
+            face.distance = face.pos.distance(center);
+        }
+
+        faces.sort_by(|a, b| a.distance.total_cmp(&b.distance));
+
+        // move the indices from nearest to furthest in the index buffer
+        // indices of opaque geometry is sent to the back
+
+        // new indices list
+        let mut new_indices = Vec::new();
+        new_indices.reserve(faces.len() * 6);
+        
+        for face in faces.iter_mut()
+        {
+            new_indices.extend_from_slice(&mesh.indices[face.base_index..face.base_index+6]); // get all 6 indices that form a face
+        }
+
+        // copy the sorted indices list into the mesh
+        mesh.indices[..faces.len() * 6].copy_from_slice(&new_indices[..]);
+
     }
 
     pub fn get_voxel(&self, pos: IVec3) -> Option<Voxel>
@@ -108,6 +177,24 @@ impl Chunk
     pub fn get_size_bytes(&self) -> usize
     {
         CHUNK_SIZE_X * CHUNK_SIZE_Y * CHUNK_SIZE_Z * mem::size_of::<Voxel>()
+    }
+
+    pub fn get_num_trans_indices(&self) -> usize
+    {
+        match &self.trans_faces
+        {
+            Some(faces) => faces.len() * 6,
+            None => 0
+        }
+    }
+    
+    pub fn get_num_opaque_indices(&self) -> usize
+    {
+        match &self.mesh
+        {
+            Some(mesh) => mesh.indices.len() - self.get_num_trans_indices(),
+            None => 0
+        }
     }
 
 }

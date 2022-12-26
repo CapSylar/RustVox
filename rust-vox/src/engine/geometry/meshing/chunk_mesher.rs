@@ -1,9 +1,18 @@
-use crate::engine::{chunk::{Chunk}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
+use crate::engine::{chunk::{Chunk, Face}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
+
+#[derive(PartialEq)]
+pub enum MeshingOption
+{
+    Opaque,
+    Transparent,
+}
 
 pub trait ChunkMesher
 {
-    /// generate the mesh for the chunk
-    fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>;
+    /// Generate the mesh for the chunk
+    /// 
+    /// Genrated Mesh is placed in mesh
+    fn generate_mesh(chunk: &Chunk, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>);
 }
 
 pub const VOXEL_SIZE: f32 = 1.0;

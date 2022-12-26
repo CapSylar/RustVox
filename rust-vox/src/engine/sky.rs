@@ -15,7 +15,7 @@ pub mod sky_state
     const TIME_MULTIPLIER: f32 = 500.0;
 
     use std::{time::Instant, fmt::{Display, Formatter}};
-    use glam::{Vec3, const_vec3};
+    use glam::{Vec3};
     use core::{f32::consts::PI, fmt};
 
     use super::MAX_SECONDS_DAY;
@@ -23,20 +23,20 @@ pub mod sky_state
     const PHASE_CONFIG : [SkyState;4] =
     [
         SkyState{start_time:0.0,moon_present:false,sun_present:true,pos_moon:(PI,PI/8.0),pos_sun:(0.0,PI/8.0),
-            sky_box_color: [const_vec3!([1.0, 1.0,1.0]),const_vec3!([0.0, 0.0,0.0]),const_vec3!([0.0, 0.0,0.0]),const_vec3!([1.0, 1.0,1.0]),
-                            const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0]),const_vec3!([1.0, 1.0,1.0])]},
+            sky_box_color: [Vec3::new(1.0, 1.0,1.0),Vec3::new(0.0, 0.0,0.0),Vec3::new(0.0, 0.0,0.0),Vec3::new(1.0, 1.0,1.0),
+                            Vec3::new(1.0, 1.0,1.0),Vec3::new(1.0, 1.0,1.0),Vec3::new(1.0, 1.0,1.0),Vec3::new(1.0, 1.0,1.0)]},
             
         SkyState{start_time:2.0,moon_present:false,sun_present:true,pos_moon:(0.0,PI/8.0),pos_sun:(30.0*PI/180.0,PI/8.0),
-            sky_box_color: [const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),
-            const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0]),const_vec3!([1.0,0.0,0.0])]},
+            sky_box_color: [Vec3::new(1.0,0.0,0.0),Vec3::new(1.0,0.0,0.0),Vec3::new(1.0,0.0,0.0),Vec3::new(1.0,0.0,0.0),
+            Vec3::new(1.0,0.0,0.0),Vec3::new(1.0,0.0,0.0),Vec3::new(1.0,0.0,0.0),Vec3::new(1.0,0.0,0.0)]},
 
         SkyState{start_time:10.0,moon_present:false,sun_present:true,pos_moon:(0.0,PI/8.0),pos_sun:(150.0*PI/180.0,PI/8.0),
-            sky_box_color: [const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),
-                            const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0]),const_vec3!([0.0,1.0,0.0])]},
+            sky_box_color: [Vec3::new(0.0,1.0,0.0),Vec3::new(0.0,1.0,0.0),Vec3::new(0.0,1.0,0.0),Vec3::new(0.0,1.0,0.0),
+                            Vec3::new(0.0,1.0,0.0),Vec3::new(0.0,1.0,0.0),Vec3::new(0.0,1.0,0.0),Vec3::new(0.0,1.0,0.0)]},
 
         SkyState{start_time:12.0,moon_present:true,sun_present:false,pos_moon:(0.0,PI/8.0),pos_sun:(PI,PI/8.0),
-            sky_box_color: [const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),
-            const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0]),const_vec3!([0.0,0.0,1.0])]},
+            sky_box_color: [Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,0.0,1.0),
+            Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,0.0,1.0),Vec3::new(0.0,0.0,1.0)]},
     ];
 
     #[derive(Copy,Clone)]
@@ -162,7 +162,6 @@ pub mod sky_state
             // make sure to reset the timer accordingly
             if self.time >= MAX_SECONDS_DAY
             {
-                println!("has been reset by limit");
                 self.time = 0.0;
             }
     

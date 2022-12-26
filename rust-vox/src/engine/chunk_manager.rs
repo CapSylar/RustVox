@@ -1,19 +1,19 @@
 use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Instant}};
 use glam::{Vec3, IVec2, IVec3};
 use crate::{threadpool::ThreadPool, ui::DebugData, engine::chunk::CHUNK_SIZE_Y};
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex}, renderer::allocators::{vertex_pool_allocator::VertexPoolAllocator, default_allocator::DefaultAllocator}};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{greedy_mesher::GreedyMesher, culling_mesher::CullingMesher}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex}, renderer::allocators::{vertex_pool_allocator::VertexPoolAllocator, default_allocator::DefaultAllocator}};
 
 // length are in chunks
-const NO_UPDATE: i32 = 4;
-const VISIBLE: i32 = 20; // engulfes NO_UPDATE_SQUARE
-const NO_VISIBLE_STILL_LOADED: i32 = 25;
+const NO_UPDATE: i32 = 10;
+const VISIBLE: i32 = 12; // engulfes NO_UPDATE_SQUARE
+const NO_VISIBLE_STILL_LOADED: i32 = 10;
 
 const UPLOAD_LIMIT_FRAME: usize = 10; // maximum number of chunks that can be uploaded per frame
 
 // Needed to be able to pass the generator as a &'static to the spawned threads
 lazy_static!
 {
-    static ref GENERATOR: Box<dyn TerrainGenerator> = Box::new(PerlinGenerator::new());
+    static ref GENERATOR: Box<dyn TerrainGenerator> = Box::new(PerlinGenerator::default());
 }
 pub struct ChunkManager
 {
@@ -25,7 +25,7 @@ pub struct ChunkManager
     chunks: HashMap<IVec2, Rc<RefCell<Chunk>>>, // holds all chunks, regardless of state
 
     // Holds the chunks that are currently visible and rendered
-    chunks_rendered: Vec<Rc<RefCell<Chunk>>>,
+    pub chunks_rendered: Vec<Rc<RefCell<Chunk>>>,
 
     chunks_to_upload: Vec<Rc<RefCell<Chunk>>>,
 
@@ -86,6 +86,8 @@ impl ChunkManager
                 };
             }
         }
+
+        // self._debug_load_center_chunks();
     }
 
     fn chunk_is_rendered(&self, pos: IVec2) -> bool
@@ -99,9 +101,12 @@ impl ChunkManager
         // quick hax to only load the center chunk
         let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
         chunk.generate_mesh::<GreedyMesher>();
+        chunk.sort_transparent(Vec3::new(0.0,20.0,0.0));
         self.allocator.alloc(chunk.mesh.as_mut().unwrap());
         // chunk.mesh.as_mut().unwrap().upload();
         // self.register_chunk(chunk);
+
+        self.chunks_rendered.push(Rc::new(RefCell::new(chunk)));
     }
 
     fn handle_deallocs(&mut self)

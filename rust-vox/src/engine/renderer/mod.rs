@@ -1,4 +1,4 @@
-use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}};
+use std::{ffi::{c_void, CStr}, mem::{size_of, self}, rc::Rc, cell::{RefCell}};
 use gl::types;
 use glam::{Vec3, Mat3, Mat4};
 use image::EncodableLayout;
@@ -225,22 +225,47 @@ impl Renderer
         // draw each chunk's mesh
         let i = 0;
 
-        world.chunk_manager.allocator.render();
+        // world.chunk_manager.allocator.render();
 
-        // for chunk in world.chunk_manager.get_chunks_to_render().iter()
-        // {
-        //     let chunk = chunk.borrow();
+        // first draw all opaque meshes
+        for chunk in world.chunk_manager.chunks_rendered.iter()
+        {
+            let chunk = chunk.borrow();
 
-        //     // check if the chunk is visible from the camera's perspective
+            let mesh = chunk.mesh.as_ref().unwrap();
+            let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+            
+            unsafe
+            {
+                vao.bind();
 
-        //     // if world.camera.is_visible::<Chunk>(&chunk)
-        //     // {
-        //         // Renderer::draw_mesh(&world.chunk_manager.allocator, chunk.mesh.as_ref().expect("mesh was not initialized!"));
-        //     // }
-        //     // else {
-        //         // i += 1;
-        //     // }
-        // }
+                gl::DrawElements(gl::TRIANGLES, chunk.get_num_opaque_indices() as _ , gl::UNSIGNED_INT, (chunk.get_num_trans_indices() * mem::size_of::<u32>()) as _ );
+
+                vao.unbind();
+            }
+        }
+
+        // then draw all transparent meshes
+        for chunk in world.chunk_manager.chunks_rendered.iter()
+        {
+            let chunk = chunk.borrow();
+            
+            let mesh = chunk.mesh.as_ref().unwrap();
+            let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+            
+            unsafe
+            {
+                vao.bind();
+                gl::Enable(gl::BLEND);
+                gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
+
+                gl::DrawElements(gl::TRIANGLES, chunk.get_num_trans_indices() as _  , gl::UNSIGNED_INT, 0 as _ );
+
+                gl::Disable(gl::BLEND);
+
+                vao.unbind();
+            }  
+        }
 
         i
     }
@@ -266,6 +291,23 @@ impl Renderer
         unsafe
         {
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+        }
+    }
+
+    pub fn draw_chunk<T: OpenglVertex> (allocator: &DefaultAllocator<T>, mesh: &Mesh<T>)
+    {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+        unsafe
+        {
+            vao.bind();
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
+
+            gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
+
+            gl::Disable(gl::BLEND);
+
+            vao.unbind();
         }
     }
 
