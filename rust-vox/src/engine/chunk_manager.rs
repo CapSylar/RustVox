@@ -1,10 +1,10 @@
-use std::{cell::RefCell, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Instant}};
+use std::{cell::{RefCell}, rc::Rc, collections::HashMap, sync::{Arc, Mutex, RwLock}, time::{Instant}};
 use glam::{Vec3, IVec2, IVec3};
 use crate::{threadpool::ThreadPool, ui::DebugData, engine::chunk::CHUNK_SIZE_Y};
-use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{greedy_mesher::GreedyMesher, culling_mesher::CullingMesher}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex}, renderer::allocators::{vertex_pool_allocator::VertexPoolAllocator, default_allocator::DefaultAllocator}};
+use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X}, geometry::{meshing::{greedy_mesher::GreedyMesher}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex, chunk_mesh::{ChunkMesh}}, renderer::allocators::{default_allocator::DefaultAllocator}};
 
 // length are in chunks
-const NO_UPDATE: i32 = 10;
+const NO_UPDATE: i32 = 4;
 const VISIBLE: i32 = 12; // engulfes NO_UPDATE_SQUARE
 const NO_VISIBLE_STILL_LOADED: i32 = 10;
 
@@ -16,17 +16,31 @@ lazy_static!
     static ref GENERATOR: Box<dyn TerrainGenerator> = Box::new(PerlinGenerator::default());
 }
 
-pub struct ChunkManageUnit
+pub struct RenderedChunk
 {
-    distance: f32, // used for sorting
-    pub chunk: Rc<RefCell<Chunk>>,
+    distance: f32, // used for sorting from back to front
+    pub chunk: Rc<RefCell<ChunkManageUnit>>,
+}
+
+impl RenderedChunk
+{
+    fn new(chunk: Rc<RefCell<ChunkManageUnit>>) -> Self
+    {
+        Self{distance:0.0, chunk}
+    }
+}
+
+pub struct ChunkManageUnit // Used only by the chunk manager
+{
+    pub chunk: Chunk,
+    pub chunk_mesh: Option<ChunkMesh>,
 }
 
 impl ChunkManageUnit
 {
-    fn new(chunk: Rc<RefCell<Chunk>>) -> Self
+    pub fn new(chunk: Chunk) -> Self
     {
-        Self{distance:0.0, chunk}
+        Self{chunk, chunk_mesh: None}
     }
 }
 
@@ -34,21 +48,22 @@ pub struct ChunkManager
 {
     pub allocator: DefaultAllocator<VoxelVertex>,
     threadpool: ThreadPool,
-        
-    chunks_finished_meshing: Arc<Mutex<Vec<Chunk>>>, // chunks that exist here are not necessarily in the chunks list
 
-    chunks: HashMap<IVec2, Rc<RefCell<Chunk>>>, // holds all chunks, regardless of state
+    chunks_finished_generation: Arc<Mutex<Vec<Chunk>>>, // chunks that exist here are not necessarily in the chunks list
+    chunks_finished_meshing: Arc<Mutex<Vec<(IVec2, ChunkMesh)>>>,
+
+    chunks: HashMap<IVec2, Rc<RefCell<ChunkManageUnit>>>, // holds all chunks, regardless of state
 
     // Holds the chunks that are currently visible and rendered
-    pub chunks_rendered: Vec<ChunkManageUnit>,
+    pub chunks_rendered: Vec<RenderedChunk>,
 
-    chunks_to_upload: Vec<Rc<RefCell<Chunk>>>,
+    chunks_to_upload: Vec<Rc<RefCell<ChunkManageUnit>>>,
 
     // Holds chunks that are not rendered, but are still present in GPU and CPU memory
     // chunks_not_visible: Vec<Rc<RefCell<ChunkManageUnit>>>,
 
     // Holds chunks to be unloaded from GPU and CPU memory
-    chunks_to_unload: Vec<Rc<RefCell<Chunk>>>,
+    chunks_to_unload: Vec<Rc<RefCell<ChunkManageUnit>>>,
 
     // update state
     anchor_point: IVec2, // anchor chunk point
@@ -66,203 +81,23 @@ impl ChunkManager
         // let allocator = VertexPoolAllocator::new(100*100, 5000, 3000); // TODO: needs adjustment
         let allocator = DefaultAllocator::new();
         // create the fields
-        let chunks_to_load = Arc::new(Mutex::new(Vec::new()));
+        let chunks_finished_generation = Arc::new(Mutex::new(Vec::new()));
+        let chunks_finished_meshing = Arc::new(Mutex::new(Vec::new()));
         let chunks = HashMap::new();
-        let chunks_render = Vec::new();
+        let chunks_rendered = Vec::new();
         let chunks_to_upload = Vec::new();
         let chunks_to_unload = Vec::new();
-
         // player position always starts at (0,0,0) for now
 
-        let mut ret = Self{allocator, chunks, chunks_finished_meshing: chunks_to_load, chunks_rendered: chunks_render, chunks_to_upload, chunks_to_unload, anchor_point: IVec2::ZERO, last_chunk_pos: IVec2::ZERO,
-           threadpool: ThreadPool::new(theadcount), last_upload: Instant::now(), debug_data:debug_data.clone() };
+        let mut ret = Self{allocator, chunks, chunks_finished_generation, chunks_rendered,
+            chunks_to_upload, chunks_to_unload, anchor_point: IVec2::ZERO, last_chunk_pos: IVec2::ZERO,
+            threadpool: ThreadPool::new(theadcount), last_upload: Instant::now(), debug_data:debug_data.clone(),
+            chunks_finished_meshing};
         ret.load_chunks();
         ret
     }
 
-    /// load chunks around the anchor point
-    fn load_chunks(&mut self)
-    {
-        // load every chunk that falls within the NOT_VISIBLE square
-        for x in (self.anchor_point.x -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.x + NO_VISIBLE_STILL_LOADED/2 + 1)
-        {
-            for z in (self.anchor_point.y -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.y + NO_VISIBLE_STILL_LOADED/2 + 1)
-            {
-                let pos = IVec2::new(x,z);
-                // check if the chunks have already been created
-                match self.chunks.get(&pos)
-                {
-                    // Some(chunk) => {self.chunks_render.push(Rc::clone(chunk))}, // append it to render
-                    Some(_) => (), // already loaded, do nothing
-                    None => // Needs to be created
-                    {
-                        // self.chunks.insert(pos, Rc::new(RefCell::new(ChunkManageUnit{chunk: None, state: ChunkState::NotGenerated})));
-                        self.create_chunk(x,0,z,GENERATOR.as_ref());
-                    }
-                };
-            }
-        }
-
-        // self._debug_load_center_chunks();
-    }
-
-    fn chunk_is_rendered(&self, pos: IVec2) -> bool
-    {
-        !Self::chunk_outside(self.anchor_point, VISIBLE, pos)
-    }
-
-    // Used exclusively for debug purposes
-    fn _debug_load_center_chunks(&mut self)
-    {
-        // quick hax to only load the center chunk
-        let mut chunk = Chunk::new(0,0,0, GENERATOR.as_ref());
-        chunk.generate_mesh::<GreedyMesher>();
-        chunk.sort_transparent(Vec3::new(0.0,20.0,0.0));
-        self.allocator.alloc(chunk.mesh.as_mut().unwrap());
-
-        Self::add_rendered_chunk(&mut self.chunks_rendered, &Rc::new(RefCell::new(chunk)), Vec3::ZERO);
-    }
-
-    fn handle_deallocs(&mut self)
-    {
-        let mut remove_later = Vec::new();
-        // what chunks need to be unloaded ?
-
-        for chunk in self.chunks.values()
-        {
-            let pos = chunk.as_ref().borrow().pos_chunk_space();
-            // make sure the chunk is outside the not visible but still loaded zone
-            // and we always have the only reference to it
-            // it could happen that the chunk is queued in some other list, it will be deallocated on the next pass
-            if Self::chunk_outside(self.anchor_point, NO_VISIBLE_STILL_LOADED, pos) && Rc::strong_count(chunk) == 1
-            {
-                remove_later.push(pos);
-            }
-        }
-
-        for chunk in remove_later.drain(..)
-        {
-            self.chunks_to_unload.push(self.chunks.remove(&chunk).unwrap())
-        }
-
-        // deallocate all chunks that are in the unload list
-        for chunk in self.chunks_to_unload.drain(..)
-        {
-            println!("dealloc called on chunk {}", chunk.as_ref().borrow().pos_chunk_space());
-            // dealloc
-            match Rc::try_unwrap(chunk)
-            {
-                Ok(chunk) =>
-                {
-                    let chunk = chunk.into_inner();
-                    if let Some(token) = chunk.mesh.unwrap().alloc_token
-                    {
-                        self.allocator.dealloc(token);
-                    }
-                    // else a chunk is removed that did not have an allocation
-                }
-                Err(_) => panic!("a Rc<chunk> in chunk_to_unload did not have an exclusive reference"),
-            }
-        }
-    }
-
-    fn update_chunks_rendered(&mut self, player_pos: Vec3)
-    {
-        self.chunks_rendered.clear();
-
-        // populate chunks_render list with chunks that are already uploaded
-        // chunks that haven't been uploaded are queued for uploading
-        for x in (self.anchor_point.x -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.x + NO_VISIBLE_STILL_LOADED/2 + 1)
-        {
-            for z in (self.anchor_point.y -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.y + NO_VISIBLE_STILL_LOADED/2 + 1)
-            {
-                let pos = IVec2::new(x,z);
-                // check if the chunks have already been created
-                // chunks that should be rendered but are not found in the chunks list have already been dispatched for launch at this point
-                if let Some(chunk) = self.chunks.get(&pos)
-                {
-                    // check that the chunk's mesh is uploaded
-                    if chunk.as_ref().borrow().is_mesh_alloc()
-                    {
-                        Self::add_rendered_chunk(&mut self.chunks_rendered, chunk, player_pos);
-                    }
-                    else
-                    {
-                        self.chunks_to_upload.push(chunk.clone());
-                    }
-                };
-            }
-
-        }
-    }
-
-    /// Add the chunks to the list of rendered chunks
-    fn add_rendered_chunk(rendered_list: &mut Vec<ChunkManageUnit>, chunk: &Rc<RefCell<Chunk>>, center: Vec3)
-    {
-        // the chunks must be added in order into the rendered list
-        // rendered from back to front
-
-        let mut unit = ChunkManageUnit::new(chunk.clone());
-
-        // calculate the distance from the camera
-        unit.distance = center.distance(chunk.borrow().pos_world_space()); // TODO: consider using taxi cab distance with x y only
-
-        // find the index at which we must insert = index of the first chunks that has a smaller distance
-        let mut index = 0;
-        for chunk in rendered_list.iter()
-        {
-            if chunk.distance < unit.distance
-            {
-                break;
-            }
-            index += 1;
-        }
-
-        rendered_list.insert(index, unit);
-
-        // debug output
-        println!("after rendered list sort");
-        for chunk in rendered_list.iter()
-        {
-            println!("distance: {}", chunk.distance);
-        }
-    }
-
-    pub fn sort_back_front_rendered(rendered_list: &mut [ChunkManageUnit], center: Vec3)
-    {
-        // re-calculate all the chunk distances from the center's POV
-        for chunk in rendered_list.iter_mut()
-        {
-            chunk.distance = center.distance(chunk.chunk.borrow().pos_world_space());
-        }
-
-        // back to front
-        rendered_list.sort_by(|a,b| b.distance.total_cmp(&a.distance));
-
-        // debug output
-        println!("after total rendered list sort");
-        for chunk in rendered_list.iter()
-        {
-            println!("distance: {}", chunk.distance);
-        }
-    }
-
-    /// Transforms from world coordinates to Chunk coordinates
-    pub fn world_to_chunk_coord(pos: Vec3) -> IVec2
-    {
-        let chunk_x = pos.x as i32 / CHUNK_SIZE_X as i32;
-        let chunk_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
-        IVec2::new(chunk_x,chunk_z)
-    }
-
-    pub fn voxel_to_chunk_coord(pos: IVec3) -> IVec2
-    {
-        let chunk_x = pos.x / CHUNK_SIZE_X as i32;
-        let chunk_z = pos.z / CHUNK_SIZE_Z as i32;
-        IVec2::new(chunk_x, chunk_z)
-    }
-
-    /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
+     /// Everything related to updating the chunks list, loading new chunks, unloading chunks...
     /// 
     /// Called every frame
     pub fn update(&mut self , player_pos: Vec3)
@@ -286,26 +121,222 @@ impl ChunkManager
             self.handle_deallocs();
         }
 
-        // check the chunks that are returned from the threadpool
-        // first acquire the lock
-        if let Ok(mut vec) = self.chunks_finished_meshing.try_lock()
+        // check the chunks that have had their voxels generated that are returned from the threadpool
+        if let Ok(mut vec) = self.chunks_finished_generation.try_lock()
         {
             for chunk in vec.drain(..)
             {
                 let pos = chunk.pos_chunk_space();
-                let chunk = Rc::new(RefCell::new(chunk));
-                self.chunks.insert(pos, Rc::clone(&chunk));
-                
-                // does the chunks have to be rendered ?
+
+                // add to the list of chunks
+                let unit = Rc::new(RefCell::new(ChunkManageUnit::new(chunk)));
+
+                // do the chunks have to be rendered ?
                 if self.chunk_is_rendered(pos)
                 {
-                    self.chunks_to_upload.push(chunk); // send to upload
+                    // send the chunk to be meshed
+                    self.create_chunk_mesh(pos, &chunk);
+                }
+
+                self.chunks.insert(pos, unit);
+            }
+        }
+
+        if let Ok(mut vec) = self.chunks_finished_meshing.try_lock()
+        {
+            for (pos, chunk_mesh) in vec.drain(..)
+            {
+                if let Some(unit) = self.chunks.get(&pos)
+                {
+                    unit.borrow_mut().chunk_mesh = Some(chunk_mesh);
+                    // add to to_upload list
+                    self.chunks_to_upload.push(unit.clone());
                 }
             }
         }
 
         let new_loads = self.handle_chunk_loads(player_pos);
         if new_loads { self.update_debug(); }
+    }
+
+    /// load chunks around the anchor point
+    fn load_chunks(&mut self)
+    {
+        // load every chunk that falls within the NOT_VISIBLE square
+        for x in (self.anchor_point.x -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.x + NO_VISIBLE_STILL_LOADED/2 + 1)
+        {
+            for z in (self.anchor_point.y -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.y + NO_VISIBLE_STILL_LOADED/2 + 1)
+            {
+                let pos = IVec2::new(x,z);
+                // check if the chunks have already been created
+                match self.chunks.get(&pos)
+                {
+                    Some(_) => (), // already loaded, do nothing
+                    None => // Needs to be created
+                    {
+                        self.create_chunk(pos,GENERATOR.as_ref());
+                    }
+                };
+            }
+        }
+
+        // self._debug_load_center_chunks();
+    }
+
+    fn chunk_is_rendered(&self, pos: IVec2) -> bool
+    {
+        !Self::chunk_outside(self.anchor_point, VISIBLE, pos)
+    }
+
+    // Used exclusively for debug purposes
+    fn _debug_load_center_chunks(&mut self)
+    {
+        // quick hax to only load the center chunk
+        // let chunk = Chunk::new(IVec2::ZERO, GENERATOR.as_ref());
+        
+        // let mut chunk_mesh = ChunkMesh::new::<GreedyMesher>(&chunk);
+        // chunk_mesh.sort_transparent(Vec3::new(0.0,20.0,0.0));
+        // self.allocator.alloc(&mut chunk_mesh.mesh);
+
+        // let mut unit = ChunkManageUnit::new(chunk);
+        // unit.chunk_mesh = Some(chunk_mesh);
+        // Self::add_rendered_chunk(&mut self.chunks_rendered, &Arc::new(RefCell::new(unit)), Vec3::ZERO);
+    }
+
+    fn handle_deallocs(&mut self)
+    {
+        let mut remove_later = Vec::new();
+        // what chunks need to be unloaded ?
+
+        for unit in self.chunks.values()
+        {          
+            let pos = unit.as_ref().borrow().chunk.pos_chunk_space();
+            // make sure the chunk is outside the not visible but still loaded zone
+            // and we always have the only reference to it
+            // it could happen that the chunk is queued in some other list, it will be deallocated on the next pass
+            if Self::chunk_outside(self.anchor_point, NO_VISIBLE_STILL_LOADED, pos) && Rc::strong_count(unit) == 1
+            {
+                remove_later.push(pos);
+            }
+        }
+
+        for chunk in remove_later.drain(..)
+        {
+            self.chunks_to_unload.push(self.chunks.remove(&chunk).unwrap())
+        }
+
+        // deallocate all chunks that are in the unload list
+        for unit in self.chunks_to_unload.drain(..)
+        {
+            println!("dealloc called on chunk {}", unit.as_ref().borrow().chunk.pos_chunk_space());
+            // dealloc
+            match Rc::try_unwrap(unit)
+            {
+                Ok(unit) =>
+                {
+                    if let Some(mut chunk_mesh) = unit.into_inner().chunk_mesh
+                    {
+                        Self::dealloc_chunk_mesh(&mut self.allocator, &mut chunk_mesh);
+                    }
+                }
+                Err(_) => panic!("a Rc<chunk> in chunk_to_unload did not have an exclusive reference"),
+            }
+        }
+    }
+
+    fn update_chunks_rendered(&mut self, player_pos: Vec3)
+    {
+        self.chunks_rendered.clear();
+
+        // populate chunks_render list with chunks that are already uploaded
+        // chunks that haven't been uploaded are queued for uploading
+        for x in (self.anchor_point.x -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.x + NO_VISIBLE_STILL_LOADED/2 + 1)
+        {
+            for z in (self.anchor_point.y -NO_VISIBLE_STILL_LOADED/2) .. (self.anchor_point.y + NO_VISIBLE_STILL_LOADED/2 + 1)
+            {
+                let pos = IVec2::new(x,z);
+                // check if the chunks have already been created
+                // chunks that should be rendered but are not found in the chunks list have already been dispatched for launch at this point
+                if let Some(unit) = self.chunks.get(&pos)
+                {
+                    // check that the chunk's mesh is uploaded
+                    if unit.as_ref().borrow().chunk_mesh.as_ref().unwrap().mesh.is_alloc()
+                    {
+                        Self::add_rendered_chunk(&mut self.chunks_rendered, unit, player_pos);
+                    }
+                    else
+                    {
+                        self.chunks_to_upload.push(unit.clone());
+                    }
+                };
+            }
+        }
+    }
+
+    /// Add the chunks to the list of rendered chunks
+    fn add_rendered_chunk(rendered_list: &mut Vec<RenderedChunk>, unit: &Rc<RefCell<ChunkManageUnit>>, center: Vec3)
+    {
+        // the chunks must be added in order into the rendered list
+        // rendered from back to front
+
+        let mut wrapper = RenderedChunk::new(unit.clone());
+
+        // calculate the distance from the camera
+        wrapper.distance = center.distance(wrapper.chunk.as_ref().borrow().chunk.pos_world_space()); // TODO: consider using taxi cab distance with x y only
+
+        // find the index at which we must insert = index of the first chunks that has a smaller distance
+        let mut index = 0;
+        for chunk in rendered_list.iter()
+        {
+            if chunk.distance < wrapper.distance
+            {
+                break;
+            }
+            index += 1;
+        }
+
+        rendered_list.insert(index, wrapper);
+
+        // debug output
+        // println!("after rendered list sort");
+        // for chunk in rendered_list.iter()
+        // {
+        //     println!("distance: {}", chunk.distance);
+        // }
+    }
+
+    pub fn sort_back_front_rendered(rendered_list: &mut [RenderedChunk], center: Vec3)
+    {
+        // re-calculate all the chunk distances from the center's POV
+        for wrapper in rendered_list.iter_mut()
+        {
+            wrapper.distance = center.distance(wrapper.chunk.as_ref().borrow().chunk.pos_world_space());
+        }
+
+        // back to front
+        rendered_list.sort_by(|a,b| b.distance.total_cmp(&a.distance));
+
+        // debug output
+        // println!("after total rendered list sort");
+        // for chunk in rendered_list.iter()
+        // {
+        //     println!("distance: {}", chunk.distance);
+        // }
+    }
+
+    /// Transforms from world coordinates to Chunk coordinates
+    pub fn world_to_chunk_coord(pos: Vec3) -> IVec2
+    {
+        let chunk_x = pos.x as i32 / CHUNK_SIZE_X as i32;
+        let chunk_z = pos.z as i32 / CHUNK_SIZE_Z as i32;
+        IVec2::new(chunk_x,chunk_z)
+    }
+
+    pub fn voxel_to_chunk_coord(pos: IVec3) -> IVec2
+    {
+        let chunk_x = pos.x / CHUNK_SIZE_X as i32;
+        let chunk_z = pos.z / CHUNK_SIZE_Z as i32;
+        IVec2::new(chunk_x, chunk_z)
     }
 
     /// Checks if the chunk at position "checked_pos" is outside the square of center "center" and side length "length", if yes, the action() is applied
@@ -326,24 +357,26 @@ impl ChunkManager
             new_loads = true;
             if !self.chunks_to_upload.is_empty()
             {
-                let chunk = self.chunks_to_upload.remove(0);
-                self.allocator.alloc(chunk.as_ref().borrow_mut().mesh.as_mut().unwrap());
-                Self::add_rendered_chunk(&mut self.chunks_rendered ,&chunk, player_pos);
+                let unit = self.chunks_to_upload.remove(0);
+                Self::alloc_chunk_mesh(&mut self.allocator, unit.borrow_mut().chunk_mesh.as_mut().unwrap());
+                Self::add_rendered_chunk(&mut self.chunks_rendered ,&unit, player_pos);
             }
         }
 
         new_loads
     }
 
+    // TODO: refactor
     pub fn get_voxel(&self, pos: IVec3) -> Option<Voxel>
     {
         let (chunk_pos,voxel_pos) = ChunkManager::get_local_voxel_coord(pos);
         // is this chunk loaded
-        if let Some(chunk) = self.chunks.get(&chunk_pos)
+        if let Some(unit) = self.chunks.get(&chunk_pos)
         {
-            chunk.as_ref().borrow().get_voxel(voxel_pos)
+            unit.as_ref().borrow().chunk.get_voxel(voxel_pos)
         }
-        else {
+        else
+        {
             None
         }
     }
@@ -405,10 +438,9 @@ impl ChunkManager
     /// Re-mesh all the chunks in the world and upload them
     pub fn rebuild_chunk_meshes(&mut self)
     {
-        for mut chunk in self.chunks.values().map(|x| {x.as_ref().borrow_mut()})
+        for mut unit in self.chunks.values().map(|x| {x.as_ref().borrow_mut()})
         {
-            chunk.generate_mesh::<GreedyMesher>();
-            self.allocator.alloc(chunk.mesh.as_mut().unwrap());
+            Self::refresh_mesh(&mut self.allocator, &mut unit);
         }
     }
 
@@ -416,24 +448,6 @@ impl ChunkManager
     pub fn get_num_chunks_to_render(&self) -> usize
     {
         self.chunks_rendered.len()
-    }
-
-    /// Constructs the mesh for loaded chunks, and then appends them to the general list of chunks
-    /// 
-    /// Uses a threadpool
-    /// 
-    /// ### Note: Does not Upload the mesh
-    fn create_chunk(&self , pos_x : i32 , pos_y : i32 , pos_z: i32 , generator: &'static dyn TerrainGenerator)
-    {
-        let vec = Arc::clone(&self.chunks_finished_meshing);
-        
-        self.threadpool.execute(move ||
-        {
-            let mut chunk = Chunk::new(pos_x, pos_y, pos_z, generator);
-            chunk.generate_mesh::<GreedyMesher>();
-            // append the chunk to the list of chunks to be loaded
-            vec.lock().unwrap().push(chunk);
-        });
     }
 
     /// Places the voxel adjacent to the <face> of the voxel at <pos>
@@ -444,18 +458,39 @@ impl ChunkManager
         let (chunk_pos,voxel_pos) = ChunkManager::get_local_voxel_coord(voxel_pos);
 
         // is this chunk present
-        if let Some(chunk) = self.chunks.get(&chunk_pos) // y is actually z
+        if let Some(unit) = self.chunks.get(&chunk_pos) // y is actually z
         {
-            let mut chunk = chunk.as_ref().borrow_mut();
-
-            // first dealloc old mesh
-            self.allocator.dealloc(chunk.mesh.as_mut().unwrap().release_token().unwrap());
-
-            chunk.set_voxel(voxel_pos, Voxel::new(VoxelType::Sand));
-            chunk.generate_mesh::<GreedyMesher>();
-            // alloc new mesh
-            self.allocator.alloc(chunk.mesh.as_mut().unwrap());
+            let mut unit = unit.as_ref().borrow_mut();
+            let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
+            
+            unit.chunk.set_voxel(voxel_pos, Voxel::new(VoxelType::Sand));
+            Self::refresh_mesh(&mut self.allocator, &mut unit);
         }
+    }
+
+    pub fn dealloc_chunk_mesh(allocator: &mut DefaultAllocator<VoxelVertex>,chunk_mesh: &mut ChunkMesh)
+    {
+        if let Some(token) = chunk_mesh.mesh.release_token()
+        {
+            allocator.dealloc(token);
+        }
+    }
+
+    pub fn alloc_chunk_mesh(allocator: &mut DefaultAllocator<VoxelVertex>, chunk_mesh: &mut ChunkMesh)
+    {
+        allocator.alloc(&mut chunk_mesh.mesh);
+    }
+
+    /// Dealloc, Rebuild, Allocate mesh
+    pub fn refresh_mesh(allocator: &mut DefaultAllocator<VoxelVertex>, unit: &mut ChunkManageUnit)
+    {
+        let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
+        let chunk = &unit.chunk;
+
+        Self::dealloc_chunk_mesh(allocator, chunk_mesh);
+        let mut chunk_mesh = ChunkMesh::new::<GreedyMesher>(chunk);
+        Self::alloc_chunk_mesh(allocator, &mut chunk_mesh);
+        unit.chunk_mesh = Some(chunk_mesh);
     }
 
     // TODO: refactor this shit
@@ -469,17 +504,13 @@ impl ChunkManager
         let new_voxel = Voxel::new(VoxelType::Air);
 
         // is the chunk present ?
-        if let Some(chunk) = self.chunks.get(&chunk_pos) // y is actually z
+        if let Some(unit) = self.chunks.get(&chunk_pos) // y is actually z
         {
-            let mut chunk = chunk.as_ref().borrow_mut();
+            let mut unit = unit.borrow_mut();
 
-            // first dealloc old mesh
-            self.allocator.dealloc(chunk.mesh.as_mut().unwrap().release_token().unwrap());
+            unit.chunk.set_voxel(voxel_pos ,new_voxel);
 
-            chunk.set_voxel(voxel_pos ,new_voxel);
-            chunk.generate_mesh::<GreedyMesher>();
-            // alloc new mesh
-            self.allocator.alloc(chunk.mesh.as_mut().unwrap());
+            Self::refresh_mesh(&mut self.allocator, &mut unit);
         }
 
         let mut chunk_dir = IVec2::ZERO;
@@ -508,42 +539,86 @@ impl ChunkManager
 
             println!("chunk as pos {} will be rebuilt as well", neighbor_pos);
             // is the chunk present ?
-            if let Some(chunk) = self.chunks.get(&neighbor_pos) // y is actually z
+            if let Some(unit) = self.chunks.get(&neighbor_pos) // y is actually z
             {
-                let mut chunk = chunk.as_ref().borrow_mut();
+                let mut unit = unit.borrow_mut();
 
                 // first dealloc old mesh
-                self.allocator.dealloc(chunk.mesh.as_mut().unwrap().release_token().unwrap());
-
-                chunk.generate_mesh::<GreedyMesher>();
-                self.allocator.alloc(chunk.mesh.as_mut().unwrap());
+                Self::refresh_mesh(&mut self.allocator, &mut unit);
             }
         }
+    }   
+
+    /// Get the voxel irrespective of which chunk it is in
+    pub fn world_get_voxel(chunks: HashMap<IVec2, Arc<RefCell<ChunkManageUnit>>>, pos: IVec3) -> Option<Voxel>
+    {
+        // In which chunk does this voxel lie
+        let pos_chunk = Self::voxel_to_chunk_coord(pos);
+        
+        match chunks.get(&pos_chunk)
+        {
+            Some(unit) => unit.borrow().chunk.get_voxel(pos), // forward it to the chunk
+            None => None, // if the chunk is not present
+        }     
+    }
+
+    /// Inits the voxels for chunks using the generator, and then appends them to the general list of chunks
+    /// 
+    /// Uses a threadpool
+    /// 
+    /// ### Note: Does not Upload the mesh
+    fn create_chunk(&self, pos: IVec2, generator: &'static dyn TerrainGenerator)
+    {
+        let vec = Arc::clone(&self.chunks_finished_generation);
+        
+        self.threadpool.execute(move ||
+        {
+            let chunk = Chunk::new(pos, generator);
+            // append the chunk to the list of chunks to be loaded
+            vec.lock().unwrap().push(chunk);
+        });
+    }
+
+    /// Constructs the mesh for chunks
+    /// 
+    /// Uses a threadpool
+    /// 
+    /// ### Note: Does not Upload the mesh
+    fn create_chunk_mesh(&self, pos: IVec2, chunk: &Chunk)
+    {
+        let vec = Arc::clone(&self.chunks_finished_meshing);
+
+        let copy = *chunk; // passing a copy into the thread, FIXME: performance ? 
+        self.threadpool.execute( move || 
+        {
+            let mesh = ChunkMesh::new::<GreedyMesher>(&copy);
+            vec.lock().unwrap().push((pos, mesh));
+        });
     }
 
     //TODO: refactor
     /// Gets the number of triangles of the current displayed chunks
     pub fn update_debug(&mut self)
     {
-        let mut num_trigs = 0;
-        let mut num_vertices = 0;
-        let mut chunk_sizes = 0;
+        // let mut num_trigs = 0;
+        // let mut num_vertices = 0;
+        // let mut chunk_sizes = 0;
 
-        for unit in &self.chunks_rendered
-        {
-            let x = unit.chunk.borrow();
-            if let Some(mesh) = x.mesh.as_ref()
-            {
-                num_trigs += mesh.get_num_triangles();
-                num_vertices += mesh.get_num_vertices();
-            }
+        // for unit in &self.chunks_rendered
+        // {
+        //     let x = unit.chunk.borrow();
+        //     if let Some(mesh) = x.chunk_mesh.as_ref()
+        //     {
+        //         num_trigs += mesh.get_num_triangles();
+        //         num_vertices += mesh.get_num_vertices();
+        //     }
 
-            chunk_sizes += x.get_size_bytes();
-        }
+        //     chunk_sizes += x.get_size_bytes();
+        // }
 
-        let mut debug_data = self.debug_data.borrow_mut();
-        debug_data.num_triangles = num_trigs;
-        debug_data.num_vertices = num_vertices;
-        debug_data.chunk_size_bytes = chunk_sizes;
+        // let mut debug_data = self.debug_data.borrow_mut();
+        // debug_data.num_triangles = num_trigs;
+        // debug_data.num_vertices = num_vertices;
+        // debug_data.chunk_size_bytes = chunk_sizes;
     }
 }

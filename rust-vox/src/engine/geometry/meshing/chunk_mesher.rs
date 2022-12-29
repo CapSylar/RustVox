@@ -1,4 +1,4 @@
-use crate::engine::{chunk::{Chunk, Face}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh}};
+use crate::engine::{chunk::{Chunk}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, chunk_mesh::Face}};
 
 #[derive(PartialEq)]
 pub enum MeshingOption

@@ -1,9 +1,6 @@
 use noise::{Perlin, NoiseFn};
 
-use crate::engine::geometry::voxel::VoxelType;
-
-use super::geometry::voxel::Voxel;
-
+use crate::engine::geometry::voxel::{Voxel, VoxelType};
 // unsafe impl Sync for TerrainGenerator{}
 pub trait TerrainGenerator : Sync
 {

@@ -6,7 +6,7 @@ use sdl2::{VideoSubsystem};
 use crate::DebugData;
 
 use self::{opengl_abstractions::{shader::Shader}, csm::Csm, allocators::default_allocator::DefaultAllocator};
-use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
+use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex, chunk_mesh}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
 pub mod csm;
@@ -225,32 +225,32 @@ impl Renderer
         // draw each chunk's mesh
         let i = 0;
 
-        // world.chunk_manager.allocator.render();
-
         // first draw all opaque meshes
-        for unit in world.chunk_manager.chunks_rendered.iter()
+        for wrapper in world.chunk_manager.chunks_rendered.iter()
         {
-            let chunk = unit.chunk.borrow();
+            let mut unit = wrapper.chunk.borrow_mut();
 
-            let mesh = chunk.mesh.as_ref().unwrap();
+            let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
+            let mesh = &mut chunk_mesh.mesh;
             let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
             
             unsafe
             {
                 vao.bind();
 
-                gl::DrawElements(gl::TRIANGLES, chunk.get_num_opaque_indices() as _ , gl::UNSIGNED_INT, (chunk.get_num_trans_indices() * mem::size_of::<u32>()) as _ );
+                gl::DrawElements(gl::TRIANGLES, chunk_mesh.get_num_opaque_indices() as _ , gl::UNSIGNED_INT, (chunk_mesh.get_num_trans_indices() * mem::size_of::<u32>()) as _ );
 
                 vao.unbind();
             }
         }
 
         // then draw all transparent meshes
-        for unit in world.chunk_manager.chunks_rendered.iter()
+        for wrapper in world.chunk_manager.chunks_rendered.iter()
         {
-            let chunk = unit.chunk.borrow();
-            
-            let mesh = chunk.mesh.as_ref().unwrap();
+            let mut unit = wrapper.chunk.borrow_mut();
+
+            let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
+            let mesh = &mut chunk_mesh.mesh;
             let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
             
             unsafe
@@ -259,7 +259,7 @@ impl Renderer
                 gl::Enable(gl::BLEND);
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
 
-                gl::DrawElements(gl::TRIANGLES, chunk.get_num_trans_indices() as _  , gl::UNSIGNED_INT, 0 as _ );
+                gl::DrawElements(gl::TRIANGLES, chunk_mesh.get_num_trans_indices() as _  , gl::UNSIGNED_INT, 0 as _ );
 
                 gl::Disable(gl::BLEND);
 

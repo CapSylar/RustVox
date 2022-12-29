@@ -1,7 +1,7 @@
 use core::panic;
 
 use glam::{Vec3, IVec3};
-use crate::engine::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X, Face}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, opengl_vertex::OpenglVertex, voxel::{Voxel, self, VoxelType}}};
+use crate::engine::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}};
 use super::chunk_mesher::{ChunkMesher, VOXEL_SIZE, Direction};
 
 pub struct GreedyMesher;

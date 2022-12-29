@@ -1,6 +1,6 @@
 use glam::{Vec3, IVec3};
 
-use crate::engine::{geometry::{voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z, Face}};
+use crate::engine::{geometry::{voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex, mesh::Mesh, chunk_mesh::Face}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z}};
 
 use super::chunk_mesher::{Direction, ChunkMesher, VOXEL_SIZE, VOXEL_FACE_VALUES};
 
