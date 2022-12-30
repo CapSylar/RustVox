@@ -3,6 +3,7 @@ extern crate lazy_static;
 
 pub mod engine;
 mod threadpool;
+pub mod generational_vec;
 mod ui;
 
 pub use ui::UiRenderer;
