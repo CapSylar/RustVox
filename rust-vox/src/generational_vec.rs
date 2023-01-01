@@ -10,14 +10,14 @@ pub struct Element<T> // Stored in the GenerationalVec
     generation: u64
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GenerationIndex
 {
     index: usize,
     generation: u64, // monotonically increasing counter
 }
 
-pub struct GenerationalVec<T>
+pub struct GenerationalArena<T>
 {
     arena: Vec<RwLock<Element<T>>>,
     free_list: RwLock<Vec<usize>>,
@@ -71,8 +71,7 @@ pub enum GenerationErr
     Locked, // the slot cannot be checked because it is being written to by another thread
 }
 
-impl<T> GenerationalVec<T>
-    where T: Default
+impl<T> GenerationalArena<T>
 {
     pub fn new(size: usize) -> Self
     {

@@ -1,6 +1,6 @@
 use std::{ffi::{c_void, CStr}, mem::{size_of, self}, rc::Rc, cell::{RefCell}};
 use gl::types;
-use glam::{Vec3, Mat3, Mat4};
+use glam::{Vec3, Mat3, Mat4, IVec2};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use crate::DebugData;
@@ -226,13 +226,10 @@ impl Renderer
         let i = 0;
 
         // first draw all opaque meshes
-        for wrapper in world.chunk_manager.chunks_rendered.iter()
+        for chunk_mesh in world.chunk_manager.get_rendered_chunks()
         {
-            let mut unit = wrapper.chunk.borrow_mut();
-
-            let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
-            let mesh = &mut chunk_mesh.mesh;
-            let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+            let chunk_mesh = chunk_mesh.chunk_mesh.as_ref().unwrap();
+            let vao = world.chunk_manager.allocator.get_vao(chunk_mesh.mesh.alloc_token.as_ref().expect("mesh has no alloc token"));
             
             unsafe
             {
@@ -245,13 +242,10 @@ impl Renderer
         }
 
         // then draw all transparent meshes
-        for wrapper in world.chunk_manager.chunks_rendered.iter()
+        for chunk_mesh in world.chunk_manager.get_rendered_chunks()
         {
-            let mut unit = wrapper.chunk.borrow_mut();
-
-            let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
-            let mesh = &mut chunk_mesh.mesh;
-            let vao = world.chunk_manager.allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+            let chunk_mesh = chunk_mesh.chunk_mesh.as_ref().unwrap();
+            let vao = world.chunk_manager.allocator.get_vao(chunk_mesh.mesh.alloc_token.as_ref().unwrap());
             
             unsafe
             {

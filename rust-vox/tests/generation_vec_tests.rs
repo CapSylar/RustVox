@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod generational_arena
 {
-    use engine::generational_vec::{GenerationalVec, GenerationErr};
+    use engine::generational_vec::{GenerationalArena, GenerationErr};
 
     #[test]
     fn capacity_test()
     {
-        let mut arena: GenerationalVec<u32> = GenerationalVec::new(100);
+        let mut arena: GenerationalArena<u32> = GenerationalArena::new(100);
 
         let index0 = arena.try_insert(10).unwrap();
         arena.try_insert(20).unwrap();
@@ -26,7 +26,7 @@ mod generational_arena
     #[test]
     fn double_remove()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(3);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(3);
 
         let index0 = arena.try_insert(30).unwrap();
 
@@ -41,7 +41,7 @@ mod generational_arena
     #[test]
     fn rug_pull()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(1);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(1);
 
         let index0 = arena.try_insert(30).unwrap();
         arena.try_remove(index0);
@@ -62,7 +62,7 @@ mod generational_arena
     #[test]
     fn try_insert()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(1);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(1);
 
         let index0 = arena.try_insert(30);
         assert!(index0.is_ok());
@@ -84,7 +84,7 @@ mod generational_arena
     #[test]
     fn get_mut()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(3);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(3);
 
         let index0 = arena.try_insert(23).unwrap();
 
@@ -106,7 +106,7 @@ mod generational_arena
     #[test]
     fn read_while_write()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(3);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(3);
         let index0 = arena.try_insert(23).unwrap();
 
         // get write access
@@ -123,7 +123,7 @@ mod generational_arena
     #[test]
     fn read_while_read()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(3);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(3);
         let index0 = arena.try_insert(30).unwrap();
 
         let read_lock0 = arena.get(index0).unwrap();
@@ -141,7 +141,7 @@ mod generational_arena
     #[test]
     fn write_while_read()
     {
-        let mut arena:GenerationalVec<u32> = GenerationalVec::new(3);
+        let mut arena:GenerationalArena<u32> = GenerationalArena::new(3);
         let index0 = arena.try_insert(55).unwrap();
 
         // get write access
