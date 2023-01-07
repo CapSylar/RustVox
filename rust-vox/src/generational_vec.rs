@@ -91,7 +91,7 @@ impl<T> GenerationalArena<T>
 
     //TODO: needs a better Err field in Result, since the reason for failure is not communicated (locked or not present)
     /// Tries to place T into the arena, could fail if the vec is full
-    pub fn try_insert(&mut self, value: T) -> Result<GenerationIndex, T>
+    pub fn try_insert(&self, value: T) -> Result<GenerationIndex, T>
     {
         let free_list = self.free_list.try_write();
 
@@ -115,7 +115,7 @@ impl<T> GenerationalArena<T>
         Ok(GenerationIndex { index, generation: slot.generation })
     }
 
-    pub fn try_remove(&mut self, index: GenerationIndex) -> Result<T, GenerationErr>
+    pub fn try_remove(&self, index: GenerationIndex) -> Result<T, GenerationErr>
     {
         let free_list = self.free_list.try_write();
 

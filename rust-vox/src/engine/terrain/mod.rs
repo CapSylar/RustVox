@@ -1,6 +1,7 @@
 use noise::{Perlin, NoiseFn};
 
 use crate::engine::geometry::voxel::{Voxel, VoxelType};
+
 // unsafe impl Sync for TerrainGenerator{}
 pub trait TerrainGenerator : Sync
 {
@@ -62,6 +63,18 @@ impl TerrainGenerator for PerlinGenerator
         {
             voxel.set_type(VoxelType::Sand);
         }
+
+        // let (_ , local_pos) =  ChunkManager::get_local_voxel_coord(IVec3::new(x,y,z));
+
+        // let max_y = (((local_pos.x+local_pos.z)) / 10) + 1;
+
+        // if local_pos.y >= max_y
+        // {
+        //     voxel.set_type(VoxelType::Air);
+        // }
+        // else {
+        //     voxel.set_type(VoxelType::Sand);
+        // }
 
     }
 }

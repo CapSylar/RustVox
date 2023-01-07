@@ -1,11 +1,5 @@
-use std::{sync::{RwLock, Arc}, collections::HashMap, cell::RefCell};
-
 use glam::{Vec3, IVec2};
-
-use crate::engine::{chunk::Chunk, chunk_manager::ChunkManageUnit};
-
-use super::{mesh::Mesh, voxel_vertex::VoxelVertex, meshing::chunk_mesher::ChunkMesher};
-
+use super::{mesh::Mesh, voxel_vertex::VoxelVertex, meshing::{chunk_mesher::ChunkMesher, voxel_fetcher::VoxelFetcher}};
 
 #[derive(Debug)]
 pub struct Face
@@ -32,14 +26,14 @@ pub struct ChunkMesh
 impl ChunkMesh
 {
     /// Generates the chunk mesh
-    pub fn new<T> (chunk: &Chunk) -> Self
+    pub fn new<T> (chunk_pos: IVec2, voxel_fetcher: VoxelFetcher) -> Self
     where T: ChunkMesher
     {
         let mut mesh = Mesh::<VoxelVertex>::default();
         let mut trans_faces = Vec::new();
 
         // mesh opaque geometry
-        T::generate_mesh(chunk, &mut mesh, &mut trans_faces);
+        T::generate_mesh(chunk_pos, voxel_fetcher, &mut mesh, &mut trans_faces);
         // mesh transparent geometry
 
         Self{mesh, trans_faces}

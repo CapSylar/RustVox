@@ -1,8 +1,8 @@
 use core::panic;
 
-use glam::{Vec3, IVec3};
-use crate::engine::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}};
-use super::chunk_mesher::{ChunkMesher, VOXEL_SIZE, Direction};
+use glam::{Vec3, IVec3, IVec2};
+use crate::engine::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}, chunk_manager::ChunkManager};
+use super::{chunk_mesher::{ChunkMesher, VOXEL_SIZE, NormalDirection}, voxel_fetcher::VoxelFetcher};
 
 pub struct GreedyMesher;
 
@@ -21,7 +21,7 @@ impl GreedyMesher
     // keeps the transparent faces in front
     fn add_quad(mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>, face_pos: Vec3, face: SliceFace, current_pass_dir: usize, x_dir: usize , y_dir: usize, lower_left:Vec3, upper_left: Vec3, upper_right:Vec3, lower_right:Vec3)
     {
-        let mut normal_dir = Direction::from_index(current_pass_dir);
+        let mut normal_dir = NormalDirection::from_index(current_pass_dir);
         if face.face_state == FaceState::CurrentDirection {normal_dir = normal_dir.opposite();} // reverse direction if face is actually facing the opposite direction
 
         let lower_left_uv: (u8,u8);
@@ -109,8 +109,9 @@ struct SliceFace
 
 impl ChunkMesher for GreedyMesher
 {
-    fn generate_mesh(chunk: &Chunk, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
+    fn generate_mesh(chunk_pos: IVec2, voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
     {
+        let chunk_world_pos = ChunkManager::chunk_to_world_coord(chunk_pos);
         // sweep over each axis separately (X,Y,Z)
 
         //TODO: better documentation
@@ -145,17 +146,17 @@ impl ChunkMesher for GreedyMesher
                         current_pos[nn_dir] = mask_x;
 
                         // get the current voxel and the next one in the current direction if any
-                        let current_voxel = if slice >= 0
+                        let current_voxel = match voxels.get_voxel(current_pos + chunk_world_pos)
                         {
-                            chunk.get_voxel(current_pos).unwrap()
-                        }
-                        else {Voxel::new(VoxelType::Air)} ;
-                        
-                        let next_voxel = if slice < (CHUNK_SIZE[current_dir] as i32 -1)
+                            Some(voxel) => voxel,
+                            None => Voxel::new(VoxelType::Air),
+                        };
+
+                        let next_voxel = match voxels.get_voxel(current_pos + offset + chunk_world_pos)
                         {
-                            chunk.get_voxel(current_pos + offset).unwrap()
-                        }
-                        else {Voxel::new(VoxelType::Air)};
+                            Some(voxel) => voxel,
+                            None => Voxel::new(VoxelType::Air),
+                        };
 
                         // TODO: refactor jesus
                         if current_voxel.is_filled() == next_voxel.is_filled() && current_voxel.is_transparent() == next_voxel.is_transparent() // covers all no face emitted cases
@@ -238,16 +239,18 @@ impl ChunkMesher for GreedyMesher
                             let mut dv: [i32;3] = [0,0,0];
                             dv[n_dir] = height as i32;
 
+                            let chunk_world_pos = chunk_world_pos.as_vec3();
+
                             // append the quad
-                            let upper_left = IVec3::new(current_pos[0] + dv[0],current_pos[1] + dv[1],current_pos[2] + dv[2]).as_vec3() + chunk.pos_world_space();
-                            let lower_left = IVec3::new(current_pos[0],current_pos[1],current_pos[2]).as_vec3() + chunk.pos_world_space();
-                            let lower_right = IVec3::new(current_pos[0] + du[0],current_pos[1] + du[1],current_pos[2] + du[2]).as_vec3() + chunk.pos_world_space();
-                            let upper_right = IVec3::new(current_pos[0] + du[0] + dv[0],current_pos[1] + du[1] + dv[1],current_pos[2] + du[2] + dv[2]).as_vec3() + chunk.pos_world_space();
+                            let upper_left = IVec3::new(current_pos[0] + dv[0],current_pos[1] + dv[1],current_pos[2] + dv[2]).as_vec3() + chunk_world_pos;
+                            let lower_left = IVec3::new(current_pos[0],current_pos[1],current_pos[2]).as_vec3() + chunk_world_pos;
+                            let lower_right = IVec3::new(current_pos[0] + du[0],current_pos[1] + du[1],current_pos[2] + du[2]).as_vec3() + chunk_world_pos;
+                            let upper_right = IVec3::new(current_pos[0] + du[0] + dv[0],current_pos[1] + du[1] + dv[1],current_pos[2] + du[2] + dv[2]).as_vec3() + chunk_world_pos;
 
                             // add the face to the Transparent Face Vector
                             let mut current_unit = Vec3::ZERO;
                             current_unit[current_dir] = 1.0;
-                            let face_pos = chunk.pos_world_space() + FACE_POSITION[current_dir*2] + ((slice+1) as f32) * current_unit; // god help us
+                            let face_pos = chunk_world_pos + FACE_POSITION[current_dir*2] + ((slice+1) as f32) * current_unit; // god help us
 
                             GreedyMesher::add_quad(mesh, trans_faces, face_pos, reference_face, current_dir, nn_dir, n_dir, lower_left, upper_left, upper_right, lower_right);
 

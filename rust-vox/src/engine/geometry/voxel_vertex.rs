@@ -1,7 +1,7 @@
 use glam::{Vec3};
 use crate::engine::renderer::opengl_abstractions::vertex_array::VertexLayout;
 
-use super::{opengl_vertex::OpenglVertex, voxel::Voxel, meshing::chunk_mesher::Direction};
+use super::{opengl_vertex::OpenglVertex, voxel::Voxel, meshing::chunk_mesher::NormalDirection};
 
 // Voxel Vertex
 /// Holds all the data which constitute a *vertex*
@@ -18,7 +18,7 @@ pub struct VoxelVertex
 
 impl VoxelVertex
 {
-    pub fn new( position: Vec3 , normal :Direction , texture_uv: (u8,u8), voxel: Voxel ) -> Self
+    pub fn new( position: Vec3 , normal :NormalDirection , texture_uv: (u8,u8), voxel: Voxel ) -> Self
     {
         Self { position , texture_u: texture_uv.0, texture_v: texture_uv.1, normal_index: normal as u8, texture_index: voxel.voxel_type as u8 }
     }

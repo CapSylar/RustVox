@@ -12,6 +12,19 @@ pub const CHUNK_SIZE_Z : usize = 20;
 
 pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_X];
 
+// pub enum NeighborDirection // Von Neumann neighborhood
+// {
+//     NORTH,
+//     WEST,
+//     SOUTH,
+//     EAST
+// }
+
+pub const NEIGHBOR_OFFSET: [IVec2;4] = [IVec2::new(0, 1), // NORTH
+                                        IVec2::new(1,0), // WEST
+                                        IVec2::new(0,-1), // SOUTH
+                                        IVec2::new(-1,0)]; // EAST
+
 #[derive(Clone,Copy)]
 pub struct Chunk
 {
@@ -78,9 +91,9 @@ impl Chunk
         self.pos
     }
 
-    pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x as i32 * CHUNK_SIZE_X as i32 ) as f32,
+    pub fn pos_world_space(&self) -> Vec3 { Vec3::new((self.pos.x * CHUNK_SIZE_X as i32 ) as f32,
         0.0,
-        (self.pos.y as i32 * CHUNK_SIZE_Z as i32 ) as f32 ) } 
+        (self.pos.y* CHUNK_SIZE_Z as i32 ) as f32 ) } 
 
     /// Returns the size in bytes on the chunk, the size of the mesh is excluded
     pub fn get_size_bytes(&self) -> usize
