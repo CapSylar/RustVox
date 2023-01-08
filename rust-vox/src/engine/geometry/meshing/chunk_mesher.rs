@@ -16,7 +16,7 @@ pub trait ChunkMesher
     /// Generate the mesh for the chunk
     /// 
     /// Generated Mesh is placed in mesh
-    fn generate_mesh(chunk_pos: IVec2, voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>);
+    fn generate_mesh(voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>);
 }
 
 pub const VOXEL_SIZE: f32 = 1.0;

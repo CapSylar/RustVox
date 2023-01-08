@@ -25,7 +25,16 @@ pub const NEIGHBOR_OFFSET: [IVec2;4] = [IVec2::new(0, 1), // NORTH
                                         IVec2::new(0,-1), // SOUTH
                                         IVec2::new(-1,0)]; // EAST
 
-#[derive(Clone,Copy)]
+pub const MOORE_NEIGHBORHOOD_OFFSET: [IVec2 ; 8] = [IVec2::new(0,1), // NORTH
+                                             IVec2::new(1,1), // NORTH-WEST
+                                             IVec2::new(1,0), // WEST
+                                             IVec2::new(1,-1), // SOUTH-WEST
+                                             IVec2::new(0,-1), // SOUTH
+                                             IVec2::new(-1,-1), // SOUTH-EAST
+                                             IVec2::new(-1,0), // EAST
+                                             IVec2::new(-1,1), // NORTH-EAST
+                                             ];
+
 pub struct Chunk
 {
     pub voxels: [[[Voxel; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X],

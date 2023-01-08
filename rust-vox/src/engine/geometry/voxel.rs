@@ -1,18 +1,21 @@
-
 #[derive(Clone,Copy,PartialOrd, PartialEq, Eq,Debug)]
+#[repr(u8)]
 pub enum VoxelType
 {
-    Dirt,
-    Sand,
-    Air,
-    Water
+    Dirt = 0,
+    Sand = 1,
+    Water = 2,
+    Glass = 3,
+    Air = 4, // Keeps it last always, since it has no correspnding texture index
 }
 
 // manual definition of block attributes for now
-const VOXEL_ATTRIBUTES : [VoxelAttribs;4] =[VoxelAttribs::new(true, false, true), // dirt
+const VOXEL_ATTRIBUTES : [VoxelAttribs;5] =[VoxelAttribs::new(true, false, true), // dirt
                                             VoxelAttribs::new(true, false, true), // sand
+                                            VoxelAttribs::new(true, true, false), // water
+                                            VoxelAttribs::new(true, true, false), // glass
                                             VoxelAttribs::new(false, true, true), // air
-                                            VoxelAttribs::new(true, true, false)]; // water
+                                        ];
 
 struct VoxelAttribs
 {

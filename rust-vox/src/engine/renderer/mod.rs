@@ -76,15 +76,12 @@ impl Renderer
 
             let tex_width = 64;
             let tex_height = 64;
-            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv();
-            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv();
-            let water = image::open("rust-vox/textures/water.png").unwrap().flipv();
+            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv().into_rgba8();
+            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv().into_rgba8();
+            let water = image::open("rust-vox/textures/water.png").unwrap().flipv().into_rgba8();
+            let glass = image::open("rust-vox/textures/glass.png").unwrap().flipv().into_rgba8();
 
-            let sand = sand.into_rgba8();
-            let dirt = dirt.into_rgba8();
-            let water = water.into_rgba8();
-
-            let layer_count = 3; // only dirt and grass for now
+            let layer_count = 4; // only dirt and grass for now
             let mut texture_array = 0;
             gl::GenTextures(1, &mut texture_array);
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture_array);
@@ -93,6 +90,7 @@ impl Renderer
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 0, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, dirt.as_bytes().as_ptr().cast());
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 1, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, sand.as_bytes().as_ptr().cast());
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 2, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, water.as_bytes().as_ptr().cast());
+            gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 3, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, glass.as_bytes().as_ptr().cast());
 
             gl::GenerateMipmap(gl::TEXTURE_2D_ARRAY);
 

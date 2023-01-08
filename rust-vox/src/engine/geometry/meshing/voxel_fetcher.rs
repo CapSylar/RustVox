@@ -1,6 +1,37 @@
-use glam::{IVec3, IVec2};
+use std::sync::Arc;
 
-use crate::{engine::{chunk_manager::{ChunkManageUnit, ChunkManager}, geometry::voxel::{Voxel}, chunk::NEIGHBOR_OFFSET}, generational_vec::{GenerationIndex, GenerationalArena, ReadLock}};
+use glam::{IVec3, IVec2, Vec3};
+
+use crate::{engine::{chunk_manager::{ChunkManageUnit, ChunkManager}, geometry::voxel::{Voxel}, chunk::{NEIGHBOR_OFFSET}}, generational_vec::{GenerationIndex, GenerationalArena, ReadLock}};
+
+pub struct FetcherFactory
+{
+    indices: [GenerationIndex; 5],
+    arena: &'static GenerationalArena<ChunkManageUnit>,
+}
+
+impl FetcherFactory
+{
+    pub fn new(indices: [GenerationIndex; 5], arena: &'static GenerationalArena<ChunkManageUnit>) -> Self
+    {
+        Self { indices, arena}
+    }
+
+    pub fn get_fetcher(self) -> VoxelFetcher<'static>
+    {
+        let mut locks = Vec::with_capacity(5);
+        for index in self.indices.iter()
+        {
+            let temp = self.arena.get(*index);
+            let res = temp.unwrap();
+            locks.push(res);
+        }
+        
+        let center_pos = locks[0].chunk.as_ref().unwrap().pos_chunk_space();
+
+        VoxelFetcher { locks, center_pos}
+    }
+}
 
 pub struct VoxelFetcher<'a>
 {
@@ -10,20 +41,9 @@ pub struct VoxelFetcher<'a>
 
 impl<'a> VoxelFetcher<'a>
 {
-    pub fn new(indices: [GenerationIndex; 5], arena: &'static GenerationalArena<ChunkManageUnit>) -> Self
+    pub fn get_center_chunk_pos(&self) -> IVec3
     {
-        // get the read locks
-        let mut locks = Vec::with_capacity(5);
-        
-        for index in indices.iter()
-        {
-            let res = arena.get(*index).unwrap();
-            locks.push(res);
-        }
-        
-        let center_pos = locks[0].chunk.unwrap().pos_chunk_space();
-
-        Self{locks, center_pos}
+        self.locks[0].chunk.as_ref().unwrap().pos_world_space().as_ivec3()
     }
 
     pub fn get_voxel(&self, world_pos: IVec3) -> Option<Voxel>
@@ -60,7 +80,7 @@ impl<'a> VoxelFetcher<'a>
             }
         }
     
-        self.locks[lock_index].chunk.unwrap().get_voxel(voxel_pos)
+        self.locks[lock_index].chunk.as_ref().unwrap().get_voxel(voxel_pos)
     }
 }   
 

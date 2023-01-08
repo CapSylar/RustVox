@@ -26,14 +26,14 @@ pub struct ChunkMesh
 impl ChunkMesh
 {
     /// Generates the chunk mesh
-    pub fn new<T> (chunk_pos: IVec2, voxel_fetcher: VoxelFetcher) -> Self
+    pub fn new<T> (voxel_fetcher: VoxelFetcher) -> Self
     where T: ChunkMesher
     {
         let mut mesh = Mesh::<VoxelVertex>::default();
         let mut trans_faces = Vec::new();
 
         // mesh opaque geometry
-        T::generate_mesh(chunk_pos, voxel_fetcher, &mut mesh, &mut trans_faces);
+        T::generate_mesh(voxel_fetcher, &mut mesh, &mut trans_faces);
         // mesh transparent geometry
 
         Self{mesh, trans_faces}

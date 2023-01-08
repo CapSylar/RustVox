@@ -1,7 +1,5 @@
-use core::panic;
-
-use glam::{Vec3, IVec3, IVec2};
-use crate::engine::{chunk::{Chunk, CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}, chunk_manager::ChunkManager};
+use glam::{Vec3, IVec3};
+use crate::engine::{chunk::{CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}};
 use super::{chunk_mesher::{ChunkMesher, VOXEL_SIZE, NormalDirection}, voxel_fetcher::VoxelFetcher};
 
 pub struct GreedyMesher;
@@ -68,7 +66,7 @@ impl GreedyMesher
 
         // if the face is transparent, add it to the transparent faces list
         if face.voxel.is_transparent()
-        {
+        {          
             if face.voxel == Voxel::new(VoxelType::Air)
             {
                 panic!("fuck");
@@ -109,9 +107,9 @@ struct SliceFace
 
 impl ChunkMesher for GreedyMesher
 {
-    fn generate_mesh(chunk_pos: IVec2, voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
+    fn generate_mesh(voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
     {
-        let chunk_world_pos = ChunkManager::chunk_to_world_coord(chunk_pos);
+        let chunk_world_pos = voxels.get_center_chunk_pos();
         // sweep over each axis separately (X,Y,Z)
 
         //TODO: better documentation
