@@ -1,4 +1,4 @@
-use glam::{Vec3, IVec2};
+use glam::{Vec3};
 use super::{mesh::Mesh, voxel_vertex::VoxelVertex, meshing::{chunk_mesher::ChunkMesher, voxel_fetcher::VoxelFetcher}};
 
 #[derive(Debug)]
@@ -44,19 +44,12 @@ impl ChunkMesh
     {
         // calculate the distance from pos for each face
 
-        // for face in faces
-        // {
-        //     println!("face is {:?}", face);
-        // }
-
-        // println!("Indices count: {}", mesh.get_indices_len());
-
         for face in self.trans_faces.iter_mut()
         {
             face.distance = face.pos.distance(center);
         }
 
-        self.trans_faces.sort_by(|a, b| a.distance.total_cmp(&b.distance));
+        self.trans_faces.sort_by(|a, b| b.distance.total_cmp(&a.distance));
 
         // move the indices from nearest to furthest in the index buffer
         // indices of opaque geometry is sent to the back
@@ -67,13 +60,27 @@ impl ChunkMesh
 
         new_indices.reserve(num_trans);
         
-        for face in self.trans_faces.iter_mut()
+        for (face_index, face) in self.trans_faces.iter_mut().enumerate()
         {
             new_indices.extend_from_slice(&self.mesh.indices[face.base_index..face.base_index+6]); // get all 6 indices that form a face
+            // the faces's indices have been moved, update their base index
+            face.base_index = face_index * 6;
         }
 
         // copy the sorted indices list into the mesh
         self.mesh.indices[..num_trans].copy_from_slice(&new_indices[..]);
+
+        // println!("after sorting");
+        // for face in self.trans_faces.iter()
+        // {
+        //     print!("face is {:?} => indices: ", face);
+        //     for index in self.mesh.indices[face.base_index..face.base_index+6].iter()
+        //     {
+        //         print!("{} ", index);
+        //     }
+        //     println!()
+        // }
+
     }
 
     pub fn is_mesh_alloc(&self) -> bool

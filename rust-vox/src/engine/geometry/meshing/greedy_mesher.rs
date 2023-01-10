@@ -4,14 +4,11 @@ use super::{chunk_mesher::{ChunkMesher, VOXEL_SIZE, NormalDirection}, voxel_fetc
 
 pub struct GreedyMesher;
 
-pub const FACE_POSITION: [Vec3; 6] = [
-    Vec3::new(0.0,0.0,0.5), // along x 
-    Vec3::new(1.0, 0.0, 0.5), // along x
-    Vec3::new(0.5,0.0,0.5), // along y
-    Vec3::new(0.5,1.0,0.5), // along y
-    Vec3::new(0.5, 0.0, 0.0), // along z
-    Vec3::new(0.5,0.0,1.0), // along z
-];
+// TODO: Document
+pub const FACE_POSITION: [Vec3; 3] = [
+    Vec3::new(0.0,0.5,0.5), // walking along X
+    Vec3::new(0.5,0.0,0.5), // walking along Y
+    Vec3::new(0.5,0.5,0.0)]; // walking along Z
 
 impl GreedyMesher
 {
@@ -60,18 +57,9 @@ impl GreedyMesher
             mesh.add_quad(lower_right, upper_right, upper_left, lower_left);
         }
 
-        // println!("pushed face of type :{:?}", face.voxel.voxel_type);
-
-        // println!("before mesh indices: {:?}", mesh.indices);
-
         // if the face is transparent, add it to the transparent faces list
         if face.voxel.is_transparent()
         {          
-            if face.voxel == Voxel::new(VoxelType::Air)
-            {
-                panic!("fuck");
-            }
-            
             trans_faces.push(Face::new(face_pos, trans_faces.len() * 6));
             // make sure the transparent indices are grouped in front in the index list
             // swap the quad indices at index trans_faces.len() in the index buffer with the current inserted quad indices
@@ -82,11 +70,6 @@ impl GreedyMesher
                 mesh.indices.swap(dst+i, src+i);
             }
         }
-
-        // println!("after mesh indices: {:?}", mesh.indices);
-        // println!("mesh indices length: {}", mesh.indices.len());
-        // println!("faces length now: {}", trans_faces.len());
-
     }
 }
 
@@ -246,9 +229,7 @@ impl ChunkMesher for GreedyMesher
                             let upper_right = IVec3::new(current_pos[0] + du[0] + dv[0],current_pos[1] + du[1] + dv[1],current_pos[2] + du[2] + dv[2]).as_vec3() + chunk_world_pos;
 
                             // add the face to the Transparent Face Vector
-                            let mut current_unit = Vec3::ZERO;
-                            current_unit[current_dir] = 1.0;
-                            let face_pos = chunk_world_pos + FACE_POSITION[current_dir*2] + ((slice+1) as f32) * current_unit; // god help us
+                            let face_pos = chunk_world_pos + current_pos.as_vec3() + FACE_POSITION[current_dir]; // only relevant for transparent faces which are never merged together
 
                             GreedyMesher::add_quad(mesh, trans_faces, face_pos, reference_face, current_dir, nn_dir, n_dir, lower_left, upper_left, upper_right, lower_right);
 

@@ -121,7 +121,7 @@ impl ChunkManager
 
         Self{allocator, chunk_map, chunks_finished_generation, chunks_rendered, chunks_to_be_rendered,
             chunks_to_upload, chunks_to_unload, anchor_point: IVec2::new(i32::MAX, i32::MAX), // anchor point is setup this way to initially trigger a reload in update()
-            last_chunks_pos: IVec2::ZERO, last_voxel_pos: IVec3::ZERO,
+            last_chunks_pos: IVec2::ZERO, last_voxel_pos: IVec3::new(i32::MAX, i32::MAX, i32::MAX), // last_voxel_pos to max to force sort on load
             threadpool: ThreadPool::new(theadcount), debug_data:debug_data.clone(),
             chunks_finished_meshing}
     }
@@ -377,7 +377,8 @@ impl ChunkManager
 
             if let Some(chunk_mesh) = unit.chunk_mesh.as_mut()
             {
-                chunk_mesh.sort_transparent(player_pos)
+                chunk_mesh.sort_transparent(player_pos);
+                Self::realloc(&mut self.allocator, &mut unit);
             } // else the chunk mesh is still loading, can't do anything now
 
             // update neighbors as well
@@ -390,8 +391,8 @@ impl ChunkManager
     
                 if let Some(chunk_mesh) = unit.chunk_mesh.as_mut()
                 {
-                    println!("updated neighbor");
-                    chunk_mesh.sort_transparent(player_pos)
+                    chunk_mesh.sort_transparent(player_pos);
+                    Self::realloc(&mut self.allocator, &mut unit);
                 } // else the chunk mesh is still loading, can't do anything now
             }
         }
@@ -720,6 +721,14 @@ impl ChunkManager
         Self::alloc_chunk_mesh(allocator, &mut chunk_mesh);
         let mut unit = CHUNKS.get_mut(index).unwrap();
         unit.chunk_mesh = Some(chunk_mesh);
+    }
+
+    /// Dealloc then Realloc
+    pub fn realloc(allocator: &mut DefaultAllocator<VoxelVertex>, unit: &mut ChunkManageUnit)
+    {
+        let chunk_mesh = unit.chunk_mesh.as_mut().unwrap();
+        Self::dealloc_chunk_mesh(allocator, chunk_mesh);
+        Self::alloc_chunk_mesh(allocator, chunk_mesh);
     }
 
     // TODO: refactor this shit
