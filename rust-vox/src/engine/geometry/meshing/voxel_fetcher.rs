@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use glam::{IVec3, IVec2, Vec3};
+use glam::{IVec3, IVec2};
 
 use crate::{engine::{chunk_manager::{ChunkManageUnit, ChunkManager}, geometry::voxel::{Voxel}, chunk::{NEIGHBOR_OFFSET}}, generational_vec::{GenerationIndex, GenerationalArena, ReadLock}};
 
@@ -17,19 +15,21 @@ impl FetcherFactory
         Self { indices, arena}
     }
 
-    pub fn get_fetcher(self) -> VoxelFetcher<'static>
+    pub fn get_fetcher(self) -> Option<VoxelFetcher<'static>>
     {
         let mut locks = Vec::with_capacity(5);
         for index in self.indices.iter()
         {
-            let temp = self.arena.get(*index);
-            let res = temp.unwrap();
-            locks.push(res);
+            match self.arena.get(*index)
+            {
+                Ok(lock) => locks.push(lock),
+                Err(_) => return None, // FIXME: this might cause problems later!
+            }
         }
         
         let center_pos = locks[0].chunk.as_ref().unwrap().pos_chunk_space();
 
-        VoxelFetcher { locks, center_pos}
+        Some(VoxelFetcher {locks, center_pos})
     }
 }
 

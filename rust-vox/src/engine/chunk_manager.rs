@@ -1,7 +1,7 @@
 use core::panic;
-use std::{cell::{RefCell}, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, time::{Instant}, mem};
+use std::{cell::{RefCell}, rc::Rc, collections::HashMap, sync::{Arc, Mutex}, mem};
 use glam::{Vec3, IVec2, IVec3};
-use crate::{threadpool::ThreadPool, ui::DebugData, engine::chunk::{CHUNK_SIZE_Y, self, MOORE_NEIGHBORHOOD_OFFSET}, generational_vec::{GenerationalArena, GenerationIndex, ReadLock}};
+use crate::{threadpool::ThreadPool, ui::DebugData, engine::chunk::{CHUNK_SIZE_Y, MOORE_NEIGHBORHOOD_OFFSET}, generational_vec::{GenerationalArena, GenerationIndex, ReadLock}};
 use super::{terrain::{PerlinGenerator, TerrainGenerator}, chunk::{Chunk, CHUNK_SIZE_Z, CHUNK_SIZE_X, NEIGHBOR_OFFSET}, geometry::{meshing::{greedy_mesher::GreedyMesher, voxel_fetcher::{FetcherFactory}}, voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex, chunk_mesh::{ChunkMesh}}, renderer::allocators::{default_allocator::DefaultAllocator}};
 
 // length are in chunks
@@ -95,9 +95,11 @@ pub struct ChunkManager
     chunks_to_unload: Vec<GenerationIndex>,
 
     // update state
+    // TODO: do we really need all these ?
     anchor_point: IVec2, // anchor chunk point
     last_chunks_pos: IVec2, // chunks position in last update
     last_voxel_pos: IVec3, // voxel position in last update, global coord
+    last_player_pos: Vec3,
 
     // debug
     debug_data: Rc<RefCell<DebugData>>
@@ -119,7 +121,7 @@ impl ChunkManager
         let chunks_to_upload = Vec::new();
         let chunks_to_unload = Vec::new();
 
-        Self{allocator, chunk_map, chunks_finished_generation, chunks_rendered, chunks_to_be_rendered,
+        Self{allocator, chunk_map, chunks_finished_generation, chunks_rendered, chunks_to_be_rendered, last_player_pos: Vec3::ZERO,
             chunks_to_upload, chunks_to_unload, anchor_point: IVec2::new(i32::MAX, i32::MAX), // anchor point is setup this way to initially trigger a reload in update()
             last_chunks_pos: IVec2::ZERO, last_voxel_pos: IVec3::new(i32::MAX, i32::MAX, i32::MAX), // last_voxel_pos to max to force sort on load
             threadpool: ThreadPool::new(theadcount), debug_data:debug_data.clone(),
@@ -131,6 +133,8 @@ impl ChunkManager
     /// Called every frame
     pub fn update(&mut self , player_pos: Vec3)
     {
+        self.last_player_pos = player_pos; // update player pos
+
         // in which chunk are we ?
         let current_chunk = Self::world_to_chunk_coord(player_pos);
 
@@ -181,7 +185,7 @@ impl ChunkManager
                 {
                     Ok(mut lock) =>
                     {
-                        println!("mesh installed for chunk at index: {:?}", index);
+                        // println!("mesh installed for chunk at index: {:?}", index);
                         let unit = vec.remove(i);
                         lock.chunk_mesh = Some(unit.1);
                     },
@@ -212,7 +216,7 @@ impl ChunkManager
                 // insert mapping
                 chunk_map.insert(chunks_pos, index);
             },
-            Err(unit) => panic!("Not enough storage to store chunk in arena"),
+            Err(_) => panic!("Not enough storage to store chunk in arena"),
         }
     }
 
@@ -240,7 +244,7 @@ impl ChunkManager
                 // check if the chunks have already been created
                 match self.chunk_map.get(&pos)
                 {
-                    Some(_) => { println!("chunks was already there in load_chunks_around_anchor()!"); ()}, // already loaded, do nothing
+                    Some(_) => (), // already loaded, do nothing
                     None => // Needs to be created
                     {
                         Self::register_chunk(&mut self.chunk_map, ChunkManageUnit::default(), pos);
@@ -252,11 +256,6 @@ impl ChunkManager
 
         // self._debug_load_center_chunks();
     }
-
-    // fn chunk_is_rendered(&self, pos: IVec2) -> bool
-    // {
-    //     !Self::chunk_outside(self.anchor_point, VISIBLE, pos)
-    // }
 
     // Used exclusively for debug purposes
     fn _debug_load_center_chunks(&mut self)
@@ -294,9 +293,9 @@ impl ChunkManager
         });
 
         // unload the chunks
-        for index in self.chunks_to_unload.drain(..)
+        self.chunks_to_unload.retain(|index|
         {
-            match CHUNKS.try_remove(index)
+            match CHUNKS.try_remove(*index)
             {
                 Ok(unit) => 
                 {
@@ -307,10 +306,14 @@ impl ChunkManager
                             Self::dealloc_chunk_mesh(&mut self.allocator, &mut chunk_mesh);
                         }
                     } // Drop trait takes care of removing voxels and mesh
+                    false // remove entry
                 },
-                Err(err) => panic!("generational arena failed try_remove with err: {:?}", err), // TODO: handle this case
-            }        
-        }
+                Err(_) => true, // is being read right now, has to be removed at a later time
+                // this could happen when a chunk is scheduled to be meshed, and the thread acquired the read lock,
+                // then later the chunk goes out of bound and we try to remove it while the thread still hasn't finished and is 
+                // still holding the lock
+            }
+        });
     }
 
     fn update_chunks_rendered(&mut self)
@@ -362,38 +365,49 @@ impl ChunkManager
 
         if current_chunk != self.last_chunks_pos
         {
-            println!("reordering done");
             // When the player moves accross chunks, the chunks need to be reordered from back to front
             self.sort_back_front_rendered(player_pos);
         }
 
         if current_voxel != self.last_voxel_pos
         {
-            // reorder the faces inside the chunk's moore neighborhood
-            println!("faces have been reordered");
-            
+            // reorder the faces inside the chunk's moore neighborhood            
             let index = self.chunk_map.get(&current_chunk).unwrap();
-            let mut unit = CHUNKS.get_mut(*index).unwrap();
 
-            if let Some(chunk_mesh) = unit.chunk_mesh.as_mut()
+            match CHUNKS.get_mut(*index)
             {
-                chunk_mesh.sort_transparent(player_pos);
-                Self::realloc(&mut self.allocator, &mut unit);
-            } // else the chunk mesh is still loading, can't do anything now
+                Ok(mut unit) =>
+                {
+                    if let Some(chunk_mesh) = unit.chunk_mesh.as_mut()
+                    {
+                        chunk_mesh.sort_transparent(player_pos);
+                        Self::realloc(&mut self.allocator, &mut unit);
+                    } // else the chunk mesh is still loading, can't do anything now
+                },
+
+                // this can happen if the player is moving too fast accross the world, and the chunk generation can't keep up,
+                // skip the reorder in this case
+                Err(_) => return,
+            }
 
             // update neighbors as well
             for offset in MOORE_NEIGHBORHOOD_OFFSET
             {
                 let pos = offset + current_chunk;
-
                 let index = self.chunk_map.get(&pos).unwrap();
-                let mut unit = CHUNKS.get_mut(*index).unwrap();
-    
-                if let Some(chunk_mesh) = unit.chunk_mesh.as_mut()
+
+                match CHUNKS.get_mut(*index)
                 {
-                    chunk_mesh.sort_transparent(player_pos);
-                    Self::realloc(&mut self.allocator, &mut unit);
-                } // else the chunk mesh is still loading, can't do anything now
+                    Ok(mut unit) => 
+                    {
+                        if let Some(chunk_mesh) = unit.chunk_mesh.as_mut()
+                        {
+                            chunk_mesh.sort_transparent(player_pos);
+                            Self::realloc(&mut self.allocator, &mut unit);
+                        } // else the chunk mesh is still loading, can't do anything now
+                    },
+                    Err(_) => continue, // skip this neighbor
+                }
             }
         }
 
@@ -544,7 +558,6 @@ impl ChunkManager
             {
                 Ok(mut unit) =>
                 {
-                    println!("uploaded");
                     new_loads = true;
                     Self::alloc_chunk_mesh(&mut self.allocator, unit.chunk_mesh.as_mut().unwrap());
                     self.chunks_to_upload.remove(i);
@@ -644,7 +657,7 @@ impl ChunkManager
     {
         for index in self.chunk_map.values()
         {
-            Self::refresh_mesh(&mut self.allocator, *index, &self.chunk_map);
+            Self::refresh_mesh(&mut self.allocator, *index, &self.chunk_map, self.last_player_pos);
         }
     }
 
@@ -679,7 +692,7 @@ impl ChunkManager
     /// Simply re-mesh and re-upload the chunk
     fn refresh_chunk(&mut self, index: GenerationIndex)
     {
-        Self::refresh_mesh(&mut self.allocator, index, &self.chunk_map);
+        Self::refresh_mesh(&mut self.allocator, index, &self.chunk_map, self.last_player_pos);
     }
 
     /// Places the voxel adjacent to the <face> of the voxel at <pos>
@@ -707,7 +720,7 @@ impl ChunkManager
     }
 
     /// Dealloc, Rebuild, Allocate mesh
-    pub fn refresh_mesh(allocator: &mut DefaultAllocator<VoxelVertex>, index: GenerationIndex, chunk_map: &HashMap<IVec2,GenerationIndex>)
+    pub fn refresh_mesh(allocator: &mut DefaultAllocator<VoxelVertex>, index: GenerationIndex, chunk_map: &HashMap<IVec2,GenerationIndex>, player_pos: Vec3)
     {
         {
             let mut unit = CHUNKS.get_mut(index).unwrap();
@@ -716,7 +729,8 @@ impl ChunkManager
         } // write lock dropped here
 
         let factory = Self::get_fetcher_factory(index, chunk_map);
-        let mut chunk_mesh = ChunkMesh::new::<GreedyMesher>(factory.get_fetcher());
+        let mut chunk_mesh = ChunkMesh::new::<GreedyMesher>(factory.get_fetcher().unwrap());
+        chunk_mesh.sort_transparent(player_pos);
 
         Self::alloc_chunk_mesh(allocator, &mut chunk_mesh);
         let mut unit = CHUNKS.get_mut(index).unwrap();
@@ -819,17 +833,21 @@ impl ChunkManager
         // Assuming that the neighboring voxels are solid to avoid generating the outer faces will incur other problems
 
         // we will pass 5 generational indices into the thread, that of the center chunk and the 4 Von Neumann neighbors
-        println!("create_chunk_mesh()");
-
         let vec = Arc::clone(to_add);
         let factory = Self::get_fetcher_factory(chunk_index, chunk_map);
 
         threadpool.execute(move || 
         {
-            let fetcher = factory.get_fetcher();
-            let mesh = ChunkMesh::new::<GreedyMesher>(fetcher);
-
-            vec.lock().unwrap().push((chunk_index, mesh)); // put the generated mesh into the list
+            match factory.get_fetcher()
+            {
+                Some(fetcher) =>
+                {
+                    let mesh = ChunkMesh::new::<GreedyMesher>(fetcher);
+        
+                    vec.lock().unwrap().push((chunk_index, mesh)); // put the generated mesh into the list
+                },
+                None => println!("Thread meshing halted"),
+            }
         });
     }
 
