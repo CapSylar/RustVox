@@ -1,12 +1,12 @@
-use std::{ffi::{c_void, CStr}, mem::size_of, rc::Rc, cell::{RefCell}, time::Instant};
+use std::{ffi::{c_void, CStr}, mem::{size_of, self}, rc::Rc, cell::{RefCell}};
 use gl::types;
-use glam::{Vec3, Mat3, Mat4};
+use glam::{Vec3, Mat3, Mat4, IVec2};
 use image::EncodableLayout;
 use sdl2::{VideoSubsystem};
 use crate::DebugData;
 
-use self::{opengl_abstractions::{shader::Shader, vertex_array::VertexArray}, csm::Csm, allocators::default_allocator::DefaultAllocator};
-use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
+use self::{opengl_abstractions::{shader::Shader}, csm::Csm, allocators::default_allocator::DefaultAllocator};
+use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex, chunk_mesh}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
 pub mod csm;
@@ -20,7 +20,7 @@ pub struct Renderer
     default_shader : Shader,
     shadow_shader : Shader,
     sun_direction: Vec3,
-    sky: Sky,
+    pub sky: Sky,
     sky_rend : SkyRenderer,
 
     // debug info
@@ -76,13 +76,12 @@ impl Renderer
 
             let tex_width = 64;
             let tex_height = 64;
-            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv();
-            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv();
+            let dirt = image::open("rust-vox/textures/dirt.png").unwrap().flipv().into_rgba8();
+            let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv().into_rgba8();
+            let water = image::open("rust-vox/textures/water.png").unwrap().flipv().into_rgba8();
+            let glass = image::open("rust-vox/textures/glass.png").unwrap().flipv().into_rgba8();
 
-            let sand = sand.into_rgba8();
-            let dirt = dirt.into_rgba8();
-
-            let layer_count = 2; // only dirt and grass for now
+            let layer_count = 4; // only dirt and grass for now
             let mut texture_array = 0;
             gl::GenTextures(1, &mut texture_array);
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture_array);
@@ -90,6 +89,8 @@ impl Renderer
             // upload one texture at a time
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 0, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, dirt.as_bytes().as_ptr().cast());
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 1, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, sand.as_bytes().as_ptr().cast());
+            gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 2, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, water.as_bytes().as_ptr().cast());
+            gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 3, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, glass.as_bytes().as_ptr().cast());
 
             gl::GenerateMipmap(gl::TEXTURE_2D_ARRAY);
 
@@ -222,22 +223,41 @@ impl Renderer
         // draw each chunk's mesh
         let i = 0;
 
-        world.chunk_manager.allocator.render();
+        // first draw all opaque meshes
+        for chunk_mesh in world.chunk_manager.get_rendered_chunks()
+        {
+            let chunk_mesh = chunk_mesh.chunk_mesh.as_ref().unwrap();
+            let vao = world.chunk_manager.allocator.get_vao(chunk_mesh.mesh.alloc_token.as_ref().expect("mesh has no alloc token"));
+            
+            unsafe
+            {
+                vao.bind();
 
-        // for chunk in world.chunk_manager.get_chunks_to_render().iter()
-        // {
-        //     let chunk = chunk.borrow();
+                gl::DrawElements(gl::TRIANGLES, chunk_mesh.get_num_opaque_indices() as _ , gl::UNSIGNED_INT, (chunk_mesh.get_num_trans_indices() * mem::size_of::<u32>()) as _ );
 
-        //     // check if the chunk is visible from the camera's perspective
+                vao.unbind();
+            }
+        }
 
-        //     // if world.camera.is_visible::<Chunk>(&chunk)
-        //     // {
-        //         // Renderer::draw_mesh(&world.chunk_manager.allocator, chunk.mesh.as_ref().expect("mesh was not initialized!"));
-        //     // }
-        //     // else {
-        //         // i += 1;
-        //     // }
-        // }
+        // then draw all transparent meshes
+        for chunk_mesh in world.chunk_manager.get_rendered_chunks()
+        {
+            let chunk_mesh = chunk_mesh.chunk_mesh.as_ref().unwrap();
+            let vao = world.chunk_manager.allocator.get_vao(chunk_mesh.mesh.alloc_token.as_ref().unwrap());
+            
+            unsafe
+            {
+                vao.bind();
+                gl::Enable(gl::BLEND);
+                gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
+
+                gl::DrawElements(gl::TRIANGLES, chunk_mesh.get_num_trans_indices() as _  , gl::UNSIGNED_INT, 0 as _ );
+
+                gl::Disable(gl::BLEND);
+
+                vao.unbind();
+            }  
+        }
 
         i
     }
@@ -263,6 +283,23 @@ impl Renderer
         unsafe
         {
             gl::BindFramebuffer(gl::FRAMEBUFFER, 0);
+        }
+    }
+
+    pub fn draw_chunk<T: OpenglVertex> (allocator: &DefaultAllocator<T>, mesh: &Mesh<T>)
+    {
+        let vao = allocator.get_vao(mesh.alloc_token.as_ref().unwrap());
+        unsafe
+        {
+            vao.bind();
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA); 
+
+            gl::DrawElements(gl::TRIANGLES, mesh.indices.len() as _  , gl::UNSIGNED_INT, 0 as _ );
+
+            gl::Disable(gl::BLEND);
+
+            vao.unbind();
         }
     }
 

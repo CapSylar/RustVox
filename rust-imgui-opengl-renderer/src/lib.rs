@@ -184,8 +184,8 @@ impl Renderer {
 
       gl.Viewport(0, 0, fb_width as _, fb_height as _);
       let matrix = [
-        [ 2.0 / width as f32, 0.0,                     0.0, 0.0],
-        [ 0.0,                2.0 / -(height as f32),  0.0, 0.0],
+        [ 2.0 / width, 0.0,                     0.0, 0.0],
+        [ 0.0,                2.0 / -height,  0.0, 0.0],
         [ 0.0,                0.0,                    -1.0, 0.0],
         [-1.0,                1.0,                     0.0, 1.0],
       ];

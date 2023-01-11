@@ -1,14 +1,14 @@
-use glam::{Vec3, IVec3};
+use glam::{Vec3, IVec3, IVec2};
 
-use crate::engine::{geometry::{voxel::VoxelType, voxel_vertex::VoxelVertex, mesh::Mesh}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z}};
+use crate::engine::{geometry::{voxel::{Voxel, VoxelType}, voxel_vertex::VoxelVertex, mesh::Mesh, chunk_mesh::Face}, chunk::{Chunk, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z}};
 
-use super::chunk_mesher::{Direction, ChunkMesher, VOXEL_SIZE, VOXEL_FACE_VALUES};
+use super::{chunk_mesher::{NormalDirection, ChunkMesher, VOXEL_SIZE, VOXEL_FACE_VALUES}, voxel_fetcher::VoxelFetcher};
 
 pub struct CullingMesher;
 
 impl CullingMesher
 {
-    fn append_voxel_mesh_faces(voxel_type: VoxelType, faces: &[bool;6], pos: Vec3 , mesh: &mut Mesh<VoxelVertex>)
+    fn append_voxel_mesh_faces(voxel: Voxel, faces: &[bool;6], pos: Vec3 , mesh: &mut Mesh<VoxelVertex>)
     {
         // generate the 8 vertices to draw the voxel
         //bottom
@@ -27,10 +27,10 @@ impl CullingMesher
         {
             // add the 2 top triangles
             mesh.add_quad(
-                VoxelVertex::new( p5, Direction::Posy,(0,0), voxel_type),
-                VoxelVertex::new( p6, Direction::Posy, (0,1), voxel_type),
-                VoxelVertex::new( p7, Direction::Posy, (1,1), voxel_type),
-                VoxelVertex::new( p8, Direction::Posy, (1,0), voxel_type)
+                VoxelVertex::new( p5, NormalDirection::Posy,(0,0), voxel),
+                VoxelVertex::new( p6, NormalDirection::Posy, (0,1), voxel),
+                VoxelVertex::new( p7, NormalDirection::Posy, (1,1), voxel),
+                VoxelVertex::new( p8, NormalDirection::Posy, (1,0), voxel)
             );
         }
 
@@ -38,10 +38,10 @@ impl CullingMesher
         {
             // add the 2 bottom triangles
             mesh.add_quad(
-                VoxelVertex::new( p3, Direction::Negy, (0,0), voxel_type),
-                VoxelVertex::new( p2, Direction::Negy, (0,1), voxel_type),
-                VoxelVertex::new( p1, Direction::Negy, (1,1), voxel_type),
-                VoxelVertex::new( p4, Direction::Negy, (1,0), voxel_type)
+                VoxelVertex::new( p3, NormalDirection::Negy, (0,0), voxel),
+                VoxelVertex::new( p2, NormalDirection::Negy, (0,1), voxel),
+                VoxelVertex::new( p1, NormalDirection::Negy, (1,1), voxel),
+                VoxelVertex::new( p4, NormalDirection::Negy, (1,0), voxel)
             );
         }
         
@@ -49,10 +49,10 @@ impl CullingMesher
         {
             // add the 2 front triangles
             mesh.add_quad(
-                VoxelVertex::new( p1, Direction::Posz, (0,0), voxel_type),
-                VoxelVertex::new( p5, Direction::Posz, (0,1), voxel_type),
-                VoxelVertex::new( p8, Direction::Posz, (1,1), voxel_type),
-                VoxelVertex::new( p4, Direction::Posz, (1,0), voxel_type)
+                VoxelVertex::new( p1, NormalDirection::Posz, (0,0), voxel),
+                VoxelVertex::new( p5, NormalDirection::Posz, (0,1), voxel),
+                VoxelVertex::new( p8, NormalDirection::Posz, (1,1), voxel),
+                VoxelVertex::new( p4, NormalDirection::Posz, (1,0), voxel)
             );
         }
 
@@ -60,10 +60,10 @@ impl CullingMesher
         {
             // add the 2 back triangles
             mesh.add_quad(
-                VoxelVertex::new( p7, Direction::Negz, (0,0), voxel_type),
-                VoxelVertex::new( p6, Direction::Negz, (0,1), voxel_type),
-                VoxelVertex::new( p2, Direction::Negz, (1,1), voxel_type),
-                VoxelVertex::new( p3, Direction::Negz, (1,0), voxel_type)
+                VoxelVertex::new( p7, NormalDirection::Negz, (0,0), voxel),
+                VoxelVertex::new( p6, NormalDirection::Negz, (0,1), voxel),
+                VoxelVertex::new( p2, NormalDirection::Negz, (1,1), voxel),
+                VoxelVertex::new( p3, NormalDirection::Negz, (1,0), voxel)
             );
         }
 
@@ -71,10 +71,10 @@ impl CullingMesher
         {
             // add the 2 right triangles
             mesh.add_quad(
-                VoxelVertex::new( p4, Direction::Posx, (0,0), voxel_type),
-                VoxelVertex::new( p8, Direction::Posx, (0,1), voxel_type),
-                VoxelVertex::new( p7, Direction::Posx, (1,1), voxel_type),
-                VoxelVertex::new( p3, Direction::Posx, (1,0), voxel_type)
+                VoxelVertex::new( p4, NormalDirection::Posx, (0,0), voxel),
+                VoxelVertex::new( p8, NormalDirection::Posx, (0,1), voxel),
+                VoxelVertex::new( p7, NormalDirection::Posx, (1,1), voxel),
+                VoxelVertex::new( p3, NormalDirection::Posx, (1,0), voxel)
             );
         }
 
@@ -82,10 +82,10 @@ impl CullingMesher
         {
             // add the 2 left triangles
             mesh.add_quad(
-                VoxelVertex::new( p6, Direction::Negx, (0,0), voxel_type),
-                VoxelVertex::new( p5, Direction::Negx, (0,1), voxel_type),
-                VoxelVertex::new( p1, Direction::Negx, (1,1), voxel_type),
-                VoxelVertex::new( p2, Direction::Negx, (1,0), voxel_type)
+                VoxelVertex::new( p6, NormalDirection::Negx, (0,0), voxel),
+                VoxelVertex::new( p5, NormalDirection::Negx, (0,1), voxel),
+                VoxelVertex::new( p1, NormalDirection::Negx, (1,1), voxel),
+                VoxelVertex::new( p2, NormalDirection::Negx, (1,0), voxel)
             );
         }
 
@@ -94,50 +94,45 @@ impl CullingMesher
 
 impl ChunkMesher for CullingMesher
 {
-    fn generate_mesh(chunk: &Chunk) -> Mesh<VoxelVertex>
+    fn generate_mesh(voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
     {        
-        // Generate the mesh
-        let mut mesh: Mesh<VoxelVertex> = Mesh::default();
-        
-        //Generate the directly in here, good enough for now
-        // for now render the mesh of all the voxels as is
-        for x in 0..CHUNK_SIZE_X
-        {
-            for y in 0..CHUNK_SIZE_Y
-            {
-                for z in 0..CHUNK_SIZE_Z
-                {
-                    if chunk.voxels[x][y][z].voxel_type != VoxelType::Air // not an air block
-                    {
-                        let mut faces_to_render: [bool;6] = [false;6];
+        // //Generate the directly in here, good enough for now
+        // // for now render the mesh of all the voxels as is
+        // for x in 0..CHUNK_SIZE_X
+        // {
+        //     for y in 0..CHUNK_SIZE_Y
+        //     {
+        //         for z in 0..CHUNK_SIZE_Z
+        //         {
+        //             if chunk.voxels[x][y][z].is_filled()
+        //             {
+        //                 let mut faces_to_render: [bool;6] = [false;6];
 
-                        // TODO: refactor
-                        for (index, offset) in VOXEL_FACE_VALUES.iter().enumerate()
-                        {
-                            // is the neighbor of the current voxel in the given direction filled ? 
-                            let pos = IVec3::new(x as i32 + offset.0,y as i32 + offset.1,z as i32 + offset.2);
-                            if let Some(neighbor) = chunk.get_voxel(pos)
-                            {
-                                if !neighbor.is_filled()
-                                {
-                                    faces_to_render[index] = true ;
-                                }
-                            }
-                            else
-                            {
-                                faces_to_render[index] = true;    
-                            }
-                        }
+        //                 // TODO: refactor
+        //                 for (index, offset) in VOXEL_FACE_VALUES.iter().enumerate()
+        //                 {
+        //                     // is the neighbor of the current voxel in the given direction filled ? 
+        //                     let pos = IVec3::new(x as i32 + offset.0,y as i32 + offset.1,z as i32 + offset.2);
+        //                     if let Some(neighbor) = chunk.get_voxel(pos)
+        //                     {
+        //                         if !neighbor.is_filled()
+        //                         {
+        //                             faces_to_render[index] = true ;
+        //                         }
+        //                     }
+        //                     else
+        //                     {
+        //                         faces_to_render[index] = true;    
+        //                     }
+        //                 }
 
-                        CullingMesher::append_voxel_mesh_faces(chunk.voxels[x][y][z].voxel_type,
-                            &faces_to_render,
-                            chunk.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
-                            &mut mesh);
-                    }
-                }
-            }
-        }
-
-        mesh
+        //                 CullingMesher::append_voxel_mesh_faces(chunk.voxels[x][y][z],
+        //                     &faces_to_render,
+        //                     chunk.pos_world_space() + Vec3::new(x as f32,y as f32,z as f32),
+        //                     mesh);
+        //             }
+        //         }
+        //     }
+        // }
     }
 }

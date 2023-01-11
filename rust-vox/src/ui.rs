@@ -4,9 +4,9 @@ use glam::{Vec3, Vec2};
 use imgui::{Condition, FontSource, Context, FontId, CollapsingHeader, Ui};
 use imgui_opengl_renderer::Renderer;
 use imgui_sdl2_support::SdlPlatform;
-use sdl2::{VideoSubsystem, video::Window, EventPump, sys::alloca};
+use sdl2::{VideoSubsystem, video::Window, EventPump};
 
-use crate::{engine::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout, VertexArray}}, allocators::default_allocator::DefaultAllocator}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager}, world::World};
+use crate::{engine::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout}}, allocators::default_allocator::DefaultAllocator, self}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager, self}, world::{World, self}};
 
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates
@@ -24,9 +24,9 @@ pub struct DebugData {
     pub culled_chunks: usize,
 }
 
-impl DebugData
+impl Default for DebugData
 {
-    pub fn default() -> Self
+    fn default() -> Self
     {
         let mut calculation_times = VecDeque::new();
         calculation_times.resize(500, 0.5);
@@ -35,9 +35,13 @@ impl DebugData
             frame_time: 0, num_triangles: 0,
             num_vertices: 0, calculation_times,
             chunk_size_bytes: 0, loaded_chunks: 0,
-            culled_chunks: 0, draw_world_time: 0.0 }
+            culled_chunks: 0, draw_world_time: 0.0,
+        }
     }
+}
 
+impl DebugData
+{
     pub fn add_calculation_time(&mut self, value: f32)
     {
         if self.calculation_times.len() >= 500
@@ -76,7 +80,7 @@ pub struct UiRenderer
     ui_shader: Shader,
     cross_hair: Mesh<UiVertex>,
 
-    debug_data: Rc<RefCell<DebugData>>
+    debug_data: Rc<RefCell<DebugData>>,
 }
 
 impl UiRenderer
@@ -141,13 +145,13 @@ impl UiRenderer
     }
 
     /// Render the UI
-    pub fn render(&mut self, voxel_world: &mut World, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump)
+    pub fn render(&mut self, voxel_world: &mut World, renderer: &mut engine::renderer::Renderer, platform: &mut SdlPlatform, imgui_context: &mut Context, window: &Window, event_pump: &EventPump)
     {
         // render the Imgui UI
         platform.prepare_frame(imgui_context, window, event_pump);
 
         self.imgui_renderer.render(imgui_context, |ui: &mut Ui| {
-            self.build_ui(ui, voxel_world);
+            self.build_ui(ui, voxel_world, renderer);
         });
 
         // render our own UI
@@ -181,15 +185,15 @@ impl UiRenderer
         vao.unbind();
     }
 
-    pub fn build_ui(&self, ui: &imgui::Ui, voxel_world: &mut World)
+    pub fn build_ui(&self, ui: &imgui::Ui, voxel_world: &mut World, renderer: &mut engine::renderer::Renderer)
     {
         let font = ui.push_font(self.used_font);
         ui.window("Tab")
         .position([0.0,0.0], Condition::Always)
-        .size([500.0, 500.0], Condition::FirstUseEver)
+        .size([500.0, 600.0], Condition::FirstUseEver)
         .build(|| {
 
-        let debug_data = self.debug_data.borrow();
+        let mut debug_data = self.debug_data.borrow_mut();
 
         // Controls Section
         if CollapsingHeader::new("Controls")
@@ -212,7 +216,7 @@ impl UiRenderer
 
             if ui.button("Rebuild World")
             {
-                voxel_world.rebuild();
+                voxel_world.rebuild(); // TODO: it out of place
             }
         }
 
@@ -239,6 +243,25 @@ impl UiRenderer
             ui.text(format!("Chunk Level Info Storage: {:.2} MiBs", debug_data.chunk_size_bytes as f32 / (1024f32 * 1024f32)));
             ui.text(format!("Loaded Chunks: {}", debug_data.loaded_chunks));
             ui.text(format!("Culled Chunks: {}", debug_data.culled_chunks));
+        }
+
+        if CollapsingHeader::new("Sky Options")
+        .default_open(true)
+        .build(ui)
+        {
+            ui.text(format!("Current Day-Night Phase: {}" , renderer.sky.curent_cycle_phase()));
+
+            let mut halted = renderer.sky.is_halted();
+            if ui.checkbox("Sky halted", &mut halted)
+            {
+                renderer.sky.set_halted(halted);
+            }
+
+            let mut time = renderer.sky.get_time_hours();
+            if ui.slider("Time of Day", 0.0, 24.0, &mut time)
+            {
+                renderer.sky.set_time_hours(time);
+            }
         }
 
         font.pop();});

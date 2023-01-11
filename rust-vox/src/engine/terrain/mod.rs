@@ -1,8 +1,6 @@
 use noise::{Perlin, NoiseFn};
 
-use crate::engine::geometry::voxel::VoxelType;
-
-use super::geometry::voxel::Voxel;
+use crate::engine::geometry::voxel::{Voxel, VoxelType};
 
 // unsafe impl Sync for TerrainGenerator{}
 pub trait TerrainGenerator : Sync
@@ -18,9 +16,9 @@ pub struct PerlinGenerator
     layer1: Perlin,
 }
 
-impl PerlinGenerator
+impl Default for PerlinGenerator
 {
-    pub fn new() -> Self
+    fn default() -> Self
     {
         //TODO: use PlaneMapBuilder instead
         let layer0 = Perlin::new(2345345);
@@ -45,11 +43,19 @@ impl TerrainGenerator for PerlinGenerator
 
         if y >= max_height
         {
-            voxel.set_type(VoxelType::Air);
+            if y <= 19
+            {
+                voxel.set_type(VoxelType::Water);
+            }
+            else
+            {
+                voxel.set_type(VoxelType::Air);
+            }
+
             return;
         }
 
-        if y >= 15
+        if y >= 17
         {
             voxel.set_type(VoxelType::Dirt);
         }
@@ -57,6 +63,18 @@ impl TerrainGenerator for PerlinGenerator
         {
             voxel.set_type(VoxelType::Sand);
         }
+
+        // let (_ , local_pos) =  ChunkManager::get_local_voxel_coord(IVec3::new(x,y,z));
+
+        // let max_y = (((local_pos.x+local_pos.z)) / 10) + 1;
+
+        // if local_pos.y >= max_y
+        // {
+        //     voxel.set_type(VoxelType::Air);
+        // }
+        // else {
+        //     voxel.set_type(VoxelType::Sand);
+        // }
 
     }
 }
