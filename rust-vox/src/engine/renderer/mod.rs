@@ -6,7 +6,7 @@ use sdl2::{VideoSubsystem};
 use crate::DebugData;
 
 use self::{opengl_abstractions::{shader::Shader}, csm::Csm, allocators::default_allocator::DefaultAllocator};
-use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex, chunk_mesh}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
+use super::{world::{World}, geometry::{mesh::Mesh, opengl_vertex::OpenglVertex}, sky::{sky_state::Sky, sky_renderer::SkyRenderer}};
 
 pub mod opengl_abstractions;
 pub mod csm;
@@ -80,8 +80,9 @@ impl Renderer
             let sand = image::open("rust-vox/textures/sand.png").unwrap().flipv().into_rgba8();
             let water = image::open("rust-vox/textures/water.png").unwrap().flipv().into_rgba8();
             let glass = image::open("rust-vox/textures/glass.png").unwrap().flipv().into_rgba8();
+            let leaves = image::open("rust-vox/textures/leaves.png").unwrap().flipv().into_rgba8();
 
-            let layer_count = 4; // only dirt and grass for now
+            let layer_count = 5;
             let mut texture_array = 0;
             gl::GenTextures(1, &mut texture_array);
             gl::BindTexture(gl::TEXTURE_2D_ARRAY, texture_array);
@@ -91,6 +92,7 @@ impl Renderer
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 1, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, sand.as_bytes().as_ptr().cast());
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 2, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, water.as_bytes().as_ptr().cast());
             gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 3, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, glass.as_bytes().as_ptr().cast());
+            gl::TexSubImage3D(gl::TEXTURE_2D_ARRAY, 0, 0, 0, 4, tex_width, tex_height, 1, gl::RGBA, gl::UNSIGNED_BYTE, leaves.as_bytes().as_ptr().cast());
 
             gl::GenerateMipmap(gl::TEXTURE_2D_ARRAY);
 

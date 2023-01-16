@@ -59,6 +59,7 @@ impl<T> DefaultAllocator<T>
     }
 }
 
+#[derive(Debug)]
 pub struct AllocToken
 {
     pub index: u32,

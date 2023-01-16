@@ -4,7 +4,7 @@ use glam::{Vec3, IVec3, IVec2};
 
 use crate::camera::{BoundingBox, AABB};
 
-use super::{terrain::TerrainGenerator, geometry::{voxel::{Voxel},meshing::chunk_mesher::{VOXEL_SIZE}}};
+use super::{geometry::{voxel::{Voxel},meshing::chunk_mesher::{VOXEL_SIZE}}, terrain::chunk_generation::TerrainGenerator};
 
 pub const CHUNK_SIZE_X : usize = 20; // Should be equal to Z
 pub const CHUNK_SIZE_Y : usize = 100;
@@ -20,7 +20,7 @@ pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_X];
 //     EAST
 // }
 
-pub const NEIGHBOR_OFFSET: [IVec2;4] = [IVec2::new(0, 1), // NORTH
+pub const VON_NEUMANN_OFFSET: [IVec2;4] = [IVec2::new(0, 1), // NORTH
                                         IVec2::new(1,0), // WEST
                                         IVec2::new(0,-1), // SOUTH
                                         IVec2::new(-1,0)]; // EAST
@@ -32,8 +32,7 @@ pub const MOORE_NEIGHBORHOOD_OFFSET: [IVec2 ; 8] = [IVec2::new(0,1), // NORTH
                                              IVec2::new(0,-1), // SOUTH
                                              IVec2::new(-1,-1), // SOUTH-EAST
                                              IVec2::new(-1,0), // EAST
-                                             IVec2::new(-1,1), // NORTH-EAST
-                                             ];
+                                             IVec2::new(-1,1)]; // NORTH-EAST
 
 pub struct Chunk
 {

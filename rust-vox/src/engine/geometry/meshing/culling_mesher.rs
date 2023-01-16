@@ -94,7 +94,7 @@ impl CullingMesher
 
 impl ChunkMesher for CullingMesher
 {
-    fn generate_mesh(voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
+    fn generate_mesh(chunk_pos: IVec2, voxels: VoxelFetcher, mesh: &mut Mesh<VoxelVertex>, trans_faces: &mut Vec<Face>)
     {        
         // //Generate the directly in here, good enough for now
         // // for now render the mesh of all the voxels as is

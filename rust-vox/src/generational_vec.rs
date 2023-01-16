@@ -10,7 +10,7 @@ pub struct Element<T> // Stored in the GenerationalVec
     generation: u64
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct GenerationIndex
 {
     index: usize,
