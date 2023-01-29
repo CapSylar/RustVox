@@ -1,5 +1,5 @@
 use glam::{Vec3, IVec3, IVec2};
-use crate::engine::{chunk::{CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}, chunk_manager::ChunkManager};
+use crate::engine::{chunk::{CHUNK_SIZE, CHUNK_SIZE_Y, CHUNK_SIZE_X}, geometry::{voxel_vertex::VoxelVertex, mesh::Mesh, voxel::{Voxel,VoxelType}, chunk_mesh::Face}, management::chunk_manager::ChunkManager};
 use super::{chunk_mesher::{ChunkMesher, VOXEL_SIZE, NormalDirection}, voxel_fetcher::VoxelFetcher};
 
 pub struct GreedyMesher;

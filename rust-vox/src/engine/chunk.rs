@@ -12,14 +12,6 @@ pub const CHUNK_SIZE_Z : usize = 20;
 
 pub const CHUNK_SIZE: [usize;3] = [CHUNK_SIZE_X,CHUNK_SIZE_Y,CHUNK_SIZE_X];
 
-// pub enum NeighborDirection // Von Neumann neighborhood
-// {
-//     NORTH,
-//     WEST,
-//     SOUTH,
-//     EAST
-// }
-
 pub const VON_NEUMANN_OFFSET: [IVec2;4] = [IVec2::new(0, 1), // NORTH
                                         IVec2::new(1,0), // WEST
                                         IVec2::new(0,-1), // SOUTH
@@ -34,6 +26,7 @@ pub const MOORE_NEIGHBORHOOD_OFFSET: [IVec2 ; 8] = [IVec2::new(0,1), // NORTH
                                              IVec2::new(-1,0), // EAST
                                              IVec2::new(-1,1)]; // NORTH-EAST
 
+#[derive(Debug)]
 pub struct Chunk
 {
     pub voxels: [[[Voxel; CHUNK_SIZE_Z] ; CHUNK_SIZE_Y] ; CHUNK_SIZE_X],

@@ -2,17 +2,17 @@ use std::collections::HashMap;
 
 use glam::{IVec3, IVec2};
 
-use crate::{engine::{chunk_manager::{ChunkManageUnit, ChunkManager}, geometry::voxel::{Voxel}}, generational_vec::{GenerationIndex, GenerationalArena, ReadLock, WriteLock}};
+use crate::{engine::{geometry::voxel::{Voxel}, management::{chunk_manager::ChunkManager}, chunk::Chunk}, generational_vec::{GenerationIndex, ThreadGenerationalArena, ReadLock, WriteLock}};
 
 pub struct VoxelAccessorFactory
 {
     indices: Vec<GenerationIndex>,
-    arena: &'static GenerationalArena<ChunkManageUnit>,
+    arena: &'static ThreadGenerationalArena<Chunk>,
 }
 
 impl VoxelAccessorFactory
 {
-    pub fn new(arena: &'static GenerationalArena<ChunkManageUnit>) -> Self
+    pub fn new(arena: &'static ThreadGenerationalArena<Chunk>) -> Self
     {
         let indices = Vec::new();
         Self {indices, arena}
@@ -33,7 +33,7 @@ impl VoxelAccessorFactory
             {
                 Ok(lock) =>
                 {
-                    locks.insert( lock.chunk.as_ref().unwrap().pos_chunk_space(), lock);
+                    locks.insert( lock.pos_chunk_space(), lock);
                 },
                 Err(_) => return None,
             }
@@ -42,7 +42,7 @@ impl VoxelAccessorFactory
         Some(VoxelFetcher {locks})
     }
 
-    pub fn get_setter(self) -> Option<VoxelSetter<'static>>
+    pub fn get_writer(self) -> Option<VoxelSetter<'static>>
     {
         let mut locks = HashMap::new();
 
@@ -52,7 +52,7 @@ impl VoxelAccessorFactory
             {
                 Ok(lock) =>
                 {
-                    locks.insert( lock.chunk.as_ref().unwrap().pos_chunk_space(), lock);
+                    locks.insert( lock.pos_chunk_space(), lock);
                 },
                 Err(_) => return None,
             }
@@ -65,7 +65,7 @@ impl VoxelAccessorFactory
 
 pub struct VoxelFetcher<'a>
 {
-    locks: HashMap<IVec2, ReadLock<'a, ChunkManageUnit>>,
+    locks: HashMap<IVec2, ReadLock<'a, Chunk>>,
 }
 
 impl<'a> VoxelFetcher<'a>
@@ -79,7 +79,7 @@ impl<'a> VoxelFetcher<'a>
         {
             Some(lock) =>
             {
-                lock.chunk.as_ref().unwrap().get_voxel(voxel_pos)
+                lock.get_voxel(voxel_pos)
             },
             None => {println!("should not happen"); None},
         } 
@@ -88,7 +88,7 @@ impl<'a> VoxelFetcher<'a>
 
 pub struct VoxelSetter<'a>
 {
-    locks: HashMap<IVec2, WriteLock<'a, ChunkManageUnit>>,
+    locks: HashMap<IVec2, WriteLock<'a, Chunk>>,
 }
 
 impl<'a> VoxelSetter<'a>
@@ -100,11 +100,11 @@ impl<'a> VoxelSetter<'a>
 
         if let Some(locks) = self.locks.get_mut(&chunk_pos)
         {
-            locks.chunk.as_mut().unwrap().set_voxel(voxel_pos, voxel)
+            locks.set_voxel(voxel_pos, voxel)
         }
         else
         {
-            panic!("Problem setting voxel, set_voxle() called with {} and {:?}", world_pos, voxel);
+            panic!("Problem setting voxel, set_voxel() called with {} and {:?}", world_pos, voxel);
         }
     }
 
@@ -117,7 +117,7 @@ impl<'a> VoxelSetter<'a>
         {
             Some(lock) =>
             {
-                lock.chunk.as_ref().unwrap().get_voxel(voxel_pos)
+                lock.get_voxel(voxel_pos)
             },
             None => {println!("should not happen"); None},
         } 

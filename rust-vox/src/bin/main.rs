@@ -11,11 +11,13 @@ use sdl2::{
     video::{GLProfile, SwapInterval}, mouse::MouseButton,
 };
 
-use std::{time::Instant, f32::consts::PI, rc::Rc, cell::RefCell};
+use std::{time::Instant, f32::consts::PI, rc::Rc, cell::RefCell, env};
 static MOUSE_SENSITIVITY: f32 = 0.05;
 
 //TODO: refactor main
-fn main() {
+fn main()
+{
+    env::set_var("RUST_BACKTRACE", "1");
     // initialize SDL and its video subsystem
     let sdl = sdl2::init().unwrap();
     let video_subsystem = sdl.video().unwrap();

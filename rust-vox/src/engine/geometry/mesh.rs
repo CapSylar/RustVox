@@ -6,6 +6,7 @@ use super::opengl_vertex::OpenglVertex;
 
 /// Contains everything we need to render geometry to the screen, namely the actual *vertices* and indices which
 /// indicate how to construct triangles from the vertices
+#[derive(Debug)]
 pub struct Mesh<T>
 {
     pub vertices: Vec<T>,

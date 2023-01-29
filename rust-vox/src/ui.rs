@@ -6,7 +6,7 @@ use imgui_opengl_renderer::Renderer;
 use imgui_sdl2_support::SdlPlatform;
 use sdl2::{VideoSubsystem, video::Window, EventPump};
 
-use crate::{engine::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout}}, allocators::default_allocator::DefaultAllocator, self}, geometry::{mesh::Mesh, opengl_vertex::{self, OpenglVertex}}, chunk_manager::ChunkManager, self}, world::{World, self}};
+use crate::{engine::{renderer::{opengl_abstractions::{shader::Shader, vertex_array::{VertexLayout}}, allocators::default_allocator::DefaultAllocator}, geometry::{mesh::Mesh, opengl_vertex::{OpenglVertex}}, self, management::chunk_manager::ChunkManager}, world::{World}};
 
 pub struct DebugData {
     pub player_pos: Vec3,       // player position in absolute coordinates

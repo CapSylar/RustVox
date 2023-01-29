@@ -1,5 +1,3 @@
-// Should be safe to use across threads
-
 use std::{sync::{RwLock, RwLockReadGuard, RwLockWriteGuard}};
 use std::ops::{Deref, DerefMut};
 
@@ -17,10 +15,16 @@ pub struct GenerationIndex
     generation: u64, // monotonically increasing counter
 }
 
-pub struct GenerationalArena<T>
+pub struct ThreadGenerationalArena<T>
 {
     arena: Vec<RwLock<Element<T>>>,
     free_list: RwLock<Vec<usize>>,
+}
+
+pub struct GenerationalArena<T>
+{
+    arena: Vec<Element<T>>,
+    free_list: Vec<usize>,
 }
 
 // These types are returned by the function, obfuscating the underlying locks
@@ -71,7 +75,7 @@ pub enum GenerationErr
     Locked, // the slot cannot be checked because it is being written to by another thread
 }
 
-impl<T> GenerationalArena<T>
+impl<T> ThreadGenerationalArena<T>
 {
     pub fn new(size: usize) -> Self
     {
@@ -193,5 +197,84 @@ impl<T> GenerationalArena<T>
             Ok(free_list) => Ok(free_list.len()),
             Err(_) => Err(()),
         }
+    }
+}
+
+// TODO: try to refactor both arenas into something common, too much copied code
+impl<T> GenerationalArena<T>
+{
+    pub fn new(size: usize) -> Self
+    {
+        assert!(size > 0);
+        let mut arena: Vec<Element<T>> = Vec::new();
+        arena.reserve(size);
+        
+        for _ in 0..size
+        {
+            arena.push(Element { elem: None, generation: 0 });
+        }
+
+        // init the free list 
+        let free_list = (0..size).collect();
+        Self{arena, free_list}
+    }
+
+    /// Tries to place T into the arena, could fail if the vec is full
+    pub fn try_insert(&mut self, value: T) -> Result<GenerationIndex, T>
+    {
+        if self.free_list.is_empty() // fails when no room is left
+        {
+            return Err(value);
+        }
+
+        let index = self.free_list.pop().unwrap(); // unwrap should never fail
+        self.arena[index].elem = Some(value);
+
+        Ok(GenerationIndex { index, generation: self.arena[index].generation })
+    }
+
+    pub fn try_remove(&mut self, index: GenerationIndex) -> Result<T, ()>
+    {
+        let slot = &mut self.arena[index.index];
+
+        if slot.generation > index.generation || slot.elem.is_none()
+        {
+            return Err(());
+        }
+
+        self.free_list.push(index.index); // return the slot to the free list
+        slot.generation += 1; // increment the generation counter
+        Ok(slot.elem.take().unwrap())
+    }
+
+    // Try to retrieve using the index if possible
+    pub fn get(&self, index: GenerationIndex) -> Result<&T,()>
+    {
+        let slot = & self.arena[index.index];
+
+        if slot.generation > index.generation || slot.elem.is_none()
+        {
+            return Err(());
+        }
+
+        Ok(slot.elem.as_ref().unwrap())
+    }
+
+    // Try to retrieve using the index if possible
+    pub fn get_mut(&mut self, index: GenerationIndex) -> Result<&mut T,()>
+    {
+        let slot = &mut self.arena[index.index];
+
+        if slot.generation > index.generation || slot.elem.is_none()
+        {
+            return Err(());
+        }
+
+        Ok(slot.elem.as_mut().unwrap())
+    }
+
+    pub fn num_free(&self) -> usize
+    {
+        self.free_list.len()
     }
 }

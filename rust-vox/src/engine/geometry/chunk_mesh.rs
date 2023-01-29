@@ -17,6 +17,7 @@ impl Face
     }
 }
 
+#[derive(Debug)]
 pub struct ChunkMesh
 {
     pub mesh: Mesh<VoxelVertex>, // holds all geometry

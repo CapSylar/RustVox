@@ -5,7 +5,8 @@
 
 use glam::{Vec3, IVec3};
 use crate::engine::geometry::voxel::Voxel;
-use super::chunk_manager::ChunkManager;
+
+use super::management::chunk_manager::ChunkManager;
 
 // uses get_closest_voxel
 pub fn cast_ray(position: Vec3, direction: Vec3, chunk_manager: &ChunkManager) -> Option<(IVec3,IVec3)>

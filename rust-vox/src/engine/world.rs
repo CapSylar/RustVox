@@ -2,7 +2,7 @@ use std::{cell::RefCell, rc::Rc};
 
 use crate::ui::DebugData;
 
-use super::{camera::Camera, chunk_manager::ChunkManager, ray_cast::cast_ray};
+use super::{camera::Camera, ray_cast::cast_ray, management::chunk_manager::ChunkManager};
 
 pub struct World
 {
